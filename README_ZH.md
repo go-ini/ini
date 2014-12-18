@@ -15,7 +15,7 @@
 
 ## 下载安装
 
-go get gopkg.in/ini.v0
+    go get gopkg.in/ini.v0
 
 ## 开始使用
 
