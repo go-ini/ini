@@ -149,6 +149,8 @@ By default, library lets you read and write values so we need a locker to make s
 
 Many people are using my another INI library [goconfig](https://github.com/Unknwon/goconfig), so the reason for this one is I would like to make more Go style code. Also when you set `cfg.BlockMode = false`, this one is about **10%** faster.
 
+To make those changes I have to confirm API broken, so it's safer to keep it in another place and start using `gopkg.in` to version my package at this time.
+
 ## License
 
 This project is under Apache v2 License. See the [LICENSE](LICENSE) file for the full license text.
