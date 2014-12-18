@@ -336,6 +336,13 @@ func Test_File_SaveTo(t *testing.T) {
 
 func Benchmark_Key_String(b *testing.B) {
 	c, _ := Load([]byte(_CONF_DATA))
+	for i := 0; i < b.N; i++ {
+		c.Section("").Key("NAME").String()
+	}
+}
+
+func Benchmark_Key_String_Non_Block(b *testing.B) {
+	c, _ := Load([]byte(_CONF_DATA))
 	c.BlockMode = false
 	for i := 0; i < b.N; i++ {
 		c.Section("").Key("NAME").String()

@@ -111,23 +111,47 @@ val := cfg.Section("").Key("key name").String()
 To get value with types:
 
 ```go
-v, err = cfg.Section("").Key("key name").Bool()
-v, err = cfg.Section("").Key("key name").Float64()
-v, err = cfg.Section("").Key("key name").Int()
-v, err = cfg.Section("").Key("key name").Int64()
+v, err = cfg.Section("").Key("BOOL").Bool()
+v, err = cfg.Section("").Key("FLOAT64").Float64()
+v, err = cfg.Section("").Key("INT").Int()
+v, err = cfg.Section("").Key("INT64").Int64()
 
-v = cfg.Section("").Key("key name").MustBool()
-v = cfg.Section("").Key("key name").MustFloat64()
-v = cfg.Section("").Key("key name").MustInt()
-v = cfg.Section("").Key("key name").MustInt64()
+v = cfg.Section("").Key("BOOL").MustBool()
+v = cfg.Section("").Key("FLOAT64").MustFloat64()
+v = cfg.Section("").Key("INT").MustInt()
+v = cfg.Section("").Key("INT64").MustInt64()
 
 // Methods start with Must also accept one argument for default value
 // when key not found or fail to parse value to given type.
 
-v = cfg.Section("").Key("key name").MustBool(true)
-v = cfg.Section("").Key("key name").MustFloat64(1.25)
-v = cfg.Section("").Key("key name").MustInt(10)
-v = cfg.Section("").Key("key name").MustInt64(99)
+v = cfg.Section("").Key("BOOL").MustBool(true)
+v = cfg.Section("").Key("FLOAT64").MustFloat64(1.25)
+v = cfg.Section("").Key("INT").MustInt(10)
+v = cfg.Section("").Key("INT64").MustInt64(99)
+```
+
+That's all? Hmm, no.
+
+#### Helper methods of working with values
+
+To get value with given candidates:
+
+```go
+v = cfg.Section("").Key("STRING").In("default", []string{"str", "arr", "types"})
+v = cfg.Section("").Key("FLOAT64").InFloat64(1.1, []float64{1.25, 2.5, 3.75})
+v = cfg.Section("").Key("INT").InInt(5, []int{10, 20, 30})
+v = cfg.Section("").Key("INT64").InInt64(10, []int64{10, 20, 30})
+```
+
+Default value will be presented if value of key is not in candidates you given, and default value does not need be one of candidates.
+
+To auto-split value into slice:
+
+```go
+vals = cfg.Section("").Key("STRINGS").Strings(",")
+vals = cfg.Section("").Key("FLOAT64S").Float64s(",")
+vals = cfg.Section("").Key("INTS").Ints(",")
+vals = cfg.Section("").Key("INT64S").Int64s(",")
 ```
 
 ### Example
@@ -149,7 +173,7 @@ By default, library lets you read and write values so we need a locker to make s
 
 Many people are using my another INI library [goconfig](https://github.com/Unknwon/goconfig), so the reason for this one is I would like to make more Go style code. Also when you set `cfg.BlockMode = false`, this one is about **10%** faster.
 
-To make those changes I have to confirm API broken, so it's safer to keep it in another place and start using `gopkg.in` to version my package at this time.
+To make those changes I have to confirm API broken, so it's safer to keep it in another place and start using `gopkg.in` to version my package at this time.(PS: shorter import path)
 
 ## License
 
