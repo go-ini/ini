@@ -102,9 +102,18 @@ func (k *Key) Name() string {
 	return k.name
 }
 
+// Value returns raw value of key for performance purpose.
+func (k *Key) Value() string {
+	return k.value
+}
+
 // String returns string representation of value.
 func (k *Key) String() string {
 	val := k.value
+	if strings.Index(val, "%") == -1 {
+		return val
+	}
+
 	for i := 0; i < _DEPTH_VALUES; i++ {
 		vr := varPattern.FindString(val)
 		if len(vr) == 0 {

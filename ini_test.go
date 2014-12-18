@@ -334,6 +334,13 @@ func Test_File_SaveTo(t *testing.T) {
 	})
 }
 
+func Benchmark_Key_Value(b *testing.B) {
+	c, _ := Load([]byte(_CONF_DATA))
+	for i := 0; i < b.N; i++ {
+		c.Section("").Key("NAME").Value()
+	}
+}
+
 func Benchmark_Key_String(b *testing.B) {
 	c, _ := Load([]byte(_CONF_DATA))
 	for i := 0; i < b.N; i++ {
@@ -341,7 +348,15 @@ func Benchmark_Key_String(b *testing.B) {
 	}
 }
 
-func Benchmark_Key_String_Non_Block(b *testing.B) {
+func Benchmark_Key_Value_NonBlock(b *testing.B) {
+	c, _ := Load([]byte(_CONF_DATA))
+	c.BlockMode = false
+	for i := 0; i < b.N; i++ {
+		c.Section("").Key("NAME").Value()
+	}
+}
+
+func Benchmark_Key_String_NonBlock(b *testing.B) {
 	c, _ := Load([]byte(_CONF_DATA))
 	c.BlockMode = false
 	for i := 0; i < b.N; i++ {
