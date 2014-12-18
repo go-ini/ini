@@ -26,55 +26,77 @@ Package ini provides INI file read and write functionality in Go.
 
 A `Data Source` is either raw data in type `[]byte` or a file name with type `string` and you can load **as many as** data sources you want. Passing other types will simply returns error.
 
-	cfg, err := ini.Load([]byte("raw data"), "filename")
+```go
+cfg, err := ini.Load([]byte("raw data"), "filename")
+```
 
 When you cannot decide how many data sources to load at the beginning, you still able to **Append()** them later.
 
-	err := cfg.Append("other file", []byte("other raw data"))
+```go
+err := cfg.Append("other file", []byte("other raw data"))
+```
 
 ### Working with sections
 
 To get a section, you would need to:
 
-	section, err := cfg.GetSection("section name")
+```go
+section, err := cfg.GetSection("section name")
+```
 
 For a shortcut for default section, just give an empty string as name:
 
-	section, err := cfg.GetSection("")
+```go
+section, err := cfg.GetSection("")
+```
 
 When you're pretty sure the section exists, following code could make your life easier:
 
-	section := cfg.Section("")
+```go
+section := cfg.Section("")
+```
 
 What happens when the section somehow does not exists? Won't panic, it returns an empty section object.
 
 To create a new section:
 
-	err := cfg.NewSection("new section")
+```go
+err := cfg.NewSection("new section")
+```
 
 To get a list of sections or section names:
 
-	sections := cfg.Sections()
-	names := cfg.SectionStrings()
+```go
+sections := cfg.Sections()
+names := cfg.SectionStrings()
+```
 
 ### Working with keys
 
 To get a key under a section:
 
-	key, err := cfg.Section("").GetKey("key name")
+```go
+key, err := cfg.Section("").GetKey("key name")
+```
 
 Same rule applies to key operations:
 
-	key := cfg.Section("").Key("key name")
+```go
+key := cfg.Section("").Key("key name")
+```
 
 To create a new key:
 
-	err := cfg.Section("").NewKey("name", "value")
+```go
+err := cfg.Section("").NewKey("name", "value")
+```
 
 To get a list of keys or key names:
 
-	keys := cfg.Section().Keys()
-	names := cfg.Section().KeyStrings()
+```go
+keys := cfg.Section().Keys()
+names := cfg.Section().KeyStrings()
+```
 
 ### Working with values
 
@@ -82,26 +104,31 @@ For all value of keys, there is a special syntax `%(<name>)s`, where `<name>` is
 
 To get a string value:
 
-	val := cfg.Section("").Key("key name").String()
+```go
+val := cfg.Section("").Key("key name").String()
+```
 
 To get value with types:
 
-	v, err = cfg.Section("").Key("key name").Bool()
-	v, err = cfg.Section("").Key("key name").Float64()
-	v, err = cfg.Section("").Key("key name").Int()
-	v, err = cfg.Section("").Key("key name").Int64()
+```go
+v, err = cfg.Section("").Key("key name").Bool()
+v, err = cfg.Section("").Key("key name").Float64()
+v, err = cfg.Section("").Key("key name").Int()
+v, err = cfg.Section("").Key("key name").Int64()
 
-	v = cfg.Section("").Key("key name").MustBool()
-	v = cfg.Section("").Key("key name").MustFloat64()
-	v = cfg.Section("").Key("key name").MustInt()
-	v = cfg.Section("").Key("key name").MustInt64()
+v = cfg.Section("").Key("key name").MustBool()
+v = cfg.Section("").Key("key name").MustFloat64()
+v = cfg.Section("").Key("key name").MustInt()
+v = cfg.Section("").Key("key name").MustInt64()
 
-	// Methods start with Must also accept one argument for default value when key not found or fail to parse value to given type.
+// Methods start with Must also accept one argument for default value
+// when key not found or fail to parse value to given type.
 
-	v = cfg.Section("").Key("key name").MustBool(true)
-	v = cfg.Section("").Key("key name").MustFloat64(1.25)
-	v = cfg.Section("").Key("key name").MustInt(10)
-	v = cfg.Section("").Key("key name").MustInt64(99)
+v = cfg.Section("").Key("key name").MustBool(true)
+v = cfg.Section("").Key("key name").MustFloat64(1.25)
+v = cfg.Section("").Key("key name").MustInt(10)
+v = cfg.Section("").Key("key name").MustInt64(99)
+```
 
 ### Example
 
