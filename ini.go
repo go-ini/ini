@@ -752,6 +752,9 @@ func (f *File) SaveTo(filename string) (err error) {
 	for i, sname := range f.sectionList {
 		sec := f.Section(sname)
 		if len(sec.Comment) > 0 {
+			if sec.Comment[0] != '#' && sec.Comment[0] != ';' {
+				sec.Comment = "; " + sec.Comment
+			}
 			if _, err = buf.WriteString(sec.Comment + LineBreak); err != nil {
 				return err
 			}
@@ -766,6 +769,9 @@ func (f *File) SaveTo(filename string) (err error) {
 		for _, kname := range sec.keyList {
 			key := sec.Key(kname)
 			if len(key.Comment) > 0 {
+				if key.Comment[0] != '#' && key.Comment[0] != ';' {
+					key.Comment = "; " + key.Comment
+				}
 				if _, err = buf.WriteString(key.Comment + LineBreak); err != nil {
 					return err
 				}
