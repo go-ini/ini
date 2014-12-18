@@ -1,7 +1,9 @@
-ini
+ini [![Build Status](https://drone.io/github.com/go-ini/ini/status.png)](https://drone.io/github.com/go-ini/ini/latest) [![](http://gocover.io/_badge/github.com/go-ini/ini)](http://gocover.io/github.com/go-ini/ini)
 ===
 
 Package ini provides INI file read and write functionality in Go.
+
+[简体中文](README_ZH.md)
 
 ## Feature
 
@@ -24,7 +26,7 @@ Package ini provides INI file read and write functionality in Go.
 
 ### Loading from data sources
 
-A `Data Source` is either raw data in type `[]byte` or a file name with type `string` and you can load **as many as** data sources you want. Passing other types will simply returns error.
+A **Data Source** is either raw data in type `[]byte` or a file name with type `string` and you can load **as many as** data sources you want. Passing other types will simply returns error.
 
 ```go
 cfg, err := ini.Load([]byte("raw data"), "filename")
