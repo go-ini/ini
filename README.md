@@ -26,7 +26,7 @@ Package ini provides INI file read and write functionality in Go.
 
 ### Loading from data sources
 
-A **Data Source** is either raw data in type `[]byte` or a file name with type `string` and you can load **as many as** data sources you want. Passing other types will simply returns error.
+A **Data Source** is either raw data in type `[]byte` or a file name with type `string` and you can load **as many as** data sources you want. Passing other types will simply return an error.
 
 ```go
 cfg, err := ini.Load([]byte("raw data"), "filename")
