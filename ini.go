@@ -383,6 +383,11 @@ func (s *Section) KeyStrings() []string {
 
 // KeysHash returns keys hash consisting of names and values.
 func (s *Section) KeysHash() map[string]string {
+	if s.f.BlockMode {
+		s.f.lock.RLock()
+		defer s.f.lock.RUnlock()
+	}
+
 	hash := map[string]string{}
 	for key, value := range s.keysHash {
 		hash[key] = value
