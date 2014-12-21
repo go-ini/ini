@@ -73,6 +73,11 @@ sections := cfg.Sections()
 names := cfg.SectionStrings()
 ```
 
+To get a hash of keys and corresponding values:
+```go
+hash := cfg.GetSection("").KeysHash()
+```
+
 ### Working with keys
 
 To get a key under a section:

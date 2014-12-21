@@ -296,17 +296,18 @@ func (k *Key) SetValue(v string) {
 // /_______  /\___  >\___  >__| |__|\____/|___|  /
 //         \/     \/     \/                    \/
 
-// Section represetns a config section.
+// Section represents a config section.
 type Section struct {
-	f       *File
-	Comment string
-	name    string
-	keys    map[string]*Key
-	keyList []string
+	f        *File
+	Comment  string
+	name     string
+	keys     map[string]*Key
+	keyList  []string
+	keysHash map[string]string
 }
 
 func newSection(f *File, name string) *Section {
-	return &Section{f, "", name, make(map[string]*Key), make([]string, 0, 10)}
+	return &Section{f, "", name, make(map[string]*Key), make([]string, 0, 10), make(map[string]string)}
 }
 
 // Name returns name of Section.
@@ -332,6 +333,7 @@ func (s *Section) NewKey(name, val string) (*Key, error) {
 
 	s.keyList = append(s.keyList, name)
 	s.keys[name] = &Key{s, "", name, val, false}
+	s.keysHash[name] = val
 	return s.keys[name], nil
 }
 
@@ -377,6 +379,20 @@ func (s *Section) KeyStrings() []string {
 	list := make([]string, len(s.keyList))
 	copy(list, s.keyList)
 	return list
+}
+
+// KeysHash returns keys hash consisting of names and values.
+func (s *Section) KeysHash() map[string]string {
+	if s.f.BlockMode {
+		s.f.lock.RLock()
+		defer s.f.lock.RUnlock()
+	}
+
+	hash := map[string]string{}
+	for key, value := range s.keysHash {
+		hash[key] = value
+	}
+	return hash
 }
 
 // DeleteKey deletes a key from section.
