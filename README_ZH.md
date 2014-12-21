@@ -95,6 +95,12 @@ keys := cfg.Section().Keys()
 names := cfg.Section().KeyStrings()
 ```
 
+获取分区下的所有键值对：
+
+```go
+hash := cfg.GetSection("").KeysHash()
+```
+
 ### 操作键值（Value）
 
 在获取所有键值的过程中，特殊语法 `%(<name>)s` 会被应用，其中 `<name>` 可以是相同分区或者默认分区下的键名。字符串 `%(<name>)s` 会被相应的键值所替代，如果指定的键不存在，则会用空字符串替代。您可以最多使用 99 层的递归嵌套。
