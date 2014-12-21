@@ -145,6 +145,7 @@ func Test_Values(t *testing.T) {
 		Convey("Get values in default section", func() {
 			sec := cfg.Section("")
 			So(sec, ShouldNotBeNil)
+			So(sec.Key("NAME").Value(), ShouldEqual, "ini")
 			So(sec.Key("NAME").String(), ShouldEqual, "ini")
 			So(sec.Key("NAME").Comment, ShouldEqual, "; Package name")
 			So(sec.Key("IMPORT_PATH").String(), ShouldEqual, "gopkg.in/ini.v0")
@@ -253,6 +254,10 @@ func Test_Values(t *testing.T) {
 			for i, v := range []int64{1, 2, 3} {
 				So(vals3[i], ShouldEqual, v)
 			}
+		})
+
+		Convey("Get key hash", func() {
+			cfg.Section("").KeysHash()
 		})
 
 		Convey("Set key value", func() {
