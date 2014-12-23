@@ -2,9 +2,9 @@
 
 ## 功能特性
 
-- 支持覆盖加载多个数据源（[]byte 或文件）
-- 支持读取子孙分区
+- 支持覆盖加载多个数据源（`[]byte` 或文件）
 - 支持递归读取键值
+- 支持读取父子分区
 - 支持读取自增键名
 - 支持读取多行的键值
 - 支持大量辅助方法
@@ -95,15 +95,13 @@ keys := cfg.Section().Keys()
 names := cfg.Section().KeyStrings()
 ```
 
-获取分区下的所有键值对：
+获取分区下的所有键值对的克隆：
 
 ```go
 hash := cfg.GetSection("").KeysHash()
 ```
 
 ### 操作键值（Value）
-
-在获取所有键值的过程中，特殊语法 `%(<name>)s` 会被应用，其中 `<name>` 可以是相同分区或者默认分区下的键名。字符串 `%(<name>)s` 会被相应的键值所替代，如果指定的键不存在，则会用空字符串替代。您可以最多使用 99 层的递归嵌套。
 
 获取一个类型为字符串（string）的值：
 
@@ -133,6 +131,27 @@ v = cfg.Section("").Key("INT").MustInt(10)
 v = cfg.Section("").Key("INT64").MustInt64(99)
 ```
 
+如果我的值有好多行怎么办？
+
+```ini
+[advance]
+ADDRESS = """404 road,
+NotFound, State, 5000
+Earth"""
+```
+
+嗯哼？小 case！
+
+```go
+cfg.Section("advance").Key("ADDRESS").String()
+
+/* --- start ---
+404 road,
+NotFound, State, 5000
+Earth
+------  end  --- */
+```
+
 这就是全部了？哈哈，当然不是。
 
 #### 操作键值的辅助方法
@@ -157,9 +176,61 @@ vals = cfg.Section("").Key("INTS").Ints(",")
 vals = cfg.Section("").Key("INT64S").Int64s(",")
 ```
 
-### 完整示例
+### 高级用法
 
-请通过 [ini_test.go](ini_test.go) 文件来学习最完整和最高级的用法。
+#### 递归读取键值
+
+在获取所有键值的过程中，特殊语法 `%(<name>)s` 会被应用，其中 `<name>` 可以是相同分区或者默认分区下的键名。字符串 `%(<name>)s` 会被相应的键值所替代，如果指定的键不存在，则会用空字符串替代。您可以最多使用 99 层的递归嵌套。
+
+```ini
+NAME = ini
+
+[author]
+NAME = Unknwon
+GITHUB = https://github.com/%(NAME)s
+
+[package]
+FULL_NAME = github.com/go-ini/%(NAME)s
+```
+
+```go
+cfg.Section("author").Key("GITHUB").String()		// https://github.com/Unknwon
+cfg.Section("package").Key("FULL_NAME").String()	// github.com/go-ini/ini
+```
+
+#### 读取父子分区
+
+您可以在分区名称中使用 `.` 来表示两个或多个分区之间的父子关系。如果某个键在子分区中不存在，则会去它的父分区中再次寻找，直到没有父分区为止。
+
+```ini
+NAME = ini
+VERSION = v0
+IMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s
+
+[package]
+CLONE_URL = https://%(IMPORT_PATH)s
+
+[package.sub]
+```
+
+```go
+cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v0
+```
+
+#### 读取自增键名
+
+如果数据源中的键名为 `-`，则认为该键使用了自增键名的特殊语法。计数器从 1 开始，并且分区之间是相互独立的。
+
+```ini
+[features]
+-: Support read/write comments of keys and sections
+-: Support auto-increment of key names
+-: Support load multiple files to overwrite key values
+```
+
+```go
+cfg.Section("features").KeyStrings()	// []{"#1", "#2", "#3"}
+```
 
 ## 获取帮助
 

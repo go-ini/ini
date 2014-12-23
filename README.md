@@ -7,9 +7,9 @@ Package ini provides INI file read and write functionality in Go.
 
 ## Feature
 
-- Load multiple data sources([]byte or file) with overwrites.
-- Read with parent-child sections.
+- Load multiple data sources(`[]byte` or file) with overwrites.
 - Read with recursion values.
+- Read with parent-child sections.
 - Read with auto-increment key names.
 - Read with multiple-line values.
 - Read with tons of helper methods.
@@ -100,15 +100,13 @@ keys := cfg.Section().Keys()
 names := cfg.Section().KeyStrings()
 ```
 
-To get a hash of keys and corresponding values:
+To get a clone hash of keys and corresponding values:
 
 ```go
 hash := cfg.GetSection("").KeysHash()
 ```
 
 ### Working with values
-
-For all value of keys, there is a special syntax `%(<name>)s`, where `<name>` is the key name in same section or default section, and `%(<name>)s` will be replaced by corresponding value(empty string if key not found). You can use this syntax at most 99 level of recursions.
 
 To get a string value:
 
@@ -138,6 +136,27 @@ v = cfg.Section("").Key("INT").MustInt(10)
 v = cfg.Section("").Key("INT64").MustInt64(99)
 ```
 
+What if my value is three-line long?
+
+```ini
+[advance]
+ADDRESS = """404 road,
+NotFound, State, 5000
+Earth"""
+```
+
+Not a problem!
+
+```go
+cfg.Section("advance").Key("ADDRESS").String()
+
+/* --- start ---
+404 road,
+NotFound, State, 5000
+Earth
+------  end  --- */
+```
+
 That's all? Hmm, no.
 
 #### Helper methods of working with values
@@ -162,9 +181,61 @@ vals = cfg.Section("").Key("INTS").Ints(",")
 vals = cfg.Section("").Key("INT64S").Int64s(",")
 ```
 
-### Example
+### Advanced Usage
 
-Please see [ini_test.go](ini_test.go) for complete and most advanced usages.
+#### Recursive Values
+
+For all value of keys, there is a special syntax `%(<name>)s`, where `<name>` is the key name in same section or default section, and `%(<name>)s` will be replaced by corresponding value(empty string if key not found). You can use this syntax at most 99 level of recursions.
+
+```ini
+NAME = ini
+
+[author]
+NAME = Unknwon
+GITHUB = https://github.com/%(NAME)s
+
+[package]
+FULL_NAME = github.com/go-ini/%(NAME)s
+```
+
+```go
+cfg.Section("author").Key("GITHUB").String()		// https://github.com/Unknwon
+cfg.Section("package").Key("FULL_NAME").String()	// github.com/go-ini/ini
+```
+
+#### Parent-child Sections
+
+You can use `.` in section name to indicate parent-child relationship between two or more sections. If the key not found in the child section, library will try again on its parent section until there is no parent section.
+
+```ini
+NAME = ini
+VERSION = v0
+IMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s
+
+[package]
+CLONE_URL = https://%(IMPORT_PATH)s
+
+[package.sub]
+```
+
+```go
+cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v0
+```
+
+#### Auto-increment Key Names
+
+If key name is `-` in data source, then it would be seen as special syntax for auto-increment key name start from 1, and every section is independent on counter.
+
+```ini
+[features]
+-: Support read/write comments of keys and sections
+-: Support auto-increment of key names
+-: Support load multiple files to overwrite key values
+```
+
+```go
+cfg.Section("features").KeyStrings()	// []{"#1", "#2", "#3"}
+```
 
 ## Getting Help
 
