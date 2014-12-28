@@ -241,6 +241,7 @@ func Test_Values(t *testing.T) {
 		Convey("Get values into slice", func() {
 			sec := cfg.Section("array")
 			So(strings.Join(sec.Key("STRINGS").Strings(","), ","), ShouldEqual, "en,zh,de")
+			So(len(sec.Key("STRINGS_404").Strings(",")), ShouldEqual, 0)
 
 			vals1 := sec.Key("FLOAT64S").Float64s(",")
 			for i, v := range []float64{1.1, 2.2, 3.3} {

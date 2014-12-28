@@ -256,7 +256,12 @@ func (k *Key) InInt64(defaultVal int64, candidates []int64) int64 {
 
 // Strings returns list of string devide by given delimiter.
 func (k *Key) Strings(delim string) []string {
-	vals := strings.Split(k.String(), delim)
+	str := k.String()
+	if len(str) == 0 {
+		return []string{}
+	}
+
+	vals := strings.Split(str, delim)
 	for i := range vals {
 		vals[i] = strings.TrimSpace(vals[i])
 	}
