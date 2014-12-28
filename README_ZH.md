@@ -124,7 +124,9 @@ v = cfg.Section("").Key("INT64").MustInt64()
 
 // 由 Must 开头的方法名允许接收一个相同类型的参数来作为默认值，
 // 当键不存在或者转换失败时，则会直接返回该默认值。
+// 但是，MustString 方法必须传递一个默认值。
 
+v = cfg.Seciont("").Key("String").MustString("default")
 v = cfg.Section("").Key("BOOL").MustBool(true)
 v = cfg.Section("").Key("FLOAT64").MustFloat64(1.25)
 v = cfg.Section("").Key("INT").MustInt(10)

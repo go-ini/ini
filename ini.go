@@ -157,6 +157,15 @@ func (k *Key) Int64() (int64, error) {
 	return strconv.ParseInt(k.String(), 10, 64)
 }
 
+// MustString returns default value if key value is empty.
+func (k *Key) MustString(defaultVal string) string {
+	val := k.String()
+	if len(val) == 0 {
+		return defaultVal
+	}
+	return val
+}
+
 // MustBool always returns value without error,
 // it returns false if error occurs.
 func (k *Key) MustBool(defaultVal ...bool) bool {

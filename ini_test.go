@@ -207,12 +207,14 @@ func Test_Values(t *testing.T) {
 			So(v4, ShouldEqual, 10)
 
 			Convey("Must get values with type", func() {
+				So(sec.Key("STRING").MustString("404"), ShouldEqual, "str")
 				So(sec.Key("BOOL").MustBool(), ShouldBeTrue)
 				So(sec.Key("FLOAT64").MustFloat64(), ShouldEqual, 1.25)
 				So(sec.Key("INT").MustInt(), ShouldEqual, 10)
 				So(sec.Key("INT").MustInt64(), ShouldEqual, 10)
 
 				Convey("Must get values with default value", func() {
+					So(sec.Key("STRING_404").MustString("404"), ShouldEqual, "404")
 					So(sec.Key("BOOL_404").MustBool(true), ShouldBeTrue)
 					So(sec.Key("FLOAT64_404").MustFloat64(2.5), ShouldEqual, 2.5)
 					So(sec.Key("INT_404").MustInt(15), ShouldEqual, 15)

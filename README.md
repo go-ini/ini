@@ -129,7 +129,9 @@ v = cfg.Section("").Key("INT64").MustInt64()
 
 // Methods start with Must also accept one argument for default value
 // when key not found or fail to parse value to given type.
+// Except method MustString, which you have to pass a default value.
 
+v = cfg.Seciont("").Key("String").MustString("default")
 v = cfg.Section("").Key("BOOL").MustBool(true)
 v = cfg.Section("").Key("FLOAT64").MustFloat64(1.25)
 v = cfg.Section("").Key("INT").MustInt(10)
