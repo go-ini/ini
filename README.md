@@ -20,7 +20,7 @@ Package ini provides INI file read and write functionality in Go.
 
 ## Installation
 
-	go get gopkg.in/ini.v0
+	go get gopkg.in/ini.v1
 
 ## Getting Started
 
