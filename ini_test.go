@@ -26,7 +26,7 @@ const _CONF_DATA = `
 ; Package name
 NAME = ini
 ; Package version
-VERSION = v0
+VERSION = v1
 ; Package import path
 IMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s
 
@@ -148,7 +148,7 @@ func Test_Values(t *testing.T) {
 			So(sec.Key("NAME").Value(), ShouldEqual, "ini")
 			So(sec.Key("NAME").String(), ShouldEqual, "ini")
 			So(sec.Key("NAME").Comment, ShouldEqual, "; Package name")
-			So(sec.Key("IMPORT_PATH").String(), ShouldEqual, "gopkg.in/ini.v0")
+			So(sec.Key("IMPORT_PATH").String(), ShouldEqual, "gopkg.in/ini.v1")
 		})
 
 		Convey("Get values in non-default section", func() {
@@ -159,7 +159,7 @@ func Test_Values(t *testing.T) {
 
 			sec = cfg.Section("package")
 			So(sec, ShouldNotBeNil)
-			So(sec.Key("CLONE_URL").String(), ShouldEqual, "https://gopkg.in/ini.v0")
+			So(sec.Key("CLONE_URL").String(), ShouldEqual, "https://gopkg.in/ini.v1")
 		})
 
 		Convey("Get auto-increment key names", func() {
@@ -181,7 +181,7 @@ func Test_Values(t *testing.T) {
 		})
 
 		Convey("Get parent section value", func() {
-			So(cfg.Section("package.sub").Key("CLONE_URL").String(), ShouldEqual, "https://gopkg.in/ini.v0")
+			So(cfg.Section("package.sub").Key("CLONE_URL").String(), ShouldEqual, "https://gopkg.in/ini.v1")
 		})
 
 		Convey("Get multiple line value", func() {

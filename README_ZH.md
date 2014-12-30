@@ -206,7 +206,7 @@ cfg.Section("package").Key("FULL_NAME").String()	// github.com/go-ini/ini
 
 ```ini
 NAME = ini
-VERSION = v0
+VERSION = v1
 IMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s
 
 [package]
@@ -216,7 +216,7 @@ CLONE_URL = https://%(IMPORT_PATH)s
 ```
 
 ```go
-cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v0
+cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v1
 ```
 
 #### 读取自增键名
@@ -236,7 +236,7 @@ cfg.Section("features").KeyStrings()	// []{"#1", "#2", "#3"}
 
 ## 获取帮助
 
-- [API 文档](https://gowalker.org/gopkg.in/ini.v0)
+- [API 文档](https://gowalker.org/gopkg.in/ini.v1)
 - [创建工单](https://github.com/go-ini/ini/issues/new)
 
 ## 常见问题

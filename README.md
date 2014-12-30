@@ -211,7 +211,7 @@ You can use `.` in section name to indicate parent-child relationship between tw
 
 ```ini
 NAME = ini
-VERSION = v0
+VERSION = v1
 IMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s
 
 [package]
@@ -221,7 +221,7 @@ CLONE_URL = https://%(IMPORT_PATH)s
 ```
 
 ```go
-cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v0
+cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v1
 ```
 
 #### Auto-increment Key Names
@@ -241,7 +241,7 @@ cfg.Section("features").KeyStrings()	// []{"#1", "#2", "#3"}
 
 ## Getting Help
 
-- [API Documentation](https://gowalker.org/gopkg.in/ini.v0)
+- [API Documentation](https://gowalker.org/gopkg.in/ini.v1)
 - [File An Issue](https://github.com/go-ini/ini/issues/new)
 
 ## FAQs
