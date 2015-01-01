@@ -162,3 +162,22 @@ func Test_Struct(t *testing.T) {
 		So(MapTo(&emptySlice{}, []byte(_INVALID_DATA_CONF_STRUCT)), ShouldBeNil)
 	})
 }
+
+type testGetter struct {
+	PackageName string
+}
+
+func Test_NameGetter(t *testing.T) {
+	Convey("Test name getters", t, func() {
+		So(MapToGetter(&testGetter{}, TitleUnderscore, []byte("packag_name=ini")), ShouldBeNil)
+
+		cfg, err := Load([]byte("PACKAGE_NAME=ini"))
+		So(err, ShouldBeNil)
+		So(cfg, ShouldNotBeNil)
+
+		cfg.NameGetter = AllCapsUnderscore
+		tg := new(testGetter)
+		So(cfg.MapTo(tg), ShouldBeNil)
+		So(tg.PackageName, ShouldEqual, "ini")
+	})
+}

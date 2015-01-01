@@ -19,10 +19,42 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+	"unicode"
 )
 
 // NameGetter represents a ini tag name getter.
 type NameGetter func(string) string
+
+// Built-in name getters.
+var (
+	// AllCapsUnderscore converts to format ALL_CAPS_UNDERSCORE.
+	AllCapsUnderscore NameGetter = func(raw string) string {
+		newstr := make([]rune, 0, 10)
+		for i, chr := range raw {
+			if isUpper := 'A' <= chr && chr <= 'Z'; isUpper {
+				if i > 0 {
+					newstr = append(newstr, '_')
+				}
+			}
+			newstr = append(newstr, unicode.ToUpper(chr))
+		}
+		return string(newstr)
+	}
+	// TitleUnderscore converts to format title_underscore.
+	TitleUnderscore NameGetter = func(raw string) string {
+		newstr := make([]rune, 0, 10)
+		for i, chr := range raw {
+			if isUpper := 'A' <= chr && chr <= 'Z'; isUpper {
+				if i > 0 {
+					newstr = append(newstr, '_')
+				}
+				chr -= ('A' - 'a')
+			}
+			newstr = append(newstr, chr)
+		}
+		return string(newstr)
+	}
+)
 
 func (s *Section) parseFieldName(raw, actual string) string {
 	if len(actual) > 0 {
@@ -155,11 +187,17 @@ func (f *File) MapTo(v interface{}) (err error) {
 	return f.Section("").MapTo(val)
 }
 
-// MapTo maps data sources to given struct.
-func MapTo(v, source interface{}, others ...interface{}) error {
+// MapTo maps data sources to given struct with name getter.
+func MapToGetter(v interface{}, getter NameGetter, source interface{}, others ...interface{}) error {
 	cfg, err := Load(source, others...)
 	if err != nil {
 		return err
 	}
+	cfg.NameGetter = getter
 	return cfg.MapTo(v)
+}
+
+// MapTo maps data sources to given struct.
+func MapTo(v, source interface{}, others ...interface{}) error {
+	return MapToGetter(v, nil, source, others...)
 }
