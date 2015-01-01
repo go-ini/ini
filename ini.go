@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -157,6 +158,16 @@ func (k *Key) Int64() (int64, error) {
 	return strconv.ParseInt(k.String(), 10, 64)
 }
 
+// TimeFormat parses with given format and returns time.Time type value.
+func (k *Key) TimeFormat(format string) (time.Time, error) {
+	return time.Parse(format, k.String())
+}
+
+// Time parses with RFC3339 format and returns time.Time type value.
+func (k *Key) Time() (time.Time, error) {
+	return k.TimeFormat(time.RFC3339)
+}
+
 // MustString returns default value if key value is empty.
 func (k *Key) MustString(defaultVal string) string {
 	val := k.String()
@@ -179,31 +190,47 @@ func (k *Key) MustBool(defaultVal ...bool) bool {
 // MustFloat64 always returns value without error,
 // it returns 0.0 if error occurs.
 func (k *Key) MustFloat64(defaultVal ...float64) float64 {
-	value, err := k.Float64()
+	val, err := k.Float64()
 	if len(defaultVal) > 0 && err != nil {
 		return defaultVal[0]
 	}
-	return value
+	return val
 }
 
 // MustInt always returns value without error,
 // it returns 0 if error occurs.
 func (k *Key) MustInt(defaultVal ...int) int {
-	value, err := k.Int()
+	val, err := k.Int()
 	if len(defaultVal) > 0 && err != nil {
 		return defaultVal[0]
 	}
-	return value
+	return val
 }
 
 // MustInt64 always returns value without error,
 // it returns 0 if error occurs.
 func (k *Key) MustInt64(defaultVal ...int64) int64 {
-	value, err := k.Int64()
+	val, err := k.Int64()
 	if len(defaultVal) > 0 && err != nil {
 		return defaultVal[0]
 	}
-	return value
+	return val
+}
+
+// MustTimeFormat always parses with given format and returns value without error,
+// it returns zero value if error occurs.
+func (k *Key) MustTimeFormat(format string, defaultVal ...time.Time) time.Time {
+	val, err := k.TimeFormat(format)
+	if len(defaultVal) > 0 && err != nil {
+		return defaultVal[0]
+	}
+	return val
+}
+
+// MustTime always parses with RFC3339 format and returns value without error,
+// it returns zero value if error occurs.
+func (k *Key) MustTime(defaultVal ...time.Time) time.Time {
+	return k.MustTimeFormat(time.RFC3339, defaultVal...)
 }
 
 // In always returns value without error,
@@ -218,7 +245,7 @@ func (k *Key) In(defaultVal string, candidates []string) string {
 	return defaultVal
 }
 
-// In always returns value without error,
+// InFloat64 always returns value without error,
 // it returns default value if error occurs or doesn't fit into candidates.
 func (k *Key) InFloat64(defaultVal float64, candidates []float64) float64 {
 	val := k.MustFloat64()
@@ -230,7 +257,7 @@ func (k *Key) InFloat64(defaultVal float64, candidates []float64) float64 {
 	return defaultVal
 }
 
-// In always returns value without error,
+// InInt always returns value without error,
 // it returns default value if error occurs or doesn't fit into candidates.
 func (k *Key) InInt(defaultVal int, candidates []int) int {
 	val := k.MustInt()
@@ -242,7 +269,7 @@ func (k *Key) InInt(defaultVal int, candidates []int) int {
 	return defaultVal
 }
 
-// In always returns value without error,
+// InInt64 always returns value without error,
 // it returns default value if error occurs or doesn't fit into candidates.
 func (k *Key) InInt64(defaultVal int64, candidates []int64) int64 {
 	val := k.MustInt64()
@@ -252,6 +279,24 @@ func (k *Key) InInt64(defaultVal int64, candidates []int64) int64 {
 		}
 	}
 	return defaultVal
+}
+
+// InTimeFormat always parses with given format and returns value without error,
+// it returns default value if error occurs or doesn't fit into candidates.
+func (k *Key) InTimeFormat(format string, defaultVal time.Time, candidates []time.Time) time.Time {
+	val := k.MustTimeFormat(format)
+	for _, cand := range candidates {
+		if val == cand {
+			return val
+		}
+	}
+	return defaultVal
+}
+
+// InTime always parses with RFC3339 format and returns value without error,
+// it returns default value if error occurs or doesn't fit into candidates.
+func (k *Key) InTime(defaultVal time.Time, candidates []time.Time) time.Time {
+	return k.InTimeFormat(time.RFC3339, defaultVal, candidates)
 }
 
 // Strings returns list of string devide by given delimiter.
@@ -296,6 +341,21 @@ func (k *Key) Int64s(delim string) []int64 {
 		vals[i], _ = strconv.ParseInt(strs[i], 10, 64)
 	}
 	return vals
+}
+
+// TimesFormat parses with given format and returns list of time.Time devide by given delimiter.
+func (k *Key) TimesFormat(format, delim string) []time.Time {
+	strs := k.Strings(delim)
+	vals := make([]time.Time, len(strs))
+	for i := range strs {
+		vals[i], _ = time.Parse(format, strs[i])
+	}
+	return vals
+}
+
+// Times parses with RFC3339 format and returns list of time.Time devide by given delimiter.
+func (k *Key) Times(delim string) []time.Time {
+	return k.TimesFormat(time.RFC3339, delim)
 }
 
 // SetValue changes key value.
