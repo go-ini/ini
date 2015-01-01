@@ -116,11 +116,15 @@ v, err = cfg.Section("").Key("BOOL").Bool()
 v, err = cfg.Section("").Key("FLOAT64").Float64()
 v, err = cfg.Section("").Key("INT").Int()
 v, err = cfg.Section("").Key("INT64").Int64()
+v, err = cfg.Section("").Key("TIME").TimeFormat(time.RFC3339)
+v, err = cfg.Section("").Key("TIME").Time() // RFC3339
 
 v = cfg.Section("").Key("BOOL").MustBool()
 v = cfg.Section("").Key("FLOAT64").MustFloat64()
 v = cfg.Section("").Key("INT").MustInt()
 v = cfg.Section("").Key("INT64").MustInt64()
+v = cfg.Section("").Key("TIME").MustTimeFormat(time.RFC3339)
+v = cfg.Section("").Key("TIME").MustTime() // RFC3339
 
 // 由 Must 开头的方法名允许接收一个相同类型的参数来作为默认值，
 // 当键不存在或者转换失败时，则会直接返回该默认值。
@@ -131,6 +135,8 @@ v = cfg.Section("").Key("BOOL").MustBool(true)
 v = cfg.Section("").Key("FLOAT64").MustFloat64(1.25)
 v = cfg.Section("").Key("INT").MustInt(10)
 v = cfg.Section("").Key("INT64").MustInt64(99)
+v = cfg.Section("").Key("TIME").MustTimeFormat(time.RFC3339, time.Now())
+v = cfg.Section("").Key("TIME").MustTime(time.Now()) // RFC3339
 ```
 
 如果我的值有好多行怎么办？
@@ -165,6 +171,7 @@ v = cfg.Section("").Key("STRING").In("default", []string{"str", "arr", "types"})
 v = cfg.Section("").Key("FLOAT64").InFloat64(1.1, []float64{1.25, 2.5, 3.75})
 v = cfg.Section("").Key("INT").InInt(5, []int{10, 20, 30})
 v = cfg.Section("").Key("INT64").InInt64(10, []int64{10, 20, 30})
+v = cfg.Section("").Key("TIME").InTime(time.Now(), []time.Time{time1, time2, time3})
 ```
 
 如果获取到的值不是候选值的任意一个，则会返回默认值，而默认值不需要是候选值中的一员。
@@ -176,6 +183,7 @@ vals = cfg.Section("").Key("STRINGS").Strings(",")
 vals = cfg.Section("").Key("FLOAT64S").Float64s(",")
 vals = cfg.Section("").Key("INTS").Ints(",")
 vals = cfg.Section("").Key("INT64S").Int64s(",")
+vals = cfg.Section("").Key("TIMES").Times(",")
 ```
 
 ### 高级用法
