@@ -507,8 +507,7 @@ type File struct {
 	// To keep data in order.
 	sectionList []string
 
-	// Name mappers.
-	NameGetter
+	NameMapper
 }
 
 // newFile initializes File object with given data sources.

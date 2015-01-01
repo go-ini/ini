@@ -139,7 +139,7 @@ func Test_Struct(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(cfg, ShouldNotBeNil)
 
-		cfg.NameGetter = func(raw string) string {
+		cfg.NameMapper = func(raw string) string {
 			if raw == "Byte" {
 				return "NAME"
 			}
@@ -163,20 +163,20 @@ func Test_Struct(t *testing.T) {
 	})
 }
 
-type testGetter struct {
+type testMapper struct {
 	PackageName string
 }
 
 func Test_NameGetter(t *testing.T) {
-	Convey("Test name getters", t, func() {
-		So(MapToGetter(&testGetter{}, TitleUnderscore, []byte("packag_name=ini")), ShouldBeNil)
+	Convey("Test name mappers", t, func() {
+		So(MapToWithMapper(&testMapper{}, TitleUnderscore, []byte("packag_name=ini")), ShouldBeNil)
 
 		cfg, err := Load([]byte("PACKAGE_NAME=ini"))
 		So(err, ShouldBeNil)
 		So(cfg, ShouldNotBeNil)
 
-		cfg.NameGetter = AllCapsUnderscore
-		tg := new(testGetter)
+		cfg.NameMapper = AllCapsUnderscore
+		tg := new(testMapper)
 		So(cfg.MapTo(tg), ShouldBeNil)
 		So(tg.PackageName, ShouldEqual, "ini")
 	})
