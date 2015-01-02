@@ -34,7 +34,13 @@ const (
 	DEFAULT_SECTION = "DEFAULT"
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
+
+	_VERSION = "1.0.1"
 )
+
+func Version() string {
+	return _VERSION
+}
 
 var (
 	LineBreak = "\n"
