@@ -865,6 +865,11 @@ func (f *File) SaveTo(filename string) (err error) {
 			if _, err = buf.WriteString("[" + sname + "]" + LineBreak); err != nil {
 				return err
 			}
+		} else {
+			// Write nothing if default section is empty.
+			if len(sec.keyList) == 0 {
+				continue
+			}
 		}
 
 		for _, kname := range sec.keyList {
