@@ -23,7 +23,7 @@ import (
 )
 
 type testNested struct {
-	Cities []string
+	Cities []string `delim:"|"`
 	Visits []time.Time
 	Note   string
 	Unused int `ini:"-"`
@@ -52,7 +52,7 @@ Money = 1.25
 Born = 1993-10-07T20:17:05Z
 
 [Others]
-Cities = HangZhou, Boston
+Cities = HangZhou|Boston
 Visits = 1993-10-07T20:17:05Z, 1993-10-07T20:17:05Z
 Note = Hello world!
 

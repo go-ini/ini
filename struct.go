@@ -66,9 +66,16 @@ func (s *Section) parseFieldName(raw, actual string) string {
 	return raw
 }
 
+func parseDelim(actual string) string {
+	if len(actual) > 0 {
+		return actual
+	}
+	return ","
+}
+
 var reflectTime = reflect.TypeOf(time.Now()).Kind()
 
-func setWithProperType(kind reflect.Kind, key *Key, field reflect.Value) error {
+func setWithProperType(kind reflect.Kind, key *Key, field reflect.Value, delim string) error {
 	switch kind {
 	case reflect.String:
 		field.SetString(key.String())
@@ -97,7 +104,7 @@ func setWithProperType(kind reflect.Kind, key *Key, field reflect.Value) error {
 		}
 		field.Set(reflect.ValueOf(timeVal))
 	case reflect.Slice:
-		vals := key.Strings(",")
+		vals := key.Strings(delim)
 		numVals := len(vals)
 		if numVals == 0 {
 			return nil
@@ -107,7 +114,7 @@ func setWithProperType(kind reflect.Kind, key *Key, field reflect.Value) error {
 
 		var times []time.Time
 		if sliceOf == reflectTime {
-			times = key.Times(",")
+			times = key.Times(delim)
 		}
 
 		slice := reflect.MakeSlice(field.Type(), numVals, numVals)
@@ -164,7 +171,7 @@ func (s *Section) mapTo(val reflect.Value) error {
 		}
 
 		if key, err := s.GetKey(fieldName); err == nil {
-			if err = setWithProperType(tpField.Type.Kind(), key, field); err != nil {
+			if err = setWithProperType(tpField.Type.Kind(), key, field, parseDelim(tpField.Tag.Get("delim"))); err != nil {
 				return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
 			}
 		}
