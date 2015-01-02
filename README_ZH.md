@@ -242,6 +242,83 @@ cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v1
 cfg.Section("features").KeyStrings()	// []{"#1", "#2", "#3"}
 ```
 
+### 映射到结构
+
+想要使用更加面向对象的方式玩转 INI 吗？好主意。
+
+```ini
+Name = Unknwon
+age = 21
+Male = true
+Born = 1993-01-01T20:17:05Z
+
+[Note]
+Content = Hi is a good man!
+Cities = HangZhou, Boston
+```
+
+```go
+type Note struct {
+	Content string
+	Cities  []string
+}
+
+type Person struct {
+	Name string
+	Age  int `ini:"age"`
+	Male bool
+	Born time.Time
+	Note
+	Created time.Time `ini:"-"`
+}
+
+func main() {
+	cfg, err := ini.Load("path/to/ini")
+	// ...
+	p := new(Person)
+	err = cfg.MapTo(p)
+	// ...
+
+	// 一切竟可以如此的简单。
+	err = ini.MapTo(p, "path/to/ini")
+	// ...
+
+	// 嗯哼？只需要映射一个分区吗？
+	n := new(Note)
+	err = cfg.Section("Note").MapTo(n)
+	// ...
+}
+```
+
+#### 名称映射器（Name Mapper）
+
+为了节省您的时间并简化代码，本库支持类型为 [`NameMapper`](https://gowalker.org/gopkg.in/ini.v1#NameMapper) 的名称映射器，该映射器负责结构字段名与分区名和键名之间的映射。
+
+目前有 2 款内置的映射器：
+
+- `AllCapsUnderscore`：该映射器将字段名转换至格式 `ALL_CAPS_UNDERSCORE` 后再去匹配分区名和键名。
+- `TitleUnderscore`：该映射器将字段名转换至格式 `title_underscore` 后再去匹配分区名和键名。
+
+使用方法：
+
+```go
+type Info struct{
+	PackageName string
+}
+
+func main() {
+	err = ini.MapToWithMapper(&Info{}, TitleUnderscore, []byte("packag_name=ini"))
+	// ...
+
+	cfg, err := ini.Load("PACKAGE_NAME=ini")
+	// ...
+	info := new(Info)
+	cfg.NameMapper = ini.AllCapsUnderscore
+	err = cfg.MapTo(info)
+	// ...
+}
+```
+
 ## 获取帮助
 
 - [API 文档](https://gowalker.org/gopkg.in/ini.v1)

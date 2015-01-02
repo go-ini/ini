@@ -126,8 +126,7 @@ func setWithProperType(kind reflect.Kind, key *Key, field reflect.Value) error {
 	return nil
 }
 
-// MapTo maps section to given struct.
-func (s *Section) MapTo(val reflect.Value) error {
+func (s *Section) mapTo(val reflect.Value) error {
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
 	}
@@ -149,7 +148,7 @@ func (s *Section) MapTo(val reflect.Value) error {
 
 		if tpField.Type.Kind() == reflect.Struct {
 			if sec, err := s.f.GetSection(fieldName); err == nil {
-				if err = sec.MapTo(field); err != nil {
+				if err = sec.mapTo(field); err != nil {
 					return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
 				}
 				continue
@@ -157,7 +156,7 @@ func (s *Section) MapTo(val reflect.Value) error {
 		} else if tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous {
 			field.Set(reflect.New(tpField.Type.Elem()))
 			if sec, err := s.f.GetSection(fieldName); err == nil {
-				if err = sec.MapTo(field); err != nil {
+				if err = sec.mapTo(field); err != nil {
 					return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
 				}
 				continue
@@ -173,8 +172,8 @@ func (s *Section) MapTo(val reflect.Value) error {
 	return nil
 }
 
-// MapTo maps file to given struct.
-func (f *File) MapTo(v interface{}) (err error) {
+// MapTo maps section to given struct.
+func (s *Section) MapTo(v interface{}) error {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
 	if typ.Kind() == reflect.Ptr {
@@ -184,7 +183,12 @@ func (f *File) MapTo(v interface{}) (err error) {
 		return errors.New("cannot map to non-pointer struct")
 	}
 
-	return f.Section("").MapTo(val)
+	return s.mapTo(val)
+}
+
+// MapTo maps file to given struct.
+func (f *File) MapTo(v interface{}) error {
+	return f.Section("").MapTo(v)
 }
 
 // MapTo maps data sources to given struct with name mapper.
