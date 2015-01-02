@@ -312,7 +312,7 @@ type Info struct{
 }
 
 func main() {
-	err = ini.MapToWithMapper(&Info{}, TitleUnderscore, []byte("packag_name=ini"))
+	err = ini.MapToWithMapper(&Info{}, ini.TitleUnderscore, []byte("packag_name=ini"))
 	// ...
 
 	cfg, err := ini.Load("PACKAGE_NAME=ini")
