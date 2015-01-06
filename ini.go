@@ -35,7 +35,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.0.1"
+	_VERSION = "1.1.0"
 )
 
 func Version() string {
@@ -303,6 +303,52 @@ func (k *Key) InTimeFormat(format string, defaultVal time.Time, candidates []tim
 // it returns default value if error occurs or doesn't fit into candidates.
 func (k *Key) InTime(defaultVal time.Time, candidates []time.Time) time.Time {
 	return k.InTimeFormat(time.RFC3339, defaultVal, candidates)
+}
+
+// RangeFloat64 checks if value is in given range inclusively,
+// and returns default value if it's not.
+func (k *Key) RangeFloat64(defaultVal, min, max float64) float64 {
+	val := k.MustFloat64()
+	if val < min || val > max {
+		return defaultVal
+	}
+	return val
+}
+
+// RangeInt checks if value is in given range inclusively,
+// and returns default value if it's not.
+func (k *Key) RangeInt(defaultVal, min, max int) int {
+	val := k.MustInt()
+	if val < min || val > max {
+		return defaultVal
+	}
+	return val
+}
+
+// RangeInt64 checks if value is in given range inclusively,
+// and returns default value if it's not.
+func (k *Key) RangeInt64(defaultVal, min, max int64) int64 {
+	val := k.MustInt64()
+	if val < min || val > max {
+		return defaultVal
+	}
+	return val
+}
+
+// RangeTimeFormat checks if value with given format is in given range inclusively,
+// and returns default value if it's not.
+func (k *Key) RangeTimeFormat(format string, defaultVal, min, max time.Time) time.Time {
+	val := k.MustTimeFormat(format)
+	if val.Unix() < min.Unix() || val.Unix() > max.Unix() {
+		return defaultVal
+	}
+	return val
+}
+
+// RangeTime checks if value with RFC3339 format is in given range inclusively,
+// and returns default value if it's not.
+func (k *Key) RangeTime(defaultVal, min, max time.Time) time.Time {
+	return k.RangeTimeFormat(time.RFC3339, defaultVal, min, max)
 }
 
 // Strings returns list of string devide by given delimiter.

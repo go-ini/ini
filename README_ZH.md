@@ -171,10 +171,21 @@ v = cfg.Section("").Key("STRING").In("default", []string{"str", "arr", "types"})
 v = cfg.Section("").Key("FLOAT64").InFloat64(1.1, []float64{1.25, 2.5, 3.75})
 v = cfg.Section("").Key("INT").InInt(5, []int{10, 20, 30})
 v = cfg.Section("").Key("INT64").InInt64(10, []int64{10, 20, 30})
-v = cfg.Section("").Key("TIME").InTime(time.Now(), []time.Time{time1, time2, time3})
+v = cfg.Section("").Key("TIME").InTimeFormat(time.RFC3339, time.Now(), []time.Time{time1, time2, time3})
+v = cfg.Section("").Key("TIME").InTime(time.Now(), []time.Time{time1, time2, time3}) // RFC3339
 ```
 
 如果获取到的值不是候选值的任意一个，则会返回默认值，而默认值不需要是候选值中的一员。
+
+验证获取的值是否在指定范围内：
+
+```go
+vals = cfg.Section("").Key("FLOAT64").RangeFloat64(0.0, 1.1, 2.2)
+vals = cfg.Section("").Key("INT").RangeInt(0, 10, 20)
+vals = cfg.Section("").Key("INT64").RangeInt64(0, 10, 20)
+vals = cfg.Section("").Key("TIME").RangeTimeFormat(time.RFC3339, time.Now(), minTime, maxTime)
+vals = cfg.Section("").Key("TIME").RangeTime(time.Now(), minTime, maxTime) // RFC3339
+```
 
 自动分割键值为切片（slice）：
 

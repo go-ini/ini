@@ -176,10 +176,21 @@ v = cfg.Section("").Key("STRING").In("default", []string{"str", "arr", "types"})
 v = cfg.Section("").Key("FLOAT64").InFloat64(1.1, []float64{1.25, 2.5, 3.75})
 v = cfg.Section("").Key("INT").InInt(5, []int{10, 20, 30})
 v = cfg.Section("").Key("INT64").InInt64(10, []int64{10, 20, 30})
-v = cfg.Section("").Key("TIME").InTime(time.Now(), []time.Time{time1, time2, time3})
+v = cfg.Section("").Key("TIME").InTimeFormat(time.RFC3339, time.Now(), []time.Time{time1, time2, time3})
+v = cfg.Section("").Key("TIME").InTime(time.Now(), []time.Time{time1, time2, time3}) // RFC3339
 ```
 
 Default value will be presented if value of key is not in candidates you given, and default value does not need be one of candidates.
+
+To validate value in a given range:
+
+```go
+vals = cfg.Section("").Key("FLOAT64").RangeFloat64(0.0, 1.1, 2.2)
+vals = cfg.Section("").Key("INT").RangeInt(0, 10, 20)
+vals = cfg.Section("").Key("INT64").RangeInt64(0, 10, 20)
+vals = cfg.Section("").Key("TIME").RangeTimeFormat(time.RFC3339, time.Now(), minTime, maxTime)
+vals = cfg.Section("").Key("TIME").RangeTime(time.Now(), minTime, maxTime) // RFC3339
+```
 
 To auto-split value into slice:
 

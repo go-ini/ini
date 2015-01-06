@@ -265,6 +265,30 @@ func Test_Values(t *testing.T) {
 			})
 		})
 
+		Convey("Get values in range", func() {
+			sec := cfg.Section("types")
+			So(sec.Key("FLOAT64").RangeFloat64(0, 1, 2), ShouldEqual, 1.25)
+			So(sec.Key("INT").RangeInt(0, 10, 20), ShouldEqual, 10)
+			So(sec.Key("INT").RangeInt64(0, 10, 20), ShouldEqual, 10)
+
+			minT, err := time.Parse(time.RFC3339, "0001-01-01T01:00:00Z")
+			So(err, ShouldBeNil)
+			midT, err := time.Parse(time.RFC3339, "2013-01-01T01:00:00Z")
+			So(err, ShouldBeNil)
+			maxT, err := time.Parse(time.RFC3339, "9999-01-01T01:00:00Z")
+			So(err, ShouldBeNil)
+			t, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
+			So(err, ShouldBeNil)
+			So(sec.Key("TIME").RangeTime(t, minT, maxT).String(), ShouldEqual, t.String())
+
+			Convey("Get value in range with default value", func() {
+				So(sec.Key("FLOAT64").RangeFloat64(5, 0, 1), ShouldEqual, 5)
+				So(sec.Key("INT").RangeInt(7, 0, 5), ShouldEqual, 7)
+				So(sec.Key("INT").RangeInt64(7, 0, 5), ShouldEqual, 7)
+				So(sec.Key("TIME").RangeTime(t, minT, midT).String(), ShouldEqual, t.String())
+			})
+		})
+
 		Convey("Get values into slice", func() {
 			sec := cfg.Section("array")
 			So(strings.Join(sec.Key("STRINGS").Strings(","), ","), ShouldEqual, "en,zh,de")
