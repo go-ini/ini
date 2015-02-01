@@ -35,7 +35,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.1.0"
+	_VERSION = "1.2.0"
 )
 
 func Version() string {
@@ -486,7 +486,10 @@ func (s *Section) GetKey(name string) (*Key, error) {
 func (s *Section) Key(name string) *Key {
 	key, err := s.GetKey(name)
 	if err != nil {
-		return &Key{}
+		// It's OK here because the only possible error is empty key name,
+		// but if it's empty, this piece of code won't be executed.
+		key, _ = s.NewKey(name, "")
+		return key
 	}
 	return key
 }
@@ -601,6 +604,13 @@ func Load(source interface{}, others ...interface{}) (_ *File, err error) {
 	return f, f.Reload()
 }
 
+// Empty returns an empty file object.
+func Empty() *File {
+	// Ignore error here, we sure our data is good.
+	f, _ := Load([]byte(""))
+	return f
+}
+
 // NewSection creates a new section.
 func (f *File) NewSection(name string) (*Section, error) {
 	if len(name) == 0 {
@@ -619,6 +629,16 @@ func (f *File) NewSection(name string) (*Section, error) {
 	f.sectionList = append(f.sectionList, name)
 	f.sections[name] = newSection(f, name)
 	return f.sections[name], nil
+}
+
+// NewSections creates a list of sections.
+func (f *File) NewSections(names ...string) (err error) {
+	for _, name := range names {
+		if _, err = f.NewSection(name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // GetSection returns section by given name.
@@ -643,7 +663,10 @@ func (f *File) GetSection(name string) (*Section, error) {
 func (f *File) Section(name string) *Section {
 	sec, err := f.GetSection(name)
 	if err != nil {
-		return newSection(f, name)
+		// It's OK here because the only possible error is empty section name,
+		// but if it's empty, this piece of code won't be executed.
+		sec, _ = f.NewSection(name)
+		return sec
 	}
 	return sec
 }

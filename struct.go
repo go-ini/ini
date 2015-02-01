@@ -29,7 +29,7 @@ type NameMapper func(string) string
 var (
 	// AllCapsUnderscore converts to format ALL_CAPS_UNDERSCORE.
 	AllCapsUnderscore NameMapper = func(raw string) string {
-		newstr := make([]rune, 0, 10)
+		newstr := make([]rune, 0, len(raw))
 		for i, chr := range raw {
 			if isUpper := 'A' <= chr && chr <= 'Z'; isUpper {
 				if i > 0 {
@@ -42,7 +42,7 @@ var (
 	}
 	// TitleUnderscore converts to format title_underscore.
 	TitleUnderscore NameMapper = func(raw string) string {
-		newstr := make([]rune, 0, 10)
+		newstr := make([]rune, 0, len(raw))
 		for i, chr := range raw {
 			if isUpper := 'A' <= chr && chr <= 'Z'; isUpper {
 				if i > 0 {

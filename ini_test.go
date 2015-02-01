@@ -88,9 +88,7 @@ func Test_Load(t *testing.T) {
 	Convey("Load from data sources", t, func() {
 
 		Convey("Load with empty data", func() {
-			cfg, err := Load([]byte(""))
-			So(err, ShouldBeNil)
-			So(cfg, ShouldNotBeNil)
+			So(Empty(), ShouldNotBeNil)
 		})
 
 		Convey("Load with multiple data sources", func() {
@@ -345,6 +343,14 @@ func Test_Values(t *testing.T) {
 			cfg.DeleteSection("")
 			So(cfg.SectionStrings()[0], ShouldNotEqual, DEFAULT_SECTION)
 		})
+
+		Convey("Create new sections", func() {
+			cfg.NewSections("test", "test2")
+			_, err := cfg.GetSection("test")
+			So(err, ShouldBeNil)
+			_, err = cfg.GetSection("test2")
+			So(err, ShouldBeNil)
+		})
 	})
 
 	Convey("Test getting and setting bad values", t, func() {
@@ -362,6 +368,10 @@ func Test_Values(t *testing.T) {
 			s, err := cfg.NewSection("")
 			So(err, ShouldNotBeNil)
 			So(s, ShouldBeNil)
+		})
+
+		Convey("Create new sections with empty name", func() {
+			So(cfg.NewSections(""), ShouldNotBeNil)
 		})
 
 		Convey("Get section that not exists", func() {

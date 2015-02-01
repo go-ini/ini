@@ -32,6 +32,12 @@ A **Data Source** is either raw data in type `[]byte` or a file name with type `
 cfg, err := ini.Load([]byte("raw data"), "filename")
 ```
 
+Or start withs an empty object:
+
+```go
+cfg := ini.Empty()
+```
+
 When you cannot decide how many data sources to load at the beginning, you still able to **Append()** them later.
 
 ```go
@@ -58,7 +64,7 @@ When you're pretty sure the section exists, following code could make your life 
 section := cfg.Section("")
 ```
 
-What happens when the section somehow does not exists? Won't panic, it returns an empty section object.
+What happens when the section somehow does not exist? Don't panic, it automatically creates and returns a new section to you.
 
 To create a new section:
 
