@@ -40,13 +40,13 @@ IMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s
 # Information about package author
 # Bio can be written in multiple lines.
 [author]
-NAME = Unknwon
+NAME = Unknwon  # Succeeding comment
 E-MAIL = fake@localhost
 GITHUB = https://github.com/%(NAME)s
 BIO = """Gopher.
 Coding addict.
 Good man.
-"""
+"""  # Succeeding comment
 
 [package]
 CLONE_URL = https://%(IMPORT_PATH)s

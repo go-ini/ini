@@ -707,6 +707,14 @@ func (f *File) DeleteSection(name string) {
 	}
 }
 
+func cutComment(str string) string {
+	i := strings.Index(str, "#")
+	if i == -1 {
+		return str
+	}
+	return str[:i]
+}
+
 // parse parses data through an io.Reader.
 func (f *File) parse(reader io.Reader) error {
 	buf := bufio.NewReader(reader)
@@ -845,7 +853,6 @@ func (f *File) parse(reader io.Reader) error {
 				val = lineRight[qLen:] + "\n"
 				for {
 					next, err := buf.ReadString('\n')
-					val += next
 					if err != nil {
 						if err != io.EOF {
 							return err
@@ -854,9 +861,10 @@ func (f *File) parse(reader io.Reader) error {
 					}
 					pos = strings.LastIndex(next, valQuote)
 					if pos > -1 {
-						val = val[:len(val)-len(valQuote)-1]
+						val += next[:pos]
 						break
 					}
+					val += next
 					if isEnd {
 						return fmt.Errorf("error parsing line: missing closing key quote from '%s' to '%s'", line, next)
 					}
@@ -865,7 +873,7 @@ func (f *File) parse(reader io.Reader) error {
 				val = lineRight[qLen : pos+qLen]
 			}
 		} else {
-			val = strings.TrimSpace(lineRight[0:])
+			val = strings.TrimSpace(cutComment(lineRight[0:]))
 		}
 
 		k, err := section.NewKey(kname, val)
