@@ -75,32 +75,39 @@ func parseDelim(actual string) string {
 
 var reflectTime = reflect.TypeOf(time.Now()).Kind()
 
+// setWithProperType sets proper value to field based on its type,
+// but it does not return error for failing parsing,
+// because we want to use default value that is already assigned to strcut.
 func setWithProperType(kind reflect.Kind, key *Key, field reflect.Value, delim string) error {
 	switch kind {
 	case reflect.String:
+		fmt.Println(len(key.String()), key.String())
+		if len(key.String()) == 0 {
+			return nil
+		}
 		field.SetString(key.String())
 	case reflect.Bool:
 		boolVal, err := key.Bool()
 		if err != nil {
-			return err
+			return nil
 		}
 		field.SetBool(boolVal)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		intVal, err := key.Int64()
 		if err != nil {
-			return err
+			return nil
 		}
 		field.SetInt(intVal)
 	case reflect.Float64:
 		floatVal, err := key.Float64()
 		if err != nil {
-			return err
+			return nil
 		}
 		field.SetFloat(floatVal)
 	case reflectTime:
 		timeVal, err := key.Time()
 		if err != nil {
-			return err
+			return nil
 		}
 		field.Set(reflect.ValueOf(timeVal))
 	case reflect.Slice:

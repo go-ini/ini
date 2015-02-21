@@ -32,7 +32,7 @@ A **Data Source** is either raw data in type `[]byte` or a file name with type `
 cfg, err := ini.Load([]byte("raw data"), "filename")
 ```
 
-Or start withs an empty object:
+Or start with an empty object:
 
 ```go
 cfg := ini.Empty()
@@ -310,6 +310,18 @@ func main() {
 	err = cfg.Section("Note").MapTo(n)
 	// ...
 }
+```
+
+Can I have default value for field? Absolutely.
+
+Assign it before you map to struct. It will keep the value as it is if the key is not presented or got wrong type.
+
+```go
+// ...
+p := &Person{
+	Name: "Joe",
+}
+// ...
 ```
 
 #### Name Mapper
