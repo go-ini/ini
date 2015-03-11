@@ -81,7 +81,6 @@ var reflectTime = reflect.TypeOf(time.Now()).Kind()
 func setWithProperType(kind reflect.Kind, key *Key, field reflect.Value, delim string) error {
 	switch kind {
 	case reflect.String:
-		fmt.Println(len(key.String()), key.String())
 		if len(key.String()) == 0 {
 			return nil
 		}
