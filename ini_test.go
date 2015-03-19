@@ -62,6 +62,7 @@ UNUSED_KEY = should be deleted
 [types]
 STRING = str
 BOOL = true
+BOOL_FALSE = false
 FLOAT64 = 1.25
 INT = 10
 TIME = 2015-01-01T20:17:05Z
@@ -201,6 +202,10 @@ func Test_Values(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(v1, ShouldBeTrue)
 
+			v1, err = sec.Key("BOOL_FALSE").Bool()
+			So(err, ShouldBeNil)
+			So(v1, ShouldBeFalse)
+
 			v2, err := sec.Key("FLOAT64").Float64()
 			So(err, ShouldBeNil)
 			So(v2, ShouldEqual, 1.25)
@@ -326,7 +331,7 @@ func Test_Values(t *testing.T) {
 		})
 
 		Convey("Get key strings", func() {
-			So(strings.Join(cfg.Section("types").KeyStrings(), ","), ShouldEqual, "STRING,BOOL,FLOAT64,INT,TIME")
+			So(strings.Join(cfg.Section("types").KeyStrings(), ","), ShouldEqual, "STRING,BOOL,BOOL_FALSE,FLOAT64,INT,TIME")
 		})
 
 		Convey("Delete a key", func() {

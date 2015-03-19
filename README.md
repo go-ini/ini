@@ -123,6 +123,9 @@ val := cfg.Section("").Key("key name").String()
 To get value with types:
 
 ```go
+// For boolean values:
+// true when value is: 1, t, T, TRUE, true, True, YES, yes, Yes, ON, on, On
+// false when value is: 0, f, F, FALSE, false, False, NO, no, No, OFF, off, Off
 v, err = cfg.Section("").Key("BOOL").Bool()
 v, err = cfg.Section("").Key("FLOAT64").Float64()
 v, err = cfg.Section("").Key("INT").Int()
