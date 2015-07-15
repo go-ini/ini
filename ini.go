@@ -730,6 +730,55 @@ func cutComment(str string) string {
 	return str[:i]
 }
 
+func checkMultipleLines(buf *bufio.Reader, line, val, valQuote string) (string, error) {
+	isEnd := false
+	for {
+		next, err := buf.ReadString('\n')
+		if err != nil {
+			if err != io.EOF {
+				return "", err
+			}
+			isEnd = true
+		}
+		pos := strings.LastIndex(next, valQuote)
+		if pos > -1 {
+			val += next[:pos]
+			break
+		}
+		val += next
+		if isEnd {
+			return "", fmt.Errorf("error parsing line: missing closing key quote from '%s' to '%s'", line, next)
+		}
+	}
+	return val, nil
+}
+
+func checkContinuationLines(buf *bufio.Reader, val string) (string, bool, error) {
+	isEnd := false
+	for {
+		valLen := len(val)
+		if valLen == 0 || val[valLen-1] != '\\' {
+			break
+		}
+		val = val[:valLen-1]
+
+		next, err := buf.ReadString('\n')
+		if err != nil {
+			if err != io.EOF {
+				return "", isEnd, err
+			}
+			isEnd = true
+		}
+
+		next = strings.TrimSpace(next)
+		if len(next) == 0 {
+			break
+		}
+		val += next
+	}
+	return val, isEnd, nil
+}
+
 // parse parses data through an io.Reader.
 func (f *File) parse(reader io.Reader) error {
 	buf := bufio.NewReader(reader)
@@ -781,8 +830,7 @@ func (f *File) parse(reader io.Reader) error {
 			}
 			continue
 		case line[0] == '[' && line[length-1] == ']': // New sction.
-			name := strings.TrimSpace(line[1 : length-1])
-			section, err = f.NewSection(name)
+			section, err = f.NewSection(strings.TrimSpace(line[1 : length-1]))
 			if err != nil {
 				return err
 			}
@@ -864,31 +912,20 @@ func (f *File) parse(reader io.Reader) error {
 			pos := strings.LastIndex(lineRight[qLen:], valQuote)
 			// For multiple lines value.
 			if pos == -1 {
-				isEnd := false
 				val = lineRight[qLen:] + "\n"
-				for {
-					next, err := buf.ReadString('\n')
-					if err != nil {
-						if err != io.EOF {
-							return err
-						}
-						isEnd = true
-					}
-					pos = strings.LastIndex(next, valQuote)
-					if pos > -1 {
-						val += next[:pos]
-						break
-					}
-					val += next
-					if isEnd {
-						return fmt.Errorf("error parsing line: missing closing key quote from '%s' to '%s'", line, next)
-					}
+				val, err = checkMultipleLines(buf, line, val, valQuote)
+				if err != nil {
+					return err
 				}
 			} else {
 				val = lineRight[qLen : pos+qLen]
 			}
 		} else {
 			val = strings.TrimSpace(cutComment(lineRight[0:]))
+			val, isEnd, err = checkContinuationLines(buf, val)
+			if err != nil {
+				return err
+			}
 		}
 
 		k, err := section.NewKey(kname, val)

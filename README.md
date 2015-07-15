@@ -174,6 +174,25 @@ Earth
 ------  end  --- */
 ```
 
+That's cool, how about continuation lines?
+
+```ini
+[advance]
+two_lines = how about \
+	continuation lines?
+lots_of_lines = 1 \
+	2 \
+	3 \
+	4
+```
+
+Piece of cake!
+
+```go
+cfg.Section("advance").Key("two_lines").String() // how about continuation lines?
+cfg.Section("advance").Key("lots_of_lines").String() // 1 2 3 4 
+```
+
 That's all? Hmm, no.
 
 #### Helper methods of working with values

@@ -74,6 +74,7 @@ INTS = 1, 2, 3
 TIMES = 2015-01-01T20:17:05Z,2015-01-01T20:17:05Z,2015-01-01T20:17:05Z
 
 [note]
+empty_lines = next line is empty\
 
 [advance]
 true = """"2+3=5""""
@@ -83,7 +84,15 @@ true = """"2+3=5""""
 """"6+6"""" = 12
 ` + "`" + `7-2=4` + "`" + ` = false
 ADDRESS = ` + "`" + `404 road,
-NotFound, State, 50000` + "`"
+NotFound, State, 50000` + "`" + `
+
+two_lines = how about \
+	continuation lines?
+lots_of_lines = 1 \
+	2 \
+	3 \
+	4 \
+`
 
 func Test_Load(t *testing.T) {
 	Convey("Load from data sources", t, func() {
