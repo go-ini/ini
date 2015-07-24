@@ -35,7 +35,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.3.1"
+	_VERSION = "1.3.2"
 )
 
 func Version() string {
@@ -179,7 +179,7 @@ func (k *Key) Int64() (int64, error) {
 	return strconv.ParseInt(k.String(), 10, 64)
 }
 
-// time.Duration
+// Duration returns time.Duration type value.
 func (k *Key) Duration() (time.Duration, error) {
 	return time.ParseDuration(k.String())
 }
@@ -237,6 +237,16 @@ func (k *Key) MustInt(defaultVal ...int) int {
 // it returns 0 if error occurs.
 func (k *Key) MustInt64(defaultVal ...int64) int64 {
 	val, err := k.Int64()
+	if len(defaultVal) > 0 && err != nil {
+		return defaultVal[0]
+	}
+	return val
+}
+
+// MustDuration always returns value without error,
+// it returns zero value if error occurs.
+func (k *Key) MustDuration(defaultVal ...time.Duration) time.Duration {
+	val, err := k.Duration()
 	if len(defaultVal) > 0 && err != nil {
 		return defaultVal[0]
 	}
@@ -983,6 +993,7 @@ func (f *File) Append(source interface{}, others ...interface{}) error {
 	return f.Reload()
 }
 
+// WriteTo writes file content into io.Writer.
 func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	equalSign := "="
 	if PrettyFormat {
@@ -998,13 +1009,13 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 				sec.Comment = "; " + sec.Comment
 			}
 			if _, err = buf.WriteString(sec.Comment + LineBreak); err != nil {
-				return
+				return 0, err
 			}
 		}
 
 		if i > 0 {
 			if _, err = buf.WriteString("[" + sname + "]" + LineBreak); err != nil {
-				return
+				return 0, err
 			}
 		} else {
 			// Write nothing if default section is empty.
@@ -1020,7 +1031,7 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 					key.Comment = "; " + key.Comment
 				}
 				if _, err = buf.WriteString(key.Comment + LineBreak); err != nil {
-					return
+					return 0, err
 				}
 			}
 
@@ -1039,28 +1050,27 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 				val = `"""` + val + `"""`
 			}
 			if _, err = buf.WriteString(kname + equalSign + val + LineBreak); err != nil {
-				return
+				return 0, err
 			}
 		}
 
 		// Put a line between sections.
 		if _, err = buf.WriteString(LineBreak); err != nil {
-			return
+			return 0, err
 		}
 	}
 
 	return buf.WriteTo(w)
 }
 
-// SaveTo writes content to filesystem.
-func (f *File) SaveTo(filename string) (err error) {
+// SaveTo writes content to file system.
+func (f *File) SaveTo(filename string) error {
 	fw, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
+	defer fw.Close()
 
-	if _, err = f.WriteTo(fw); err != nil {
-		return err
-	}
-	return fw.Close()
+	_, err = f.WriteTo(fw)
+	return err
 }

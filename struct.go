@@ -92,14 +92,12 @@ func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim stri
 		}
 		field.SetBool(boolVal)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if t.Name() == "Duration" {
-			durationVal, err := key.Duration()
-			if err != nil {
-				return nil
-			}
+		durationVal, err := key.Duration()
+		if err == nil {
 			field.Set(reflect.ValueOf(durationVal))
 			return nil
 		}
+
 		intVal, err := key.Int64()
 		if err != nil {
 			return nil

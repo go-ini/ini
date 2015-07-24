@@ -66,6 +66,7 @@ BOOL_FALSE = false
 FLOAT64 = 1.25
 INT = 10
 TIME = 2015-01-01T20:17:05Z
+DURATION = 2h45m
 
 [array]
 STRINGS = en, zh, de
@@ -241,6 +242,10 @@ func Test_Values(t *testing.T) {
 				So(sec.Key("INT").MustInt64(), ShouldEqual, 10)
 				So(sec.Key("TIME").MustTime().String(), ShouldEqual, t.String())
 
+				dur, err := time.ParseDuration("2h45m")
+				So(err, ShouldBeNil)
+				So(sec.Key("DURATION").MustDuration().Seconds(), ShouldEqual, dur.Seconds())
+
 				Convey("Must get values with default value", func() {
 					So(sec.Key("STRING_404").MustString("404"), ShouldEqual, "404")
 					So(sec.Key("BOOL_404").MustBool(true), ShouldBeTrue)
@@ -251,6 +256,8 @@ func Test_Values(t *testing.T) {
 					t, err := time.Parse(time.RFC3339, "2014-01-01T20:17:05Z")
 					So(err, ShouldBeNil)
 					So(sec.Key("TIME_404").MustTime(t).String(), ShouldEqual, t.String())
+
+					So(sec.Key("DURATION_404").MustDuration(dur).Seconds(), ShouldEqual, dur.Seconds())
 				})
 			})
 		})
@@ -340,7 +347,7 @@ func Test_Values(t *testing.T) {
 		})
 
 		Convey("Get key strings", func() {
-			So(strings.Join(cfg.Section("types").KeyStrings(), ","), ShouldEqual, "STRING,BOOL,BOOL_FALSE,FLOAT64,INT,TIME")
+			So(strings.Join(cfg.Section("types").KeyStrings(), ","), ShouldEqual, "STRING,BOOL,BOOL_FALSE,FLOAT64,INT,TIME,DURATION")
 		})
 
 		Convey("Delete a key", func() {

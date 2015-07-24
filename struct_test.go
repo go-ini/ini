@@ -39,6 +39,7 @@ type testStruct struct {
 	Male         bool
 	Money        float64
 	Born         time.Time
+	Time         time.Duration `ini:"Duration"`
 	Others       testNested
 	*testEmbeded `ini:"grade"`
 	Unused       int `ini:"-"`
@@ -50,6 +51,7 @@ Age = 21
 Male = true
 Money = 1.25
 Born = 1993-10-07T20:17:05Z
+Duration = 2h45m
 
 [Others]
 Cities = HangZhou|Boston
@@ -117,6 +119,10 @@ func Test_Struct(t *testing.T) {
 		t, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
 		So(err, ShouldBeNil)
 		So(ts.Born.String(), ShouldEqual, t.String())
+
+		dur, err := time.ParseDuration("2h45m")
+		So(err, ShouldBeNil)
+		So(ts.Time.Seconds(), ShouldEqual, dur.Seconds())
 
 		So(strings.Join(ts.Others.Cities, ","), ShouldEqual, "HangZhou,Boston")
 		So(ts.Others.Visits[0].String(), ShouldEqual, t.String())
