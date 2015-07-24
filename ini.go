@@ -179,6 +179,11 @@ func (k *Key) Int64() (int64, error) {
 	return strconv.ParseInt(k.String(), 10, 64)
 }
 
+// time.Duration
+func (k *Key) Duration() (time.Duration, error) {
+	return time.ParseDuration(k.String())
+}
+
 // TimeFormat parses with given format and returns time.Time type value.
 func (k *Key) TimeFormat(format string) (time.Time, error) {
 	return time.Parse(format, k.String())
@@ -978,8 +983,7 @@ func (f *File) Append(source interface{}, others ...interface{}) error {
 	return f.Reload()
 }
 
-// SaveTo writes content to filesystem.
-func (f *File) SaveTo(filename string) (err error) {
+func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	equalSign := "="
 	if PrettyFormat {
 		equalSign = " = "
@@ -994,13 +998,13 @@ func (f *File) SaveTo(filename string) (err error) {
 				sec.Comment = "; " + sec.Comment
 			}
 			if _, err = buf.WriteString(sec.Comment + LineBreak); err != nil {
-				return err
+				return
 			}
 		}
 
 		if i > 0 {
 			if _, err = buf.WriteString("[" + sname + "]" + LineBreak); err != nil {
-				return err
+				return
 			}
 		} else {
 			// Write nothing if default section is empty.
@@ -1016,7 +1020,7 @@ func (f *File) SaveTo(filename string) (err error) {
 					key.Comment = "; " + key.Comment
 				}
 				if _, err = buf.WriteString(key.Comment + LineBreak); err != nil {
-					return err
+					return
 				}
 			}
 
@@ -1035,21 +1039,27 @@ func (f *File) SaveTo(filename string) (err error) {
 				val = `"""` + val + `"""`
 			}
 			if _, err = buf.WriteString(kname + equalSign + val + LineBreak); err != nil {
-				return err
+				return
 			}
 		}
 
 		// Put a line between sections.
 		if _, err = buf.WriteString(LineBreak); err != nil {
-			return err
+			return
 		}
 	}
 
+	return buf.WriteTo(w)
+}
+
+// SaveTo writes content to filesystem.
+func (f *File) SaveTo(filename string) (err error) {
 	fw, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
-	if _, err = buf.WriteTo(fw); err != nil {
+
+	if _, err = f.WriteTo(fw); err != nil {
 		return err
 	}
 	return fw.Close()
