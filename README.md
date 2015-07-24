@@ -193,6 +193,13 @@ cfg.Section("advance").Key("two_lines").String() // how about continuation lines
 cfg.Section("advance").Key("lots_of_lines").String() // 1 2 3 4 
 ```
 
+Note that single quotes around values will be stripped:
+
+```ini
+foo = "some value" // foo: some value
+bar = 'some value' // bar: some value
+```
+
 That's all? Hmm, no.
 
 #### Helper methods of working with values

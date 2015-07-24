@@ -78,6 +78,8 @@ TIMES = 2015-01-01T20:17:05Z,2015-01-01T20:17:05Z,2015-01-01T20:17:05Z
 empty_lines = next line is empty\
 
 [advance]
+value with quotes = "some value"
+value quote2 again = 'some value'
 true = """"2+3=5""""
 "1+1=2" = true
 """6+1=7""" = true
@@ -149,6 +151,9 @@ func Test_Load(t *testing.T) {
 
 		Convey("Load with bad values", func() {
 			_, err := Load([]byte(`name="""Unknwon`))
+			So(err, ShouldNotBeNil)
+
+			_, err = Load([]byte(`key = "value`))
 			So(err, ShouldNotBeNil)
 		})
 	})

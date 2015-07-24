@@ -188,6 +188,13 @@ cfg.Section("advance").Key("two_lines").String() // how about continuation lines
 cfg.Section("advance").Key("lots_of_lines").String() // 1 2 3 4 
 ```
 
+需要注意的是，值两侧的单引号会被自动剔除：
+
+```ini
+foo = "some value" // foo: some value
+bar = 'some value' // bar: some value
+```
+
 这就是全部了？哈哈，当然不是。
 
 #### 操作键值的辅助方法

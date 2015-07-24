@@ -35,7 +35,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.3.2"
+	_VERSION = "1.3.3"
 )
 
 func Version() string {
@@ -921,14 +921,25 @@ func (f *File) parse(reader io.Reader) error {
 		}
 		if firstChar == "`" {
 			valQuote = "`"
-		} else if lineRightLength >= 6 && lineRight[0:3] == `"""` {
-			valQuote = `"""`
+		} else if firstChar == `"` {
+			if lineRightLength >= 3 && lineRight[0:3] == `"""` {
+				valQuote = `"""`
+			} else {
+				valQuote = `"`
+			}
+		} else if firstChar == `'` {
+			valQuote = `'`
 		}
+
 		if len(valQuote) > 0 {
 			qLen := len(valQuote)
 			pos := strings.LastIndex(lineRight[qLen:], valQuote)
-			// For multiple lines value.
+			// For multiple-line value check.
 			if pos == -1 {
+				if valQuote == `"` || valQuote == `'` {
+					return fmt.Errorf("error parsing line: single quote does not allow multiple-line value: %s", line)
+				}
+
 				val = lineRight[qLen:] + "\n"
 				val, err = checkMultipleLines(buf, line, val, valQuote)
 				if err != nil {
