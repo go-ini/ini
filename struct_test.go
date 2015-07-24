@@ -58,6 +58,10 @@ Note = Hello world!
 
 [grade]
 GPA = 2.8
+
+[foo.bar]
+Here = there
+When = then
 `
 
 type unsupport struct {
@@ -87,6 +91,10 @@ type defaultValue struct {
 	Cities []string
 }
 
+type fooBar struct {
+	Here, When string
+}
+
 const _INVALID_DATA_CONF_STRUCT = `
 Name = 
 Age = age
@@ -114,6 +122,16 @@ func Test_Struct(t *testing.T) {
 		So(ts.Others.Visits[0].String(), ShouldEqual, t.String())
 		So(ts.Others.Note, ShouldEqual, "Hello world!")
 		So(ts.testEmbeded.GPA, ShouldEqual, 2.8)
+	})
+
+	Convey("Map section to struct", t, func() {
+		foobar := new(fooBar)
+		f, err := Load([]byte(_CONF_DATA_STRUCT))
+		So(err, ShouldBeNil)
+
+		So(f.Section("foo.bar").MapTo(foobar), ShouldBeNil)
+		So(foobar.Here, ShouldEqual, "there")
+		So(foobar.When, ShouldEqual, "then")
 	})
 
 	Convey("Map to non-pointer struct", t, func() {

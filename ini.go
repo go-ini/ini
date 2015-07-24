@@ -483,10 +483,12 @@ func (s *Section) GetKey(name string) (*Key, error) {
 	// FIXME: change to section level lock?
 	if s.f.BlockMode {
 		s.f.lock.RLock()
-		defer s.f.lock.RUnlock()
+	}
+	key := s.keys[name]
+	if s.f.BlockMode {
+		s.f.lock.RUnlock()
 	}
 
-	key := s.keys[name]
 	if key == nil {
 		// Check if it is a child-section.
 		if i := strings.LastIndex(s.name, "."); i > -1 {
