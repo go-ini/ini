@@ -366,7 +366,7 @@ func main() {
 	err = ini.MapToWithMapper(&Info{}, ini.TitleUnderscore, []byte("packag_name=ini"))
 	// ...
 
-	cfg, err := ini.Load("PACKAGE_NAME=ini")
+	cfg, err := ini.Load([]byte("PACKAGE_NAME=ini"))
 	// ...
 	info := new(Info)
 	cfg.NameMapper = ini.AllCapsUnderscore
