@@ -35,7 +35,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.3.3"
+	_VERSION = "1.3.4"
 )
 
 func Version() string {
@@ -1057,7 +1057,8 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 
 			val := key.value
 			// In case key value contains "\n", "`" or "\"".
-			if strings.Contains(val, "\n") || strings.Contains(val, "`") || strings.Contains(val, `"`) {
+			if strings.Contains(val, "\n") || strings.Contains(val, "`") || strings.Contains(val, `"`) ||
+				strings.Contains(val, "#") {
 				val = `"""` + val + `"""`
 			}
 			if _, err = buf.WriteString(kname + equalSign + val + LineBreak); err != nil {

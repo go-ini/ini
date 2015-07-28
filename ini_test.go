@@ -435,6 +435,7 @@ func Test_File_SaveTo(t *testing.T) {
 		cfg.Section("").Key("NAME").Comment = "Package name"
 		cfg.Section("author").Comment = `Information about package author
 # Bio can be written in multiple lines.`
+		cfg.Section("advanced").Key("val w/ pound").SetValue("my#password")
 		So(cfg.SaveTo("testdata/conf_out.ini"), ShouldBeNil)
 	})
 }
