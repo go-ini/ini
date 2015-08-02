@@ -237,6 +237,24 @@ vals = cfg.Section("").Key("INT64S").Int64s(",")
 vals = cfg.Section("").Key("TIMES").Times(",")
 ```
 
+### Save your configuration
+
+Finally, it's time to save your configuration to somewhere.
+
+A typical way to save configuration is writing it to a file:
+
+```go
+// ...
+err = cfg.SaveTo("my.ini")
+```
+
+Another way to save is writing to a `io.Writer` interface:
+
+```go
+// ...
+cfg.WriteTo(writer)
+```
+
 ## Advanced Usage
 
 ### Recursive Values

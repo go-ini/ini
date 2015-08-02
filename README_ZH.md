@@ -232,6 +232,24 @@ vals = cfg.Section("").Key("INT64S").Int64s(",")
 vals = cfg.Section("").Key("TIMES").Times(",")
 ```
 
+### 保存配置
+
+终于到了这个时刻，是时候保存一下配置了。
+
+比较原始的做法是输出配置到某个文件：
+
+```go
+// ...
+err = cfg.SaveTo("my.ini")
+```
+
+另一个比较高级的做法是写入到任何实现 `io.Writer` 接口的对象中：
+
+```go
+// ...
+cfg.WriteTo(writer)
+```
+
 ### 高级用法
 
 #### 递归读取键值
