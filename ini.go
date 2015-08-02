@@ -1004,8 +1004,8 @@ func (f *File) Append(source interface{}, others ...interface{}) error {
 	return f.Reload()
 }
 
-// WriteTo writes file content into io.Writer.
-func (f *File) WriteTo(w io.Writer) (n int64, err error) {
+// WriteToIndent writes file content into io.Writer with given value indention.
+func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 	equalSign := "="
 	if PrettyFormat {
 		equalSign = " = "
@@ -1038,12 +1038,19 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 		for _, kname := range sec.keyList {
 			key := sec.Key(kname)
 			if len(key.Comment) > 0 {
+				if len(indent) > 0 && sname != DEFAULT_SECTION {
+					buf.WriteString(indent)
+				}
 				if key.Comment[0] != '#' && key.Comment[0] != ';' {
 					key.Comment = "; " + key.Comment
 				}
 				if _, err = buf.WriteString(key.Comment + LineBreak); err != nil {
 					return 0, err
 				}
+			}
+
+			if len(indent) > 0 && sname != DEFAULT_SECTION {
+				buf.WriteString(indent)
 			}
 
 			switch {
@@ -1075,14 +1082,24 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	return buf.WriteTo(w)
 }
 
-// SaveTo writes content to file system.
-func (f *File) SaveTo(filename string) error {
+// WriteTo writes file content into io.Writer.
+func (f *File) WriteTo(w io.Writer) (int64, error) {
+	return f.WriteToIndent(w, "")
+}
+
+// SaveToIndent writes content to file system with given value indention.
+func (f *File) SaveToIndent(filename, indent string) error {
 	fw, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
 	defer fw.Close()
 
-	_, err = f.WriteTo(fw)
+	_, err = f.WriteToIndent(fw, indent)
 	return err
+}
+
+// SaveTo writes content to file system.
+func (f *File) SaveTo(filename string) error {
+	return f.SaveToIndent(filename, "")
 }

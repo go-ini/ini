@@ -241,6 +241,7 @@ vals = cfg.Section("").Key("TIMES").Times(",")
 ```go
 // ...
 err = cfg.SaveTo("my.ini")
+err = cfg.SaveToIndent("my.ini", "\t")
 ```
 
 另一个比较高级的做法是写入到任何实现 `io.Writer` 接口的对象中：
@@ -248,6 +249,7 @@ err = cfg.SaveTo("my.ini")
 ```go
 // ...
 cfg.WriteTo(writer)
+cfg.WriteToIndent(writer, "\t")
 ```
 
 ### 高级用法

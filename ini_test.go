@@ -437,6 +437,9 @@ func Test_File_SaveTo(t *testing.T) {
 # Bio can be written in multiple lines.`
 		cfg.Section("advanced").Key("val w/ pound").SetValue("my#password")
 		So(cfg.SaveTo("testdata/conf_out.ini"), ShouldBeNil)
+
+		cfg.Section("author").Key("NAME").Comment = "This is author name"
+		So(cfg.SaveToIndent("testdata/conf_out.ini", "\t"), ShouldBeNil)
 	})
 }
 

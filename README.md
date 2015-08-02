@@ -246,6 +246,7 @@ A typical way to save configuration is writing it to a file:
 ```go
 // ...
 err = cfg.SaveTo("my.ini")
+err = cfg.SaveToIndent("my.ini", "\t")
 ```
 
 Another way to save is writing to a `io.Writer` interface:
@@ -253,6 +254,7 @@ Another way to save is writing to a `io.Writer` interface:
 ```go
 // ...
 cfg.WriteTo(writer)
+cfg.WriteToIndent(writer, "\t")
 ```
 
 ## Advanced Usage
