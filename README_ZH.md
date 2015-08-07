@@ -466,7 +466,7 @@ type Config struct {
 }
 ```
 
-Example configuration:
+示例配置文件：
 
 ```ini
 City = Boston
@@ -476,18 +476,6 @@ Name = Unknwon
 
 [Child]
 Age = 21
-```
-
-示例配置文件：
-
-```ini
-Name = Unknwon
-
-[Parent]
-Name = John
-
-[Child]
-Name = Joe
 ```
 
 很好，但是，我就是要嵌入结构也在同一个分区。好吧，你爹是李刚！
