@@ -35,7 +35,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.3.5"
+	_VERSION = "1.4.0"
 )
 
 func Version() string {
@@ -695,7 +695,7 @@ func (f *File) GetSection(name string) (*Section, error) {
 func (f *File) Section(name string) *Section {
 	sec, err := f.GetSection(name)
 	if err != nil {
-		// It's OK here because the only possible error is empty section name,
+		// Note: It's OK here because the only possible error is empty section name,
 		// but if it's empty, this piece of code won't be executed.
 		sec, _ = f.NewSection(name)
 		return sec

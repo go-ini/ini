@@ -373,6 +373,55 @@ p := &Person{
 // ...
 ```
 
+It's really cool, but what's the point if you can't give me my file back from struct?
+
+### Reflect From Struct
+
+Why not?
+
+```go
+type Embeded struct {
+	Dates  []time.Time `delim:"|"`
+	Places []string
+	None   []int
+}
+
+type Author struct {
+	Name      string `ini:"NAME"`
+	Male      bool
+	Age       int
+	GPA       float64
+	NeverMind string `ini:"-"`
+	*Embeded
+}
+
+func main() {
+	a := &Author{"Unknwon", true, 21, 2.8, "",
+		&Embeded{
+			[]time.Time{time.Now(), time.Now()},
+			[]string{"HangZhou", "Boston"},
+			[]int{},
+		}}
+	cfg := ini.Empty()
+	err = ini.ReflectFrom(cfg, a)
+	// ...
+}
+```
+
+So, what do I get?
+
+```ini
+NAME = Unknwon
+Male = true
+Age = 21
+GPA = 2.8
+
+[Embeded]
+Dates = 2015-08-07T22:14:22+08:00|2015-08-07T22:14:22+08:00
+Places = HangZhou,Boston
+None = 
+```
+
 #### Name Mapper
 
 To save your time and make your code cleaner, this library supports [`NameMapper`](https://gowalker.org/gopkg.in/ini.v1#NameMapper) between struct field and actual section and key name.
@@ -401,6 +450,8 @@ func main() {
 	// ...
 }
 ```
+
+Same rules of name mapper apply to `ini.ReflectFromWithMapper` function.
 
 ## Getting Help
 

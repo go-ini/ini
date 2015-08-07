@@ -15,6 +15,7 @@
 package ini
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"reflect"
@@ -165,15 +166,13 @@ func (s *Section) mapTo(val reflect.Value) error {
 			continue
 		}
 
-		if tpField.Type.Kind() == reflect.Struct {
-			if sec, err := s.f.GetSection(fieldName); err == nil {
-				if err = sec.mapTo(field); err != nil {
-					return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
-				}
-				continue
-			}
-		} else if tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous {
+		isAnonymous := tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous
+		isStruct := tpField.Type.Kind() == reflect.Struct
+		if isAnonymous {
 			field.Set(reflect.New(tpField.Type.Elem()))
+		}
+
+		if isAnonymous || isStruct {
 			if sec, err := s.f.GetSection(fieldName); err == nil {
 				if err = sec.mapTo(field); err != nil {
 					return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
@@ -223,4 +222,114 @@ func MapToWithMapper(v interface{}, mapper NameMapper, source interface{}, other
 // MapTo maps data sources to given struct.
 func MapTo(v, source interface{}, others ...interface{}) error {
 	return MapToWithMapper(v, nil, source, others...)
+}
+
+// reflectWithProperType does the opposite thing with setWithProperType.
+func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim string) error {
+	switch t.Kind() {
+	case reflect.String:
+		key.SetValue(field.String())
+	case reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Float64,
+		reflectTime:
+		key.SetValue(fmt.Sprint(field))
+	case reflect.Slice:
+		vals := field.Slice(0, field.Len())
+		if field.Len() == 0 {
+			return nil
+		}
+
+		var buf bytes.Buffer
+		isTime := fmt.Sprint(field.Type()) == "[]time.Time"
+		for i := 0; i < field.Len(); i++ {
+			if isTime {
+				buf.WriteString(vals.Index(i).Interface().(time.Time).Format(time.RFC3339))
+			} else {
+				buf.WriteString(fmt.Sprint(vals.Index(i)))
+			}
+			buf.WriteString(delim)
+		}
+		key.SetValue(buf.String()[:buf.Len()-1])
+	default:
+		return fmt.Errorf("unsupported type '%s'", t)
+	}
+	return nil
+}
+
+func (s *Section) reflectFrom(val reflect.Value) error {
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	typ := val.Type()
+
+	for i := 0; i < typ.NumField(); i++ {
+		field := val.Field(i)
+		tpField := typ.Field(i)
+
+		tag := tpField.Tag.Get("ini")
+		if tag == "-" {
+			continue
+		}
+
+		fieldName := s.parseFieldName(tpField.Name, tag)
+		if len(fieldName) == 0 || !field.CanSet() {
+			continue
+		}
+
+		if (tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous) ||
+			(tpField.Type.Kind() == reflect.Struct) {
+			// Note: The only error here is section doesn't exist.
+			sec, err := s.f.GetSection(fieldName)
+			if err != nil {
+				// Note: fieldName can never be empty here, ignore error.
+				sec, _ = s.f.NewSection(fieldName)
+			}
+			if err = sec.reflectFrom(field); err != nil {
+				return fmt.Errorf("error reflecting field(%s): %v", fieldName, err)
+			}
+			continue
+		}
+
+		// Note: Same reason as secion.
+		key, err := s.GetKey(fieldName)
+		if err != nil {
+			key, _ = s.NewKey(fieldName, "")
+		}
+		if err = reflectWithProperType(tpField.Type, key, field, parseDelim(tpField.Tag.Get("delim"))); err != nil {
+			return fmt.Errorf("error reflecting field(%s): %v", fieldName, err)
+		}
+
+	}
+	return nil
+}
+
+// ReflectFrom reflects secion from given struct.
+func (s *Section) ReflectFrom(v interface{}) error {
+	typ := reflect.TypeOf(v)
+	val := reflect.ValueOf(v)
+	if typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+		val = val.Elem()
+	} else {
+		return errors.New("cannot reflect from non-pointer struct")
+	}
+
+	return s.reflectFrom(val)
+}
+
+// ReflectFrom reflects file from given struct.
+func (f *File) ReflectFrom(v interface{}) error {
+	return f.Section("").ReflectFrom(v)
+}
+
+// ReflectFrom reflects data sources from given struct with name mapper.
+func ReflectFromWithMapper(cfg *File, v interface{}, mapper NameMapper) error {
+	cfg.NameMapper = mapper
+	return cfg.ReflectFrom(v)
+}
+
+// ReflectFrom reflects data sources from given struct.
+func ReflectFrom(cfg *File, v interface{}) error {
+	return ReflectFromWithMapper(cfg, v, nil)
 }

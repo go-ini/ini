@@ -366,6 +366,55 @@ p := &Person{
 // ...
 ```
 
+这样玩 INI 真的好酷啊！然而，如果不能还给我原来的配置文件，有什么卵用？
+
+### 从结构反射
+
+可是，我有说不能吗？
+
+```go
+type Embeded struct {
+	Dates  []time.Time `delim:"|"`
+	Places []string
+	None   []int
+}
+
+type Author struct {
+	Name      string `ini:"NAME"`
+	Male      bool
+	Age       int
+	GPA       float64
+	NeverMind string `ini:"-"`
+	*Embeded
+}
+
+func main() {
+	a := &Author{"Unknwon", true, 21, 2.8, "",
+		&Embeded{
+			[]time.Time{time.Now(), time.Now()},
+			[]string{"HangZhou", "Boston"},
+			[]int{},
+		}}
+	cfg := ini.Empty()
+	err = ini.ReflectFrom(cfg, a)
+	// ...
+}
+```
+
+瞧瞧，奇迹发生了。
+
+```ini
+NAME = Unknwon
+Male = true
+Age = 21
+GPA = 2.8
+
+[Embeded]
+Dates = 2015-08-07T22:14:22+08:00|2015-08-07T22:14:22+08:00
+Places = HangZhou,Boston
+None = 
+```
+
 #### 名称映射器（Name Mapper）
 
 为了节省您的时间并简化代码，本库支持类型为 [`NameMapper`](https://gowalker.org/gopkg.in/ini.v1#NameMapper) 的名称映射器，该映射器负责结构字段名与分区名和键名之间的映射。
@@ -394,6 +443,8 @@ func main() {
 	// ...
 }
 ```
+
+使用函数 `ini.ReflectFromWithMapper` 时也可应用相同的规则。
 
 ## 获取帮助
 
