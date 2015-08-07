@@ -434,7 +434,7 @@ There are 2 built-in name mappers:
 To use them:
 
 ```go
-type Info struct{
+type Info struct {
 	PackageName string
 }
 
@@ -452,6 +452,66 @@ func main() {
 ```
 
 Same rules of name mapper apply to `ini.ReflectFromWithMapper` function.
+
+#### Other Notes On Map/Reflect
+
+Any embedded struct is treated as a section by default, and there is no automatic parent-child relations in map/reflect feature:
+
+```go
+type Child struct {
+	Age string
+}
+
+type Parent struct {
+	Name string
+	Child
+}
+
+type Config struct {
+	City string
+	Parent
+}
+```
+
+Example configuration:
+
+```ini
+City = Boston
+
+[Parent]
+Name = Unknwon
+
+[Child]
+Age = 21
+```
+
+What if, yes, I'm paranoid, I want embedded struct to be in the same section. Well, all roads lead to Rome.
+
+```go
+type Child struct {
+	Age string
+}
+
+type Parent struct {
+	Name string
+	Child `ini:"Parent"`
+}
+
+type Config struct {
+	City string
+	Parent
+}
+```
+
+Example configuration:
+
+```ini
+City = Boston
+
+[Parent]
+Name = Unknwon
+Age = 21
+```
 
 ## Getting Help
 

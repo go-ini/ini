@@ -198,7 +198,7 @@ func Test_Struct(t *testing.T) {
 			Age       int
 			GPA       float64
 			NeverMind string `ini:"-"`
-			*Embeded
+			*Embeded  `ini:"infos"`
 		}
 		a := &Author{"Unknwon", true, 21, 2.8, "",
 			&Embeded{

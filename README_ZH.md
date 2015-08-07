@@ -446,6 +446,78 @@ func main() {
 
 使用函数 `ini.ReflectFromWithMapper` 时也可应用相同的规则。
 
+#### 映射/反射的其它说明
+
+任何嵌入的结构都会被默认认作一个不同的分区，并且不会自动产生所谓的父子分区关联：
+
+```go
+type Child struct {
+	Age string
+}
+
+type Parent struct {
+	Name string
+	Child
+}
+
+type Config struct {
+	City string
+	Parent
+}
+```
+
+Example configuration:
+
+```ini
+City = Boston
+
+[Parent]
+Name = Unknwon
+
+[Child]
+Age = 21
+```
+
+示例配置文件：
+
+```ini
+Name = Unknwon
+
+[Parent]
+Name = John
+
+[Child]
+Name = Joe
+```
+
+很好，但是，我就是要嵌入结构也在同一个分区。好吧，你爹是李刚！
+
+```go
+type Child struct {
+	Age string
+}
+
+type Parent struct {
+	Name string
+	Child `ini:"Parent"`
+}
+
+type Config struct {
+	City string
+	Parent
+}
+```
+
+示例配置文件：
+
+```ini
+City = Boston
+
+[Parent]
+Name = Unknwon
+Age = 21
+```
+
 ## 获取帮助
 
 - [API 文档](https://gowalker.org/gopkg.in/ini.v1)
