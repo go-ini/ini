@@ -102,8 +102,8 @@ err := cfg.Section("").NewKey("name", "value")
 To get a list of keys or key names:
 
 ```go
-keys := cfg.Section().Keys()
-names := cfg.Section().KeyStrings()
+keys := cfg.Section("").Keys()
+names := cfg.Section("").KeyStrings()
 ```
 
 To get a clone hash of keys and corresponding values:

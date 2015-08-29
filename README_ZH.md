@@ -97,8 +97,8 @@ err := cfg.Section("").NewKey("name", "value")
 获取分区下的所有键或键名：
 
 ```go
-keys := cfg.Section().Keys()
-names := cfg.Section().KeyStrings()
+keys := cfg.Section("").Keys()
+names := cfg.Section("").KeyStrings()
 ```
 
 获取分区下的所有键值对的克隆：
