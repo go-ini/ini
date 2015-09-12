@@ -1,6 +1,8 @@
 ini [![Build Status](https://drone.io/github.com/go-ini/ini/status.png)](https://drone.io/github.com/go-ini/ini/latest) [![](http://gocover.io/_badge/github.com/go-ini/ini)](http://gocover.io/github.com/go-ini/ini)
 ===
 
+![](https://avatars0.githubusercontent.com/u/10216035?v=3&s=200)
+
 Package ini provides INI file read and write functionality in Go.
 
 [简体中文](README_ZH.md)
