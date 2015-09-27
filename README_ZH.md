@@ -115,6 +115,17 @@ hash := cfg.GetSection("").KeysHash()
 val := cfg.Section("").Key("key name").String()
 ```
 
+获取值的同时通过自定义函数进行处理验证：
+
+```go
+val := cfg.Section("").Key("key name").Validate(func(in string) string {
+	if len(in) == 0 {
+		return "default"
+	}
+	return in
+})
+```
+
 获取其它类型的值：
 
 ```go

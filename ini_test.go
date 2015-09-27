@@ -170,6 +170,9 @@ func Test_Values(t *testing.T) {
 			So(sec, ShouldNotBeNil)
 			So(sec.Key("NAME").Value(), ShouldEqual, "ini")
 			So(sec.Key("NAME").String(), ShouldEqual, "ini")
+			So(sec.Key("NAME").Validate(func(in string) string {
+				return in
+			}), ShouldEqual, "ini")
 			So(sec.Key("NAME").Comment, ShouldEqual, "; Package name")
 			So(sec.Key("IMPORT_PATH").String(), ShouldEqual, "gopkg.in/ini.v1")
 		})

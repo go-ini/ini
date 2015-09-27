@@ -35,7 +35,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.4.0"
+	_VERSION = "1.4.1"
 )
 
 func Version() string {
@@ -142,6 +142,12 @@ func (k *Key) String() string {
 		val = strings.Replace(val, vr, nk.value, -1)
 	}
 	return val
+}
+
+// Validate accepts a validate function which can
+// return modifed result as key value.
+func (k *Key) Validate(fn func(string) string) string {
+	return fn(k.String())
 }
 
 // parseBool returns the boolean value represented by the string.

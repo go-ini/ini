@@ -120,6 +120,17 @@ To get a string value:
 val := cfg.Section("").Key("key name").String()
 ```
 
+To validate key value on the fly:
+
+```go
+val := cfg.Section("").Key("key name").Validate(func(in string) string {
+	if len(in) == 0 {
+		return "default"
+	}
+	return in
+})
+```
+
 To get value with types:
 
 ```go
