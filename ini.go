@@ -35,7 +35,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.4.1"
+	_VERSION = "1.5.0"
 )
 
 func Version() string {
@@ -1095,14 +1095,24 @@ func (f *File) WriteTo(w io.Writer) (int64, error) {
 
 // SaveToIndent writes content to file system with given value indention.
 func (f *File) SaveToIndent(filename, indent string) error {
-	fw, err := os.Create(filename)
+	// Note: Because we are truncating with os.Create,
+	// 	so it's safer to save to a temporary file location and rename afte done.
+	tmpPath := strconv.Itoa(time.Now().Nanosecond()) + ".ini.tmp"
+	defer os.Remove(tmpPath)
+
+	fw, err := os.Create(tmpPath)
 	if err != nil {
 		return err
 	}
 	defer fw.Close()
 
-	_, err = f.WriteToIndent(fw, indent)
-	return err
+	if _, err = f.WriteToIndent(fw, indent); err != nil {
+		return err
+	}
+
+	// Remove old file and rename the new one.
+	os.Remove(filename)
+	return os.Rename(tmpPath, filename)
 }
 
 // SaveTo writes content to file system.
