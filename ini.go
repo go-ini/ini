@@ -1104,11 +1104,12 @@ func (f *File) SaveToIndent(filename, indent string) error {
 	if err != nil {
 		return err
 	}
-	defer fw.Close()
 
 	if _, err = f.WriteToIndent(fw, indent); err != nil {
+		fw.Close()
 		return err
 	}
+	fw.Close()
 
 	// Remove old file and rename the new one.
 	os.Remove(filename)
