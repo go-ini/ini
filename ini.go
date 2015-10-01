@@ -1097,7 +1097,7 @@ func (f *File) WriteTo(w io.Writer) (int64, error) {
 func (f *File) SaveToIndent(filename, indent string) error {
 	// Note: Because we are truncating with os.Create,
 	// 	so it's safer to save to a temporary file location and rename afte done.
-	tmpPath := strconv.Itoa(time.Now().Nanosecond()) + ".ini.tmp"
+	tmpPath := filename + "." + strconv.Itoa(time.Now().Nanosecond()) + ".tmp"
 	defer os.Remove(tmpPath)
 
 	fw, err := os.Create(tmpPath)
