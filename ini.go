@@ -512,8 +512,18 @@ func (s *Section) GetKey(name string) (*Key, error) {
 
 	if key == nil {
 		// Check if it is a child-section.
-		if i := strings.LastIndex(s.name, "."); i > -1 {
-			return s.f.Section(s.name[:i]).GetKey(name)
+		sname := s.name
+		for {
+			if i := strings.LastIndex(sname, "."); i > -1 {
+				sname = sname[:i]
+				sec, err := s.f.GetSection(sname)
+				if err != nil {
+					continue
+				}
+				return sec.GetKey(name)
+			} else {
+				break
+			}
 		}
 		return nil, fmt.Errorf("error when getting key of section '%s': key '%s' not exists", s.name, name)
 	}
