@@ -69,23 +69,35 @@ func inSlice(str string, s []string) bool {
 
 // dataSource is a interface that returns file content.
 type dataSource interface {
-	Reader() (io.Reader, error)
+	ReadCloser() (io.ReadCloser, error)
 }
 
 type sourceFile struct {
 	name string
 }
 
-func (s sourceFile) Reader() (io.Reader, error) {
+func (s sourceFile) ReadCloser() (_ io.ReadCloser, err error) {
 	return os.Open(s.name)
+}
+
+type bytesReadCloser struct {
+	reader io.Reader
+}
+
+func (rc *bytesReadCloser) Read(p []byte) (n int, err error) {
+	return rc.reader.Read(p)
+}
+
+func (rc *bytesReadCloser) Close() error {
+	return nil
 }
 
 type sourceData struct {
 	data []byte
 }
 
-func (s *sourceData) Reader() (io.Reader, error) {
-	return bytes.NewReader(s.data), nil
+func (s *sourceData) ReadCloser() (io.ReadCloser, error) {
+	return &bytesReadCloser{bytes.NewReader(s.data)}, nil
 }
 
 //  ____  __.
@@ -989,14 +1001,20 @@ func (f *File) parse(reader io.Reader) error {
 	return nil
 }
 
+func (f *File) reload(s dataSource) error {
+	r, err := s.ReadCloser()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	return f.parse(r)
+}
+
 // Reload reloads and parses all data sources.
-func (f *File) Reload() error {
+func (f *File) Reload() (err error) {
 	for _, s := range f.dataSources {
-		r, err := s.Reader()
-		if err != nil {
-			return err
-		}
-		if err = f.parse(r); err != nil {
+		if err = f.reload(s); err != nil {
 			return err
 		}
 	}
