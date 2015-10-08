@@ -977,7 +977,7 @@ func (f *File) parse(reader io.Reader) error {
 				val = lineRight[qLen : pos+qLen]
 			}
 		} else {
-			val = strings.TrimSpace(cutComment(lineRight[0:]))
+			val = strings.TrimSpace(cutComment(lineRight))
 			val, isEnd, err = checkContinuationLines(buf, val)
 			if err != nil {
 				return err
