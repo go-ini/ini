@@ -43,6 +43,7 @@ type testStruct struct {
 	Others       testNested
 	*testEmbeded `ini:"grade"`
 	Unused       int `ini:"-"`
+	Unsigned     uint
 }
 
 const _CONF_DATA_STRUCT = `
@@ -52,6 +53,7 @@ Male = true
 Money = 1.25
 Born = 1993-10-07T20:17:05Z
 Duration = 2h45m
+Unsigned = 3
 
 [Others]
 Cities = HangZhou|Boston
@@ -116,6 +118,7 @@ func Test_Struct(t *testing.T) {
 			So(ts.Age, ShouldEqual, 21)
 			So(ts.Male, ShouldBeTrue)
 			So(ts.Money, ShouldEqual, 1.25)
+			So(ts.Unsigned, ShouldEqual, 3)
 
 			t, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
 			So(err, ShouldBeNil)

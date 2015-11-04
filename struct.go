@@ -104,6 +104,20 @@ func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim stri
 			return nil
 		}
 		field.SetInt(intVal)
+	//	byte is an alias for uint8, so supporting uint8 breaks support for byte
+	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		durationVal, err := key.Duration()
+		if err == nil {
+			field.Set(reflect.ValueOf(durationVal))
+			return nil
+		}
+
+		uintVal, err := key.Uint64()
+		if err != nil {
+			return nil
+		}
+		field.SetUint(uintVal)
+
 	case reflect.Float64:
 		floatVal, err := key.Float64()
 		if err != nil {
@@ -231,6 +245,7 @@ func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim 
 		key.SetValue(field.String())
 	case reflect.Bool,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float64,
 		reflectTime:
 		key.SetValue(fmt.Sprint(field))
