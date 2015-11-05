@@ -366,6 +366,30 @@ func (k *Key) InInt64(defaultVal int64, candidates []int64) int64 {
 	return defaultVal
 }
 
+// InUint always returns value without error,
+// it returns default value if error occurs or doesn't fit into candidates.
+func (k *Key) InUint(defaultVal uint, candidates []uint) uint {
+	val := k.MustUint()
+	for _, cand := range candidates {
+		if val == cand {
+			return val
+		}
+	}
+	return defaultVal
+}
+
+// InUint64 always returns value without error,
+// it returns default value if error occurs or doesn't fit into candidates.
+func (k *Key) InUint64(defaultVal uint64, candidates []uint64) uint64 {
+	val := k.MustUint64()
+	for _, cand := range candidates {
+		if val == cand {
+			return val
+		}
+	}
+	return defaultVal
+}
+
 // InTimeFormat always parses with given format and returns value without error,
 // it returns default value if error occurs or doesn't fit into candidates.
 func (k *Key) InTimeFormat(format string, defaultVal time.Time, candidates []time.Time) time.Time {
