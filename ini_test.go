@@ -67,11 +67,13 @@ FLOAT64 = 1.25
 INT = 10
 TIME = 2015-01-01T20:17:05Z
 DURATION = 2h45m
+UINT = 3
 
 [array]
 STRINGS = en, zh, de
 FLOAT64S = 1.1, 2.2, 3.3
 INTS = 1, 2, 3
+UINTS = 1, 2, 3
 TIMES = 2015-01-01T20:17:05Z,2015-01-01T20:17:05Z,2015-01-01T20:17:05Z
 
 [note]
@@ -336,11 +338,21 @@ func Test_Values(t *testing.T) {
 				So(vals3[i], ShouldEqual, v)
 			}
 
+			vals4 := sec.Key("UINTS").Uints(",")
+			for i, v := range []uint{1, 2, 3} {
+				So(vals4[i], ShouldEqual, v)
+			}
+
+			vals5 := sec.Key("UINTS").Uint64s(",")
+			for i, v := range []uint64{1, 2, 3} {
+				So(vals5[i], ShouldEqual, v)
+			}
+
 			t, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
 			So(err, ShouldBeNil)
-			vals4 := sec.Key("TIMES").Times(",")
+			vals6 := sec.Key("TIMES").Times(",")
 			for i, v := range []time.Time{t, t, t} {
-				So(vals4[i].String(), ShouldEqual, v.String())
+				So(vals6[i].String(), ShouldEqual, v.String())
 			}
 		})
 
@@ -355,7 +367,7 @@ func Test_Values(t *testing.T) {
 		})
 
 		Convey("Get key strings", func() {
-			So(strings.Join(cfg.Section("types").KeyStrings(), ","), ShouldEqual, "STRING,BOOL,BOOL_FALSE,FLOAT64,INT,TIME,DURATION")
+			So(strings.Join(cfg.Section("types").KeyStrings(), ","), ShouldEqual, "STRING,BOOL,BOOL_FALSE,FLOAT64,INT,TIME,DURATION,UINT")
 		})
 
 		Convey("Delete a key", func() {

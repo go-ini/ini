@@ -197,6 +197,17 @@ func (k *Key) Int64() (int64, error) {
 	return strconv.ParseInt(k.String(), 10, 64)
 }
 
+// Uint returns uint type valued.
+func (k *Key) Uint() (uint, error) {
+	u, e := strconv.ParseUint(k.String(), 10, 64)
+	return uint(u), e
+}
+
+// Uint64 returns uint64 type value.
+func (k *Key) Uint64() (uint64, error) {
+	return strconv.ParseUint(k.String(), 10, 64)
+}
+
 // Duration returns time.Duration type value.
 func (k *Key) Duration() (time.Duration, error) {
 	return time.ParseDuration(k.String())
@@ -255,6 +266,26 @@ func (k *Key) MustInt(defaultVal ...int) int {
 // it returns 0 if error occurs.
 func (k *Key) MustInt64(defaultVal ...int64) int64 {
 	val, err := k.Int64()
+	if len(defaultVal) > 0 && err != nil {
+		return defaultVal[0]
+	}
+	return val
+}
+
+// MustUint always returns value without error,
+// it returns 0 if error occurs.
+func (k *Key) MustUint(defaultVal ...uint) uint {
+	val, err := k.Uint()
+	if len(defaultVal) > 0 && err != nil {
+		return defaultVal[0]
+	}
+	return val
+}
+
+// MustUint64 always returns value without error,
+// it returns 0 if error occurs.
+func (k *Key) MustUint64(defaultVal ...uint64) uint64 {
+	val, err := k.Uint64()
 	if len(defaultVal) > 0 && err != nil {
 		return defaultVal[0]
 	}
@@ -327,6 +358,30 @@ func (k *Key) InInt(defaultVal int, candidates []int) int {
 // it returns default value if error occurs or doesn't fit into candidates.
 func (k *Key) InInt64(defaultVal int64, candidates []int64) int64 {
 	val := k.MustInt64()
+	for _, cand := range candidates {
+		if val == cand {
+			return val
+		}
+	}
+	return defaultVal
+}
+
+// InUint always returns value without error,
+// it returns default value if error occurs or doesn't fit into candidates.
+func (k *Key) InUint(defaultVal uint, candidates []uint) uint {
+	val := k.MustUint()
+	for _, cand := range candidates {
+		if val == cand {
+			return val
+		}
+	}
+	return defaultVal
+}
+
+// InUint64 always returns value without error,
+// it returns default value if error occurs or doesn't fit into candidates.
+func (k *Key) InUint64(defaultVal uint64, candidates []uint64) uint64 {
+	val := k.MustUint64()
 	for _, cand := range candidates {
 		if val == cand {
 			return val
@@ -439,6 +494,27 @@ func (k *Key) Int64s(delim string) []int64 {
 	vals := make([]int64, len(strs))
 	for i := range strs {
 		vals[i], _ = strconv.ParseInt(strs[i], 10, 64)
+	}
+	return vals
+}
+
+// Uints returns list of uint devide by given delimiter.
+func (k *Key) Uints(delim string) []uint {
+	strs := k.Strings(delim)
+	vals := make([]uint, len(strs))
+	for i := range strs {
+		u, _ := strconv.ParseUint(strs[i], 10, 64)
+		vals[i] = uint(u)
+	}
+	return vals
+}
+
+// Uint64s returns list of uint64 devide by given delimiter.
+func (k *Key) Uint64s(delim string) []uint64 {
+	strs := k.Strings(delim)
+	vals := make([]uint64, len(strs))
+	for i := range strs {
+		vals[i], _ = strconv.ParseUint(strs[i], 10, 64)
 	}
 	return vals
 }
