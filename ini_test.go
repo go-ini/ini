@@ -238,11 +238,19 @@ func Test_Values(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(v4, ShouldEqual, 10)
 
+			v5, err := sec.Key("UINT").Uint()
+			So(err, ShouldBeNil)
+			So(v5, ShouldEqual, 3)
+
+			v6, err := sec.Key("UINT").Uint64()
+			So(err, ShouldBeNil)
+			So(v6, ShouldEqual, 3)
+
 			t, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
 			So(err, ShouldBeNil)
-			v5, err := sec.Key("TIME").Time()
+			v7, err := sec.Key("TIME").Time()
 			So(err, ShouldBeNil)
-			So(v5.String(), ShouldEqual, t.String())
+			So(v7.String(), ShouldEqual, t.String())
 
 			Convey("Must get values with type", func() {
 				So(sec.Key("STRING").MustString("404"), ShouldEqual, "str")
@@ -250,6 +258,8 @@ func Test_Values(t *testing.T) {
 				So(sec.Key("FLOAT64").MustFloat64(), ShouldEqual, 1.25)
 				So(sec.Key("INT").MustInt(), ShouldEqual, 10)
 				So(sec.Key("INT").MustInt64(), ShouldEqual, 10)
+				So(sec.Key("UINT").MustUint(), ShouldEqual, 3)
+				So(sec.Key("UINT").MustUint64(), ShouldEqual, 3)
 				So(sec.Key("TIME").MustTime().String(), ShouldEqual, t.String())
 
 				dur, err := time.ParseDuration("2h45m")
@@ -262,6 +272,8 @@ func Test_Values(t *testing.T) {
 					So(sec.Key("FLOAT64_404").MustFloat64(2.5), ShouldEqual, 2.5)
 					So(sec.Key("INT_404").MustInt(15), ShouldEqual, 15)
 					So(sec.Key("INT_404").MustInt64(15), ShouldEqual, 15)
+					So(sec.Key("UINT_404").MustUint(6), ShouldEqual, 6)
+					So(sec.Key("UINT_404").MustUint64(6), ShouldEqual, 6)
 
 					t, err := time.Parse(time.RFC3339, "2014-01-01T20:17:05Z")
 					So(err, ShouldBeNil)
@@ -278,6 +290,8 @@ func Test_Values(t *testing.T) {
 			So(sec.Key("FLOAT64").InFloat64(0, []float64{1.25, 2.5, 3.75}), ShouldEqual, 1.25)
 			So(sec.Key("INT").InInt(0, []int{10, 20, 30}), ShouldEqual, 10)
 			So(sec.Key("INT").InInt64(0, []int64{10, 20, 30}), ShouldEqual, 10)
+			So(sec.Key("UINT").InUint(0, []uint{3, 6, 9}), ShouldEqual, 3)
+			So(sec.Key("UINT").InUint64(0, []uint64{3, 6, 9}), ShouldEqual, 3)
 
 			zt, err := time.Parse(time.RFC3339, "0001-01-01T01:00:00Z")
 			So(err, ShouldBeNil)
@@ -290,6 +304,8 @@ func Test_Values(t *testing.T) {
 				So(sec.Key("FLOAT64_404").InFloat64(1.25, []float64{1.25, 2.5, 3.75}), ShouldEqual, 1.25)
 				So(sec.Key("INT_404").InInt(10, []int{10, 20, 30}), ShouldEqual, 10)
 				So(sec.Key("INT64_404").InInt64(10, []int64{10, 20, 30}), ShouldEqual, 10)
+				So(sec.Key("UINT_404").InUint(3, []uint{3, 6, 9}), ShouldEqual, 3)
+				So(sec.Key("UINT_404").InUint64(3, []uint64{3, 6, 9}), ShouldEqual, 3)
 				So(sec.Key("TIME_404").InTime(t, []time.Time{time.Now(), time.Now(), time.Now().Add(1 * time.Second)}).String(), ShouldEqual, t.String())
 			})
 		})
