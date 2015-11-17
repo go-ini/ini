@@ -392,6 +392,24 @@ func Test_Values(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 
+		Convey("Has Key", func() {
+			sec := cfg.Section("package.sub")
+			haskey1 := sec.Haskey("UNUSED_KEY")
+			haskey2 := sec.Haskey("CLONE_URL")
+			haskey3 := sec.Haskey("CLONE_URL_NO")
+			So(haskey1, ShouldBeTrue)
+			So(haskey2, ShouldBeTrue)
+			So(haskey3, ShouldBeFalse)
+		})
+
+		Convey("Has Value", func() {
+			sec := cfg.Section("author")
+			hasvalue1 := sec.HasValue("Unknwon")
+			hasvalue2 := sec.HasValue("doc")
+			So(hasvalue1, ShouldBeTrue)
+			So(hasvalue2, ShouldBeFalse)
+		})
+
 		Convey("Get section strings", func() {
 			So(strings.Join(cfg.SectionStrings(), ","), ShouldEqual, "DEFAULT,author,package,package.sub,features,types,array,note,advance")
 		})

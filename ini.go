@@ -618,6 +618,54 @@ func (s *Section) GetKey(name string) (*Key, error) {
 	return key, nil
 }
 
+// HasKey return boolean value to determine whether given name is exist
+func (s *Section) Haskey(name string) bool {
+	if s.f.BlockMode {
+		s.f.lock.RLock()
+		defer s.f.lock.RUnlock()
+	}
+
+	keys := s.keyList
+	for _, v := range keys {
+		if name == v {
+			return true
+		}
+	}
+
+	// Check if it is a child-section.
+	sname := s.name
+	for {
+		if i := strings.LastIndex(sname, "."); i > -1 {
+			sname = sname[:i]
+			sec, err := s.f.GetSection(sname)
+			if err != nil {
+				continue
+			}
+			return sec.Haskey(name)
+		} else {
+			break
+		}
+	}
+
+	return false
+}
+
+// HasValue return boolean value to determine whether given value is exist
+func (s *Section) HasValue(value string) bool {
+	if s.f.BlockMode {
+		s.f.lock.RLock()
+		defer s.f.lock.RUnlock()
+	}
+
+	keys := s.KeysHash()
+	for _, v := range keys {
+		if value == v {
+			return true
+		}
+	}
+	return false
+}
+
 // Key assumes named Key exists in section and returns a zero-value when not.
 func (s *Section) Key(name string) *Key {
 	key, err := s.GetKey(name)
