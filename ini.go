@@ -625,29 +625,11 @@ func (s *Section) Haskey(name string) bool {
 		defer s.f.lock.RUnlock()
 	}
 
-	keys := s.keyList
-	for _, v := range keys {
-		if name == v {
-			return true
-		}
+	key, _ := s.GetKey(name)
+	if key == nil {
+		return false
 	}
-
-	// Check if it is a child-section.
-	sname := s.name
-	for {
-		if i := strings.LastIndex(sname, "."); i > -1 {
-			sname = sname[:i]
-			sec, err := s.f.GetSection(sname)
-			if err != nil {
-				continue
-			}
-			return sec.Haskey(name)
-		} else {
-			break
-		}
-	}
-
-	return false
+	return true
 }
 
 // HasKey returns true if section contains a value with given value
