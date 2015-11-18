@@ -618,7 +618,7 @@ func (s *Section) GetKey(name string) (*Key, error) {
 	return key, nil
 }
 
-// HasKey return boolean value to determine whether given name is exist
+// HasKey returns true if section contains a key with given name
 func (s *Section) Haskey(name string) bool {
 	if s.f.BlockMode {
 		s.f.lock.RLock()
@@ -650,16 +650,15 @@ func (s *Section) Haskey(name string) bool {
 	return false
 }
 
-// HasValue return boolean value to determine whether given value is exist
+// HasKey returns true if section contains a value with given value
 func (s *Section) HasValue(value string) bool {
 	if s.f.BlockMode {
 		s.f.lock.RLock()
 		defer s.f.lock.RUnlock()
 	}
 
-	keys := s.KeysHash()
-	for _, v := range keys {
-		if value == v {
+	for _, v := range s.keys {
+		if value == v.value {
 			return true
 		}
 	}
