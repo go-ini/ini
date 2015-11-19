@@ -95,6 +95,12 @@ Same rule applies to key operations:
 key := cfg.Section("").Key("key name")
 ```
 
+To check if a key exists:
+
+```go
+yes := cfg.Section("").HasKey("key name")
+```
+
 To create a new key:
 
 ```go
@@ -131,6 +137,18 @@ val := cfg.Section("").Key("key name").Validate(func(in string) string {
 	}
 	return in
 })
+```
+
+If you do not want any auto-transformation (such as recursive read) for the values, you can get raw value directly (this way you get much better performance):
+
+```go
+val := cfg.Section("").Key("key name").Value()
+```
+
+To check if raw value exists:
+
+```go
+yes := cfg.Section("").HasValue("test value")
 ```
 
 To get value with types:

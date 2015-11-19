@@ -35,7 +35,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.6.0"
+	_VERSION = "1.7.0"
 )
 
 func Version() string {
@@ -618,21 +618,21 @@ func (s *Section) GetKey(name string) (*Key, error) {
 	return key, nil
 }
 
-// HasKey returns true if section contains a key with given name
+// HasKey returns true if section contains a key with given name.
 func (s *Section) Haskey(name string) bool {
 	key, _ := s.GetKey(name)
 	return key != nil
 }
 
-// HasKey returns true if section contains a value with given value
+// HasKey returns true if section contains given raw value.
 func (s *Section) HasValue(value string) bool {
 	if s.f.BlockMode {
 		s.f.lock.RLock()
 		defer s.f.lock.RUnlock()
 	}
 
-	for _, v := range s.keys {
-		if value == v.value {
+	for _, k := range s.keys {
+		if value == k.value {
 			return true
 		}
 	}
