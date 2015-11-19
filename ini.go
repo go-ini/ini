@@ -620,16 +620,8 @@ func (s *Section) GetKey(name string) (*Key, error) {
 
 // HasKey returns true if section contains a key with given name
 func (s *Section) Haskey(name string) bool {
-	if s.f.BlockMode {
-		s.f.lock.RLock()
-		defer s.f.lock.RUnlock()
-	}
-
 	key, _ := s.GetKey(name)
-	if key == nil {
-		return false
-	}
-	return true
+	return key != nil
 }
 
 // HasKey returns true if section contains a value with given value
