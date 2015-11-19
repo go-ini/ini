@@ -618,6 +618,27 @@ func (s *Section) GetKey(name string) (*Key, error) {
 	return key, nil
 }
 
+// HasKey returns true if section contains a key with given name
+func (s *Section) Haskey(name string) bool {
+	key, _ := s.GetKey(name)
+	return key != nil
+}
+
+// HasKey returns true if section contains a value with given value
+func (s *Section) HasValue(value string) bool {
+	if s.f.BlockMode {
+		s.f.lock.RLock()
+		defer s.f.lock.RUnlock()
+	}
+
+	for _, v := range s.keys {
+		if value == v.value {
+			return true
+		}
+	}
+	return false
+}
+
 // Key assumes named Key exists in section and returns a zero-value when not.
 func (s *Section) Key(name string) *Key {
 	key, err := s.GetKey(name)
