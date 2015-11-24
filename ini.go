@@ -758,7 +758,10 @@ func Load(source interface{}, others ...interface{}) (_ *File, err error) {
 		}
 	}
 	f := newFile(sources)
-	return f, f.Reload()
+	if err = f.Reload(); err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
 // Empty returns an empty file object.

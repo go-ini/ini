@@ -119,8 +119,9 @@ func Test_Load(t *testing.T) {
 			_, err := Load(_CONF_DATA)
 			So(err, ShouldNotBeNil)
 
-			_, err = Load("testdata/404.ini")
+			f, err := Load("testdata/404.ini")
 			So(err, ShouldNotBeNil)
+			So(f, ShouldBeNil)
 
 			_, err = Load(1)
 			So(err, ShouldNotBeNil)
