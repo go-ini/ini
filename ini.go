@@ -619,12 +619,17 @@ func (s *Section) GetKey(name string) (*Key, error) {
 }
 
 // HasKey returns true if section contains a key with given name.
-func (s *Section) Haskey(name string) bool {
+func (s *Section) HasKey(name string) bool {
 	key, _ := s.GetKey(name)
 	return key != nil
 }
 
-// HasKey returns true if section contains given raw value.
+// Haskey is a backwards-compatible name for HasKey.
+func (s *Section) Haskey(name string) bool {
+	return s.HasKey(name)
+}
+
+// HasValue returns true if section contains given raw value.
 func (s *Section) HasValue(value string) bool {
 	if s.f.BlockMode {
 		s.f.lock.RLock()
