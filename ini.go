@@ -629,7 +629,7 @@ func (s *Section) Haskey(name string) bool {
 	return s.HasKey(name)
 }
 
-// HasKey returns true if section contains given raw value.
+// HasValue returns true if section contains given raw value.
 func (s *Section) HasValue(value string) bool {
 	if s.f.BlockMode {
 		s.f.lock.RLock()
