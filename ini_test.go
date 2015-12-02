@@ -393,11 +393,21 @@ func Test_Values(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 
-		Convey("Has Key", func() {
+		Convey("Has Key (backwards compatible)", func() {
 			sec := cfg.Section("package.sub")
 			haskey1 := sec.Haskey("UNUSED_KEY")
 			haskey2 := sec.Haskey("CLONE_URL")
 			haskey3 := sec.Haskey("CLONE_URL_NO")
+			So(haskey1, ShouldBeTrue)
+			So(haskey2, ShouldBeTrue)
+			So(haskey3, ShouldBeFalse)
+		})
+
+		Convey("Has Key", func() {
+			sec := cfg.Section("package.sub")
+			haskey1 := sec.HasKey("UNUSED_KEY")
+			haskey2 := sec.HasKey("CLONE_URL")
+			haskey3 := sec.HasKey("CLONE_URL_NO")
 			So(haskey1, ShouldBeTrue)
 			So(haskey2, ShouldBeTrue)
 			So(haskey3, ShouldBeFalse)
