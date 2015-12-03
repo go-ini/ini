@@ -873,7 +873,7 @@ func (f *File) DeleteSection(name string) {
 }
 
 func cutComment(str string) string {
-	i := strings.Index(str, "#")
+	i := strings.IndexAny(str, "#;")
 	if i == -1 {
 		return str
 	}
@@ -979,10 +979,24 @@ func (f *File) parse(reader io.Reader) error {
 				comments += LineBreak + line
 			}
 			continue
-		case line[0] == '[' && line[length-1] == ']': // New sction.
-			section, err = f.NewSection(strings.TrimSpace(line[1 : length-1]))
+		case line[0] == '[': // New sction.
+			// Read to the next ']' (TODO: support quoted strings)
+			i := strings.Index(line, "]")
+			if i == -1 {
+				return fmt.Errorf("error parsing line: unclosed section: %s", line)
+			}
+			section, err = f.NewSection(strings.TrimSpace(line[1:i]))
 			if err != nil {
 				return err
+			}
+
+			lineComments := strings.TrimSpace(line[i+1:])
+			if len(lineComments) > 0 {
+				if len(comments) == 0 {
+					comments = lineComments
+				} else {
+					comments += LineBreak + lineComments
+				}
 			}
 
 			if len(comments) > 0 {
@@ -1202,9 +1216,8 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 			}
 
 			val := key.value
-			// In case key value contains "\n", "`" or "\"".
-			if strings.Contains(val, "\n") || strings.Contains(val, "`") || strings.Contains(val, `"`) ||
-				strings.Contains(val, "#") {
+			// In case key value contains "\n", "`", "\"", "#" or ";".
+			if strings.ContainsAny(val, "\n`\"#;") {
 				val = `"""` + val + `"""`
 			}
 			if _, err = buf.WriteString(kname + equalSign + val + LineBreak); err != nil {

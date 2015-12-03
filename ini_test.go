@@ -40,7 +40,7 @@ IMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s
 # Information about package author
 # Bio can be written in multiple lines.
 [author]
-NAME = Unknwon  # Succeeding comment
+NAME = Unknwon  ; Succeeding comment
 E-MAIL = fake@localhost
 GITHUB = https://github.com/%(NAME)s
 BIO = """Gopher.
@@ -78,6 +78,12 @@ TIMES = 2015-01-01T20:17:05Z,2015-01-01T20:17:05Z,2015-01-01T20:17:05Z
 
 [note]
 empty_lines = next line is empty\
+
+; Comment before the section
+[comments] ; This is a comment for the section too
+; Comment before key
+key = "value"
+key2 = "value2" ; This is a comment for key2
 
 [advance]
 value with quotes = "some value"
@@ -204,7 +210,7 @@ func Test_Values(t *testing.T) {
 
 		Convey("Get sections", func() {
 			sections := cfg.Sections()
-			for i, name := range []string{DEFAULT_SECTION, "author", "package", "package.sub", "features", "types", "array", "note", "advance"} {
+			for i, name := range []string{DEFAULT_SECTION, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "advance"} {
 				So(sections[i].Name(), ShouldEqual, name)
 			}
 		})
@@ -422,7 +428,7 @@ func Test_Values(t *testing.T) {
 		})
 
 		Convey("Get section strings", func() {
-			So(strings.Join(cfg.SectionStrings(), ","), ShouldEqual, "DEFAULT,author,package,package.sub,features,types,array,note,advance")
+			So(strings.Join(cfg.SectionStrings(), ","), ShouldEqual, "DEFAULT,author,package,package.sub,features,types,array,note,comments,advance")
 		})
 
 		Convey("Delete a section", func() {
