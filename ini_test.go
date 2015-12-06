@@ -15,6 +15,7 @@
 package ini
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -84,6 +85,7 @@ empty_lines = next line is empty\
 ; Comment before key
 key = "value"
 key2 = "value2" ; This is a comment for key2
+key3 = "one", "two", "three"
 
 [advance]
 value with quotes = "some value"
@@ -92,7 +94,7 @@ true = """"2+3=5""""
 "1+1=2" = true
 """6+1=7""" = true
 """` + "`" + `5+5` + "`" + `""" = 10
-""""6+6"""" = 12
+` + "`" + `"6+6"` + "`" + ` = 12
 ` + "`" + `7-2=4` + "`" + ` = false
 ADDRESS = ` + "`" + `404 road,
 NotFound, State, 50000` + "`" + `
@@ -136,8 +138,11 @@ func Test_Load(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 
-		Convey("Load with empty section name", func() {
+		Convey("Load with bad section name", func() {
 			_, err := Load([]byte("[]"))
+			So(err, ShouldNotBeNil)
+
+			_, err = Load([]byte("["))
 			So(err, ShouldNotBeNil)
 		})
 
@@ -160,9 +165,6 @@ func Test_Load(t *testing.T) {
 
 		Convey("Load with bad values", func() {
 			_, err := Load([]byte(`name="""Unknwon`))
-			So(err, ShouldNotBeNil)
-
-			_, err = Load([]byte(`key = "value`))
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -217,6 +219,7 @@ func Test_Values(t *testing.T) {
 
 		Convey("Get parent section value", func() {
 			So(cfg.Section("package.sub").Key("CLONE_URL").String(), ShouldEqual, "https://gopkg.in/ini.v1")
+			So(cfg.Section("package.fake.sub").Key("CLONE_URL").String(), ShouldEqual, "https://gopkg.in/ini.v1")
 		})
 
 		Convey("Get multiple line value", func() {
@@ -489,6 +492,14 @@ func Test_File_Append(t *testing.T) {
 			So(cfg.Append(1), ShouldNotBeNil)
 			So(cfg.Append([]byte(""), 1), ShouldNotBeNil)
 		})
+	})
+}
+
+func Test_File_WriteTo(t *testing.T) {
+	Convey("Write to somewhere", t, func() {
+		var buf bytes.Buffer
+		cfg := Empty()
+		cfg.WriteTo(&buf)
 	})
 }
 

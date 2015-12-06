@@ -16,7 +16,6 @@
 package ini
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -35,7 +34,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.7.0"
+	_VERSION = "1.8.0"
 )
 
 func Version() string {
@@ -872,254 +871,6 @@ func (f *File) DeleteSection(name string) {
 	}
 }
 
-func cutComment(str string) string {
-	i := strings.IndexAny(str, "#;")
-	if i == -1 {
-		return str
-	}
-	return str[:i]
-}
-
-func checkMultipleLines(buf *bufio.Reader, line, val, valQuote string) (string, error) {
-	isEnd := false
-	for {
-		next, err := buf.ReadString('\n')
-		if err != nil {
-			if err != io.EOF {
-				return "", err
-			}
-			isEnd = true
-		}
-		pos := strings.LastIndex(next, valQuote)
-		if pos > -1 {
-			val += next[:pos]
-			break
-		}
-		val += next
-		if isEnd {
-			return "", fmt.Errorf("error parsing line: missing closing key quote from '%s' to '%s'", line, next)
-		}
-	}
-	return val, nil
-}
-
-func checkContinuationLines(buf *bufio.Reader, val string) (string, bool, error) {
-	isEnd := false
-	for {
-		valLen := len(val)
-		if valLen == 0 || val[valLen-1] != '\\' {
-			break
-		}
-		val = val[:valLen-1]
-
-		next, err := buf.ReadString('\n')
-		if err != nil {
-			if err != io.EOF {
-				return "", isEnd, err
-			}
-			isEnd = true
-		}
-
-		next = strings.TrimSpace(next)
-		if len(next) == 0 {
-			break
-		}
-		val += next
-	}
-	return val, isEnd, nil
-}
-
-// parse parses data through an io.Reader.
-func (f *File) parse(reader io.Reader) error {
-	buf := bufio.NewReader(reader)
-
-	// Handle BOM-UTF8.
-	// http://en.wikipedia.org/wiki/Byte_order_mark#Representations_of_byte_order_marks_by_encoding
-	mask, err := buf.Peek(3)
-	if err == nil && len(mask) >= 3 && mask[0] == 239 && mask[1] == 187 && mask[2] == 191 {
-		buf.Read(mask)
-	}
-
-	count := 1
-	comments := ""
-	isEnd := false
-
-	section, err := f.NewSection(DEFAULT_SECTION)
-	if err != nil {
-		return err
-	}
-
-	for {
-		line, err := buf.ReadString('\n')
-		line = strings.TrimSpace(line)
-		length := len(line)
-
-		// Check error and ignore io.EOF just for a moment.
-		if err != nil {
-			if err != io.EOF {
-				return fmt.Errorf("error reading next line: %v", err)
-			}
-			// The last line of file could be an empty line.
-			if length == 0 {
-				break
-			}
-			isEnd = true
-		}
-
-		// Skip empty lines.
-		if length == 0 {
-			continue
-		}
-
-		switch {
-		case line[0] == '#' || line[0] == ';': // Comments.
-			if len(comments) == 0 {
-				comments = line
-			} else {
-				comments += LineBreak + line
-			}
-			continue
-		case line[0] == '[': // New sction.
-			// Read to the next ']' (TODO: support quoted strings)
-			i := strings.Index(line, "]")
-			if i == -1 {
-				return fmt.Errorf("error parsing line: unclosed section: %s", line)
-			}
-			section, err = f.NewSection(strings.TrimSpace(line[1:i]))
-			if err != nil {
-				return err
-			}
-
-			lineComments := strings.TrimSpace(line[i+1:])
-			if len(lineComments) > 0 {
-				if len(comments) == 0 {
-					comments = lineComments
-				} else {
-					comments += LineBreak + lineComments
-				}
-			}
-
-			if len(comments) > 0 {
-				section.Comment = comments
-				comments = ""
-			}
-			// Reset counter.
-			count = 1
-			continue
-		}
-
-		// Other possibilities.
-		var (
-			i        int
-			keyQuote string
-			kname    string
-			valQuote string
-			val      string
-		)
-
-		// Key name surrounded by quotes.
-		if line[0] == '"' {
-			if length > 6 && line[0:3] == `"""` {
-				keyQuote = `"""`
-			} else {
-				keyQuote = `"`
-			}
-		} else if line[0] == '`' {
-			keyQuote = "`"
-		}
-		if len(keyQuote) > 0 {
-			qLen := len(keyQuote)
-			pos := strings.Index(line[qLen:], keyQuote)
-			if pos == -1 {
-				return fmt.Errorf("error parsing line: missing closing key quote: %s", line)
-			}
-			pos = pos + qLen
-			i = strings.IndexAny(line[pos:], "=:")
-			if i < 0 {
-				return fmt.Errorf("error parsing line: key-value delimiter not found: %s", line)
-			} else if i == pos {
-				return fmt.Errorf("error parsing line: key is empty: %s", line)
-			}
-			i = i + pos
-			kname = line[qLen:pos] // Just keep spaces inside quotes.
-		} else {
-			i = strings.IndexAny(line, "=:")
-			if i < 0 {
-				return fmt.Errorf("error parsing line: key-value delimiter not found: %s", line)
-			} else if i == 0 {
-				return fmt.Errorf("error parsing line: key is empty: %s", line)
-			}
-			kname = strings.TrimSpace(line[0:i])
-		}
-
-		isAutoIncr := false
-		// Auto increment.
-		if kname == "-" {
-			isAutoIncr = true
-			kname = "#" + fmt.Sprint(count)
-			count++
-		}
-
-		lineRight := strings.TrimSpace(line[i+1:])
-		lineRightLength := len(lineRight)
-		firstChar := ""
-		if lineRightLength >= 2 {
-			firstChar = lineRight[0:1]
-		}
-		if firstChar == "`" {
-			valQuote = "`"
-		} else if firstChar == `"` {
-			if lineRightLength >= 3 && lineRight[0:3] == `"""` {
-				valQuote = `"""`
-			} else {
-				valQuote = `"`
-			}
-		} else if firstChar == `'` {
-			valQuote = `'`
-		}
-
-		if len(valQuote) > 0 {
-			qLen := len(valQuote)
-			pos := strings.LastIndex(lineRight[qLen:], valQuote)
-			// For multiple-line value check.
-			if pos == -1 {
-				if valQuote == `"` || valQuote == `'` {
-					return fmt.Errorf("error parsing line: single quote does not allow multiple-line value: %s", line)
-				}
-
-				val = lineRight[qLen:] + "\n"
-				val, err = checkMultipleLines(buf, line, val, valQuote)
-				if err != nil {
-					return err
-				}
-			} else {
-				val = lineRight[qLen : pos+qLen]
-			}
-		} else {
-			val = strings.TrimSpace(cutComment(lineRight))
-			val, isEnd, err = checkContinuationLines(buf, val)
-			if err != nil {
-				return err
-			}
-		}
-
-		k, err := section.NewKey(kname, val)
-		if err != nil {
-			return err
-		}
-		k.isAutoIncr = isAutoIncr
-		if len(comments) > 0 {
-			k.Comment = comments
-			comments = ""
-		}
-
-		if isEnd {
-			break
-		}
-	}
-	return nil
-}
-
 func (f *File) reload(s dataSource) error {
 	r, err := s.ReadCloser()
 	if err != nil {
@@ -1209,15 +960,17 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 			switch {
 			case key.isAutoIncr:
 				kname = "-"
-			case strings.Contains(kname, "`") || strings.Contains(kname, `"`):
-				kname = `"""` + kname + `"""`
-			case strings.Contains(kname, `=`) || strings.Contains(kname, `:`):
+			case strings.ContainsAny(kname, "\"=:"):
 				kname = "`" + kname + "`"
+			case strings.Contains(kname, "`"):
+				kname = `"""` + kname + `"""`
 			}
 
 			val := key.value
 			// In case key value contains "\n", "`", "\"", "#" or ";".
-			if strings.ContainsAny(val, "\n`\"#;") {
+			if strings.ContainsAny(val, "#;") {
+				val = "`" + val + "`"
+			} else if strings.Contains(val, "\n`") {
 				val = `"""` + val + `"""`
 			}
 			if _, err = buf.WriteString(kname + equalSign + val + LineBreak); err != nil {
