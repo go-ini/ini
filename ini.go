@@ -34,7 +34,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.8.0"
+	_VERSION = "1.8.1"
 )
 
 func Version() string {
@@ -535,7 +535,13 @@ func (k *Key) Times(delim string) []time.Time {
 
 // SetValue changes key value.
 func (k *Key) SetValue(v string) {
+	if k.s.f.BlockMode {
+		k.s.f.lock.Lock()
+		defer k.s.f.lock.Unlock()
+	}
+
 	k.value = v
+	k.s.keysHash[k.name] = v
 }
 
 //   _________              __  .__

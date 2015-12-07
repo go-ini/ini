@@ -478,6 +478,14 @@ func Test_Values(t *testing.T) {
 			So(s, ShouldNotBeNil)
 		})
 	})
+
+	Convey("Test key hash clone", t, func() {
+		cfg, err := Load([]byte(strings.Replace("network=tcp,addr=127.0.0.1:6379,db=4,pool_size=100,idle_timeout=180", ",", "\n", -1)))
+		So(err, ShouldBeNil)
+		for _, v := range cfg.Section("").KeysHash() {
+			So(len(v), ShouldBeGreaterThan, 0)
+		}
+	})
 }
 
 func Test_File_Append(t *testing.T) {
