@@ -170,6 +170,14 @@ func (p *parser) readContinuationLines(val string) (string, error) {
 	return val, nil
 }
 
+// hasSurroundedQuote check if and only if the first and last characters
+// are quotes \" or \'.
+// It returns false if any other parts also contain same kind of quotes.
+func hasSurroundedQuote(in string, quote byte) bool {
+	return in[0] == quote && in[len(in)-1] == quote &&
+		strings.IndexByte(in[1:], quote) == len(in)-2
+}
+
 func (p *parser) readValue(in []byte) (string, error) {
 	line := strings.TrimLeftFunc(string(in), unicode.IsSpace)
 	if len(line) == 0 {
@@ -202,18 +210,18 @@ func (p *parser) readValue(in []byte) (string, error) {
 		return p.readContinuationLines(line[:len(line)-1])
 	}
 
-	// Trim single quotes
-	if (line[0] == '\'' && line[len(line)-1] == '\'') ||
-		(line[0] == '"' && line[len(line)-1] == '"') {
-		line = line[1 : len(line)-1]
-	}
-
 	i := strings.IndexAny(line, "#;")
 	if i > -1 {
 		p.comment.WriteString(line[i:])
-		line = line[:i]
+		line = strings.TrimSpace(line[:i])
 	}
-	return strings.TrimSpace(line), nil
+
+	// Trim single quotes
+	if hasSurroundedQuote(line, '\'') ||
+		hasSurroundedQuote(line, '"') {
+		line = line[1 : len(line)-1]
+	}
+	return line, nil
 }
 
 // parse parses data through an io.Reader.

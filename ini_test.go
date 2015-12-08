@@ -90,7 +90,7 @@ key3 = "one", "two", "three"
 [advance]
 value with quotes = "some value"
 value quote2 again = 'some value'
-true = """"2+3=5""""
+true = 2+3=5
 "1+1=2" = true
 """6+1=7""" = true
 """` + "`" + `5+5` + "`" + `""" = 10
