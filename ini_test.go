@@ -486,6 +486,14 @@ func Test_Values(t *testing.T) {
 			So(len(v), ShouldBeGreaterThan, 0)
 		}
 	})
+
+	Convey("Key has empty value", t, func() {
+		_conf := `key1=
+key2= ; comment`
+		cfg, err := Load([]byte(_conf))
+		So(err, ShouldBeNil)
+		So(cfg.Section("").Key("key1").Value(), ShouldBeEmpty)
+	})
 }
 
 func Test_File_Append(t *testing.T) {
