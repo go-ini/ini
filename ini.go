@@ -163,14 +163,14 @@ func (k *Key) Validate(fn func(string) string) string {
 
 // parseBool returns the boolean value represented by the string.
 //
-// It accepts 1, t, T, TRUE, true, True, YES, yes, Yes, ON, on, On,
-// 0, f, F, FALSE, false, False, NO, no, No, OFF, off, Off.
+// It accepts 1, t, T, TRUE, true, True, YES, yes, Yes, y, ON, on, On,
+// 0, f, F, FALSE, false, False, NO, no, No, n, OFF, off, Off.
 // Any other value returns an error.
 func parseBool(str string) (value bool, err error) {
 	switch str {
-	case "1", "t", "T", "true", "TRUE", "True", "YES", "yes", "Yes", "ON", "on", "On":
+	case "1", "t", "T", "true", "TRUE", "True", "YES", "yes", "Yes", "y", "ON", "on", "On":
 		return true, nil
-	case "0", "f", "F", "false", "FALSE", "False", "NO", "no", "No", "OFF", "off", "Off":
+	case "0", "f", "F", "false", "FALSE", "False", "NO", "no", "No", "n", "OFF", "off", "Off":
 		return false, nil
 	}
 	return false, fmt.Errorf("parsing \"%s\": invalid syntax", str)

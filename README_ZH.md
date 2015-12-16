@@ -148,8 +148,8 @@ yes := cfg.Section("").HasValue("test value")
 
 ```go
 // 布尔值的规则：
-// true 当值为：1, t, T, TRUE, true, True, YES, yes, Yes, ON, on, On
-// false 当值为：0, f, F, FALSE, false, False, NO, no, No, OFF, off, Off
+// true 当值为：1, t, T, TRUE, true, True, YES, yes, Yes, y, ON, on, On
+// false 当值为：0, f, F, FALSE, false, False, NO, no, No, n, OFF, off, Off
 v, err = cfg.Section("").Key("BOOL").Bool()
 v, err = cfg.Section("").Key("FLOAT64").Float64()
 v, err = cfg.Section("").Key("INT").Int()
