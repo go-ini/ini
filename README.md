@@ -30,6 +30,12 @@ To use with latest changes:
 
 	go get github.com/go-ini/ini
 
+### Testing
+
+If you want to test on your machine, please apply `-t` flag:
+
+	go get -t gopkg.in/ini.v1
+
 ## Getting Started
 
 ### Loading from data sources
