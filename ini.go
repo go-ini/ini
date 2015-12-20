@@ -502,7 +502,7 @@ func (k *Key) Uints(delim string) []uint {
 	strs := k.Strings(delim)
 	vals := make([]uint, len(strs))
 	for i := range strs {
-		u, _ := strconv.ParseUint(strs[i], 10, 64)
+		u, _ := strconv.ParseUint(strs[i], 10, 0)
 		vals[i] = uint(u)
 	}
 	return vals
@@ -513,7 +513,7 @@ func (k *Key) Uint64s(delim string) []uint64 {
 	strs := k.Strings(delim)
 	vals := make([]uint64, len(strs))
 	for i := range strs {
-		vals[i], _ = strconv.ParseUint(strs[i], 10, 64)
+		vals[i], _ = strconv.ParseUint(strs[i], 10, 0)
 	}
 	return vals
 }
