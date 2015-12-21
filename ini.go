@@ -472,7 +472,7 @@ func (k *Key) Float64s(delim string) []float64 {
 	strs := k.Strings(delim)
 	vals := make([]float64, len(strs))
 	for i := range strs {
-		vals[i], _ = strconv.ParseFloat(strs[i], 0)
+		vals[i], _ = strconv.ParseFloat(strs[i], 64)
 	}
 	return vals
 }
@@ -492,7 +492,7 @@ func (k *Key) Int64s(delim string) []int64 {
 	strs := k.Strings(delim)
 	vals := make([]int64, len(strs))
 	for i := range strs {
-		vals[i], _ = strconv.ParseInt(strs[i], 10, 0)
+		vals[i], _ = strconv.ParseInt(strs[i], 10, 64)
 	}
 	return vals
 }
@@ -513,7 +513,7 @@ func (k *Key) Uint64s(delim string) []uint64 {
 	strs := k.Strings(delim)
 	vals := make([]uint64, len(strs))
 	for i := range strs {
-		vals[i], _ = strconv.ParseUint(strs[i], 10, 0)
+		vals[i], _ = strconv.ParseUint(strs[i], 10, 64)
 	}
 	return vals
 }
