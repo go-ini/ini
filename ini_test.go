@@ -382,6 +382,27 @@ func Test_Values(t *testing.T) {
 			}
 		})
 
+		Convey("Get values one type into slice of another type", func() {
+			sec := cfg.Section("array")
+			vals1 := sec.Key("STRINGS").Float64s(",")
+			So(vals1, ShouldBeEmpty)
+
+			vals2 := sec.Key("STRINGS").Ints(",")
+			So(vals2, ShouldBeEmpty)
+
+			vals3 := sec.Key("STRINGS").Int64s(",")
+			So(vals3, ShouldBeEmpty)
+
+			vals4 := sec.Key("STRINGS").Uints(",")
+			So(vals4, ShouldBeEmpty)
+
+			vals5 := sec.Key("STRINGS").Uint64s(",")
+			So(vals5, ShouldBeEmpty)
+
+			vals6 := sec.Key("STRINGS").Times(",")
+			So(vals6, ShouldBeEmpty)
+		})
+
 		Convey("Get key hash", func() {
 			cfg.Section("").KeysHash()
 		})

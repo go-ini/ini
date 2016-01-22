@@ -467,53 +467,67 @@ func (k *Key) Strings(delim string) []string {
 	return vals
 }
 
-// Float64s returns list of float64 divided by given delimiter.
+// Float64s returns list of float64 divided by given delimiter. If some value is not float, then
+// it will not be included to result list.
 func (k *Key) Float64s(delim string) []float64 {
 	strs := k.Strings(delim)
-	vals := make([]float64, len(strs))
+	vals := make([]float64, 0, len(strs))
 	for i := range strs {
-		vals[i], _ = strconv.ParseFloat(strs[i], 64)
+		if val, err := strconv.ParseFloat(strs[i], 64); err == nil {
+			vals = append(vals, val)
+		}
 	}
 	return vals
 }
 
-// Ints returns list of int divided by given delimiter.
+// Ints returns list of int divided by given delimiter. If some value is not integer, then it will
+// not be included to result list.
 func (k *Key) Ints(delim string) []int {
 	strs := k.Strings(delim)
-	vals := make([]int, len(strs))
+	vals := make([]int, 0, len(strs))
 	for i := range strs {
-		vals[i], _ = strconv.Atoi(strs[i])
+		if val, err := strconv.Atoi(strs[i]); err == nil {
+			vals = append(vals, val)
+		}
 	}
 	return vals
 }
 
-// Int64s returns list of int64 divided by given delimiter.
+// Int64s returns list of int64 divided by given delimiter. If some value is not 64-bit integer,
+// then it will not be included to result list.
 func (k *Key) Int64s(delim string) []int64 {
 	strs := k.Strings(delim)
-	vals := make([]int64, len(strs))
+	vals := make([]int64, 0, len(strs))
 	for i := range strs {
-		vals[i], _ = strconv.ParseInt(strs[i], 10, 64)
+		if val, err := strconv.ParseInt(strs[i], 10, 64); err == nil {
+			vals = append(vals, val)
+		}
 	}
 	return vals
 }
 
-// Uints returns list of uint divided by given delimiter.
+// Uints returns list of uint divided by given delimiter. If some value is not unsigned integer,
+// then it will not be included to result list.
 func (k *Key) Uints(delim string) []uint {
 	strs := k.Strings(delim)
-	vals := make([]uint, len(strs))
+	vals := make([]uint, 0, len(strs))
 	for i := range strs {
-		u, _ := strconv.ParseUint(strs[i], 10, 0)
-		vals[i] = uint(u)
+		if val, err := strconv.ParseUint(strs[i], 10, 0); err == nil {
+			vals = append(vals, uint(val))
+		}
 	}
 	return vals
 }
 
-// Uint64s returns list of uint64 divided by given delimiter.
+// Uint64s returns list of uint64 divided by given delimiter. If some value is not 64-bit unsigned
+// integer, then it will not be included to result list.
 func (k *Key) Uint64s(delim string) []uint64 {
 	strs := k.Strings(delim)
-	vals := make([]uint64, len(strs))
+	vals := make([]uint64, 0, len(strs))
 	for i := range strs {
-		vals[i], _ = strconv.ParseUint(strs[i], 10, 64)
+		if val, err := strconv.ParseUint(strs[i], 10, 64); err == nil {
+			vals = append(vals, val)
+		}
 	}
 	return vals
 }
@@ -521,9 +535,11 @@ func (k *Key) Uint64s(delim string) []uint64 {
 // TimesFormat parses with given format and returns list of time.Time divided by given delimiter.
 func (k *Key) TimesFormat(format, delim string) []time.Time {
 	strs := k.Strings(delim)
-	vals := make([]time.Time, len(strs))
+	vals := make([]time.Time, 0, len(strs))
 	for i := range strs {
-		vals[i], _ = time.Parse(format, strs[i])
+		if val, err := time.Parse(format, strs[i]); err == nil {
+			vals = append(vals, val)
+		}
 	}
 	return vals
 }
