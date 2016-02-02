@@ -467,7 +467,7 @@ func (k *Key) Strings(delim string) []string {
 	return vals
 }
 
-// Float64s returns list of float64 divided by given delimiter.
+// Float64s returns list of float64 divided by given delimiter. Any invalid input will be treated as zero value.
 func (k *Key) Float64s(delim string) []float64 {
 	strs := k.Strings(delim)
 	vals := make([]float64, len(strs))
@@ -477,7 +477,7 @@ func (k *Key) Float64s(delim string) []float64 {
 	return vals
 }
 
-// Ints returns list of int divided by given delimiter.
+// Ints returns list of int divided by given delimiter. Any invalid input will be treated as zero value.
 func (k *Key) Ints(delim string) []int {
 	strs := k.Strings(delim)
 	vals := make([]int, len(strs))
@@ -487,7 +487,7 @@ func (k *Key) Ints(delim string) []int {
 	return vals
 }
 
-// Int64s returns list of int64 divided by given delimiter.
+// Int64s returns list of int64 divided by given delimiter. Any invalid input will be treated as zero value.
 func (k *Key) Int64s(delim string) []int64 {
 	strs := k.Strings(delim)
 	vals := make([]int64, len(strs))
@@ -497,7 +497,7 @@ func (k *Key) Int64s(delim string) []int64 {
 	return vals
 }
 
-// Uints returns list of uint divided by given delimiter.
+// Uints returns list of uint divided by given delimiter. Any invalid input will be treated as zero value.
 func (k *Key) Uints(delim string) []uint {
 	strs := k.Strings(delim)
 	vals := make([]uint, len(strs))
@@ -508,7 +508,7 @@ func (k *Key) Uints(delim string) []uint {
 	return vals
 }
 
-// Uint64s returns list of uint64 divided by given delimiter.
+// Uint64s returns list of uint64 divided by given delimiter. Any invalid input will be treated as zero value.
 func (k *Key) Uint64s(delim string) []uint64 {
 	strs := k.Strings(delim)
 	vals := make([]uint64, len(strs))
@@ -519,6 +519,7 @@ func (k *Key) Uint64s(delim string) []uint64 {
 }
 
 // TimesFormat parses with given format and returns list of time.Time divided by given delimiter.
+// Any invalid input will be treated as zero value (0001-01-01 00:00:00 +0000 UTC).
 func (k *Key) TimesFormat(format, delim string) []time.Time {
 	strs := k.Strings(delim)
 	vals := make([]time.Time, len(strs))
@@ -529,6 +530,7 @@ func (k *Key) TimesFormat(format, delim string) []time.Time {
 }
 
 // Times parses with RFC3339 format and returns list of time.Time divided by given delimiter.
+// Any invalid input will be treated as zero value (0001-01-01 00:00:00 +0000 UTC).
 func (k *Key) Times(delim string) []time.Time {
 	return k.TimesFormat(time.RFC3339, delim)
 }
