@@ -350,36 +350,68 @@ func Test_Values(t *testing.T) {
 			So(len(sec.Key("STRINGS_404").Strings(",")), ShouldEqual, 0)
 
 			vals1 := sec.Key("FLOAT64S").Float64s(",")
-			for i, v := range []float64{1.1, 2.2, 3.3} {
-				So(vals1[i], ShouldEqual, v)
-			}
+			float64sEqual(vals1, 1.1, 2.2, 3.3)
 
 			vals2 := sec.Key("INTS").Ints(",")
-			for i, v := range []int{1, 2, 3} {
-				So(vals2[i], ShouldEqual, v)
-			}
+			intsEqual(vals2, 1, 2, 3)
 
 			vals3 := sec.Key("INTS").Int64s(",")
-			for i, v := range []int64{1, 2, 3} {
-				So(vals3[i], ShouldEqual, v)
-			}
+			int64sEqual(vals3, 1, 2, 3)
 
 			vals4 := sec.Key("UINTS").Uints(",")
-			for i, v := range []uint{1, 2, 3} {
-				So(vals4[i], ShouldEqual, v)
-			}
+			uintsEqual(vals4, 1, 2, 3)
 
 			vals5 := sec.Key("UINTS").Uint64s(",")
-			for i, v := range []uint64{1, 2, 3} {
-				So(vals5[i], ShouldEqual, v)
-			}
+			uint64sEqual(vals5, 1, 2, 3)
 
 			t, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
 			So(err, ShouldBeNil)
 			vals6 := sec.Key("TIMES").Times(",")
-			for i, v := range []time.Time{t, t, t} {
-				So(vals6[i].String(), ShouldEqual, v.String())
-			}
+			timesEqual(vals6, t, t, t)
+		})
+
+		Convey("Get valid values into slice", func() {
+			sec := cfg.Section("array")
+			vals1 := sec.Key("FLOAT64S").ValidFloat64s(",")
+			float64sEqual(vals1, 1.1, 2.2, 3.3)
+
+			vals2 := sec.Key("INTS").ValidInts(",")
+			intsEqual(vals2, 1, 2, 3)
+
+			vals3 := sec.Key("INTS").ValidInt64s(",")
+			int64sEqual(vals3, 1, 2, 3)
+
+			vals4 := sec.Key("UINTS").ValidUints(",")
+			uintsEqual(vals4, 1, 2, 3)
+
+			vals5 := sec.Key("UINTS").ValidUint64s(",")
+			uint64sEqual(vals5, 1, 2, 3)
+
+			t, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
+			So(err, ShouldBeNil)
+			vals6 := sec.Key("TIMES").ValidTimes(",")
+			timesEqual(vals6, t, t, t)
+		})
+
+		Convey("Get values one type into slice of another type", func() {
+			sec := cfg.Section("array")
+			vals1 := sec.Key("STRINGS").ValidFloat64s(",")
+			So(vals1, ShouldBeEmpty)
+
+			vals2 := sec.Key("STRINGS").ValidInts(",")
+			So(vals2, ShouldBeEmpty)
+
+			vals3 := sec.Key("STRINGS").ValidInt64s(",")
+			So(vals3, ShouldBeEmpty)
+
+			vals4 := sec.Key("STRINGS").ValidUints(",")
+			So(vals4, ShouldBeEmpty)
+
+			vals5 := sec.Key("STRINGS").ValidUint64s(",")
+			So(vals5, ShouldBeEmpty)
+
+			vals6 := sec.Key("STRINGS").ValidTimes(",")
+			So(vals6, ShouldBeEmpty)
 		})
 
 		Convey("Get key hash", func() {
@@ -570,5 +602,48 @@ func Benchmark_Key_SetValue(b *testing.B) {
 	c, _ := Load([]byte(_CONF_DATA))
 	for i := 0; i < b.N; i++ {
 		c.Section("").Key("NAME").SetValue("10")
+	}
+}
+
+// Helpers for slice tests.
+func float64sEqual(values []float64, expected ...float64) {
+	So(values, ShouldHaveLength, len(expected))
+	for i, v := range expected {
+		So(values[i], ShouldEqual, v)
+	}
+}
+
+func intsEqual(values []int, expected ...int) {
+	So(values, ShouldHaveLength, len(expected))
+	for i, v := range expected {
+		So(values[i], ShouldEqual, v)
+	}
+}
+
+func int64sEqual(values []int64, expected ...int64) {
+	So(values, ShouldHaveLength, len(expected))
+	for i, v := range expected {
+		So(values[i], ShouldEqual, v)
+	}
+}
+
+func uintsEqual(values []uint, expected ...uint) {
+	So(values, ShouldHaveLength, len(expected))
+	for i, v := range expected {
+		So(values[i], ShouldEqual, v)
+	}
+}
+
+func uint64sEqual(values []uint64, expected ...uint64) {
+	So(values, ShouldHaveLength, len(expected))
+	for i, v := range expected {
+		So(values[i], ShouldEqual, v)
+	}
+}
+
+func timesEqual(values []time.Time, expected ...time.Time) {
+	So(values, ShouldHaveLength, len(expected))
+	for i, v := range expected {
+		So(values[i].String(), ShouldEqual, v.String())
 	}
 }

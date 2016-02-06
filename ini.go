@@ -535,6 +535,88 @@ func (k *Key) Times(delim string) []time.Time {
 	return k.TimesFormat(time.RFC3339, delim)
 }
 
+// ValidFloat64s returns list of float64 divided by given delimiter. If some value is not float, then
+// it will not be included to result list.
+func (k *Key) ValidFloat64s(delim string) []float64 {
+	strs := k.Strings(delim)
+	vals := make([]float64, 0, len(strs))
+	for i := range strs {
+		if val, err := strconv.ParseFloat(strs[i], 64); err == nil {
+			vals = append(vals, val)
+		}
+	}
+	return vals
+}
+
+// ValidInts returns list of int divided by given delimiter. If some value is not integer, then it will
+// not be included to result list.
+func (k *Key) ValidInts(delim string) []int {
+	strs := k.Strings(delim)
+	vals := make([]int, 0, len(strs))
+	for i := range strs {
+		if val, err := strconv.Atoi(strs[i]); err == nil {
+			vals = append(vals, val)
+		}
+	}
+	return vals
+}
+
+// ValidInt64s returns list of int64 divided by given delimiter. If some value is not 64-bit integer,
+// then it will not be included to result list.
+func (k *Key) ValidInt64s(delim string) []int64 {
+	strs := k.Strings(delim)
+	vals := make([]int64, 0, len(strs))
+	for i := range strs {
+		if val, err := strconv.ParseInt(strs[i], 10, 64); err == nil {
+			vals = append(vals, val)
+		}
+	}
+	return vals
+}
+
+// ValidUints returns list of uint divided by given delimiter. If some value is not unsigned integer,
+// then it will not be included to result list.
+func (k *Key) ValidUints(delim string) []uint {
+	strs := k.Strings(delim)
+	vals := make([]uint, 0, len(strs))
+	for i := range strs {
+		if val, err := strconv.ParseUint(strs[i], 10, 0); err == nil {
+			vals = append(vals, uint(val))
+		}
+	}
+	return vals
+}
+
+// ValidUint64s returns list of uint64 divided by given delimiter. If some value is not 64-bit unsigned
+// integer, then it will not be included to result list.
+func (k *Key) ValidUint64s(delim string) []uint64 {
+	strs := k.Strings(delim)
+	vals := make([]uint64, 0, len(strs))
+	for i := range strs {
+		if val, err := strconv.ParseUint(strs[i], 10, 64); err == nil {
+			vals = append(vals, val)
+		}
+	}
+	return vals
+}
+
+// ValidTimesFormat parses with given format and returns list of time.Time divided by given delimiter.
+func (k *Key) ValidTimesFormat(format, delim string) []time.Time {
+	strs := k.Strings(delim)
+	vals := make([]time.Time, 0, len(strs))
+	for i := range strs {
+		if val, err := time.Parse(format, strs[i]); err == nil {
+			vals = append(vals, val)
+		}
+	}
+	return vals
+}
+
+// ValidTimes parses with RFC3339 format and returns list of time.Time divided by given delimiter.
+func (k *Key) ValidTimes(delim string) []time.Time {
+	return k.ValidTimesFormat(time.RFC3339, delim)
+}
+
 // SetValue changes key value.
 func (k *Key) SetValue(v string) {
 	if k.s.f.BlockMode {
