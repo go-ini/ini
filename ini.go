@@ -34,7 +34,7 @@ const (
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
 
-	_VERSION = "1.8.6"
+	_VERSION = "1.9.0"
 )
 
 func Version() string {
