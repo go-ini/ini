@@ -414,6 +414,62 @@ func Test_Values(t *testing.T) {
 			So(vals6, ShouldBeEmpty)
 		})
 
+		Convey("Get valid values into slice without errors", func() {
+			sec := cfg.Section("array")
+			vals1, err := sec.Key("FLOAT64S").StrictFloat64s(",")
+			So(err, ShouldBeNil)
+			float64sEqual(vals1, 1.1, 2.2, 3.3)
+
+			vals2, err := sec.Key("INTS").StrictInts(",")
+			So(err, ShouldBeNil)
+			intsEqual(vals2, 1, 2, 3)
+
+			vals3, err := sec.Key("INTS").StrictInt64s(",")
+			So(err, ShouldBeNil)
+			int64sEqual(vals3, 1, 2, 3)
+
+			vals4, err := sec.Key("UINTS").StrictUints(",")
+			So(err, ShouldBeNil)
+			uintsEqual(vals4, 1, 2, 3)
+
+			vals5, err := sec.Key("UINTS").StrictUint64s(",")
+			So(err, ShouldBeNil)
+			uint64sEqual(vals5, 1, 2, 3)
+
+			t, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
+			So(err, ShouldBeNil)
+			vals6, err := sec.Key("TIMES").StrictTimes(",")
+			So(err, ShouldBeNil)
+			timesEqual(vals6, t, t, t)
+		})
+
+		Convey("Get invalid values into slice", func() {
+			sec := cfg.Section("array")
+			vals1, err := sec.Key("STRINGS").StrictFloat64s(",")
+			So(vals1, ShouldBeEmpty)
+			So(err, ShouldNotBeNil)
+
+			vals2, err := sec.Key("STRINGS").StrictInts(",")
+			So(vals2, ShouldBeEmpty)
+			So(err, ShouldNotBeNil)
+
+			vals3, err := sec.Key("STRINGS").StrictInt64s(",")
+			So(vals3, ShouldBeEmpty)
+			So(err, ShouldNotBeNil)
+
+			vals4, err := sec.Key("STRINGS").StrictUints(",")
+			So(vals4, ShouldBeEmpty)
+			So(err, ShouldNotBeNil)
+
+			vals5, err := sec.Key("STRINGS").StrictUint64s(",")
+			So(vals5, ShouldBeEmpty)
+			So(err, ShouldNotBeNil)
+
+			vals6, err := sec.Key("STRINGS").StrictTimes(",")
+			So(vals6, ShouldBeEmpty)
+			So(err, ShouldNotBeNil)
+		})
+
 		Convey("Get key hash", func() {
 			cfg.Section("").KeysHash()
 		})
