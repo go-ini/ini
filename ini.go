@@ -36,7 +36,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.10.0"
+	_VERSION      = "1.10.1"
 )
 
 // Version returns current package version literal.
@@ -300,7 +300,9 @@ func (f *File) reload(s dataSource) error {
 func (f *File) Reload() (err error) {
 	for _, s := range f.dataSources {
 		if err = f.reload(s); err != nil {
+			// In loose mode, we create an empty default section for nonexistent files.
 			if os.IsNotExist(err) && f.looseMode {
+				f.parse(bytes.NewBuffer(nil))
 				continue
 			}
 			return err

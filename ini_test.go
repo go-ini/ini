@@ -178,10 +178,16 @@ func Test_LooseLoad(t *testing.T) {
 			cfg, err := LooseLoad("testdata/404.ini")
 			So(err, ShouldBeNil)
 			So(cfg, ShouldNotBeNil)
+			var fake struct {
+				Name string `ini:"name"`
+			}
+			So(cfg.MapTo(&fake), ShouldBeNil)
 
 			cfg, err = LooseLoad([]byte("name=Unknwon"), "testdata/404.ini")
 			So(err, ShouldBeNil)
 			So(cfg.Section("").Key("name").String(), ShouldEqual, "Unknwon")
+			So(cfg.MapTo(&fake), ShouldBeNil)
+			So(fake.Name, ShouldEqual, "Unknwon")
 		})
 	})
 
