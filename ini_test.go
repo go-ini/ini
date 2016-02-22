@@ -116,6 +116,10 @@ func Test_Load(t *testing.T) {
 			cfg, err := Load([]byte(_CONF_DATA), "testdata/conf.ini")
 			So(err, ShouldBeNil)
 			So(cfg, ShouldNotBeNil)
+
+			f, err := Load([]byte(_CONF_DATA), "testdata/404.ini")
+			So(err, ShouldNotBeNil)
+			So(f, ShouldBeNil)
 		})
 	})
 
@@ -166,6 +170,33 @@ func Test_Load(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 	})
+}
+
+func Test_LooseLoad(t *testing.T) {
+	Convey("LooseLoad from data sources", t, func() {
+
+		Convey("LooseLoad from invalid data sources", func() {
+			_, err := LooseLoad(_CONF_DATA)
+			So(err, ShouldBeNil)
+
+			f, err := LooseLoad("testdata/404.ini")
+			So(err, ShouldBeNil)
+			So(f, ShouldNotBeNil)
+
+			_, err = LooseLoad(1)
+			So(err, ShouldNotBeNil)
+
+			_, err = LooseLoad([]byte(""), 1)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("LooseLoad with multiple data sources", func() {
+			cfg, err := LooseLoad([]byte(_CONF_DATA), "testdata/404.ini")
+			So(err, ShouldBeNil)
+			So(cfg, ShouldNotBeNil)
+		})
+	})
+
 }
 
 func Test_File_Append(t *testing.T) {

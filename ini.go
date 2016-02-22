@@ -123,16 +123,20 @@ type File struct {
 	// To keep data in order.
 	sectionList []string
 
+	// whether the parser should check for files existence first
+	looseMode bool
+
 	NameMapper
 }
 
 // newFile initializes File object with given data sources.
-func newFile(dataSources []dataSource) *File {
+func newFile(dataSources []dataSource, looseMode bool) *File {
 	return &File{
 		BlockMode:   true,
 		dataSources: dataSources,
 		sections:    make(map[string]*Section),
 		sectionList: make([]string, 0, 10),
+		looseMode:   looseMode,
 	}
 }
 
@@ -150,6 +154,17 @@ func parseDataSource(source interface{}) (dataSource, error) {
 // Load loads and parses from INI data sources.
 // Arguments can be mixed of file name with string type, or raw data in []byte.
 func Load(source interface{}, others ...interface{}) (_ *File, err error) {
+	return loadSources(false, source, others...)
+}
+
+// Load loads and parses from INI data sources and ignores errors.
+// Arguments can be mixed of file name with string type, or raw data in []byte.
+// If a file listed in data sources cannot be opened, that file will be ignored.
+func LooseLoad(source interface{}, others ...interface{}) (_ *File, err error) {
+	return loadSources(true, source, others...)
+}
+
+func loadSources(looseMode bool, source interface{}, others ...interface{}) (_ *File, err error) {
 	sources := make([]dataSource, len(others)+1)
 	sources[0], err = parseDataSource(source)
 	if err != nil {
@@ -161,7 +176,7 @@ func Load(source interface{}, others ...interface{}) (_ *File, err error) {
 			return nil, err
 		}
 	}
-	f := newFile(sources)
+	f := newFile(sources, looseMode)
 	if err = f.Reload(); err != nil {
 		return nil, err
 	}
@@ -284,7 +299,7 @@ func (f *File) reload(s dataSource) error {
 // Reload reloads and parses all data sources.
 func (f *File) Reload() (err error) {
 	for _, s := range f.dataSources {
-		if err = f.reload(s); err != nil {
+		if err = f.reload(s); err != nil && !f.looseMode {
 			return err
 		}
 	}
