@@ -173,27 +173,15 @@ func Test_Load(t *testing.T) {
 }
 
 func Test_LooseLoad(t *testing.T) {
-	Convey("LooseLoad from data sources", t, func() {
-
-		Convey("LooseLoad from invalid data sources", func() {
-			_, err := LooseLoad(_CONF_DATA)
-			So(err, ShouldBeNil)
-
-			f, err := LooseLoad("testdata/404.ini")
-			So(err, ShouldBeNil)
-			So(f, ShouldNotBeNil)
-
-			_, err = LooseLoad(1)
-			So(err, ShouldNotBeNil)
-
-			_, err = LooseLoad([]byte(""), 1)
-			So(err, ShouldNotBeNil)
-		})
-
-		Convey("LooseLoad with multiple data sources", func() {
-			cfg, err := LooseLoad([]byte(_CONF_DATA), "testdata/404.ini")
+	Convey("Loose load from data sources", t, func() {
+		Convey("Loose load mixed with nonexistent file", func() {
+			cfg, err := LooseLoad("testdata/404.ini")
 			So(err, ShouldBeNil)
 			So(cfg, ShouldNotBeNil)
+
+			cfg, err = LooseLoad([]byte("name=Unknwon"), "testdata/404.ini")
+			So(err, ShouldBeNil)
+			So(cfg.Section("").Key("name").String(), ShouldEqual, "Unknwon")
 		})
 	})
 
