@@ -127,6 +127,8 @@ type File struct {
 	looseMode bool
 
 	NameMapper
+
+	ValueMapper
 }
 
 // newFile initializes File object with given data sources.

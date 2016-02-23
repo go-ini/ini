@@ -30,6 +30,9 @@ type Key struct {
 	isAutoIncr bool
 }
 
+// ValueMapper represents a mapping function for values, e.g. os.ExpandEnv
+type ValueMapper func(string) string
+
 // Name returns name of key.
 func (k *Key) Name() string {
 	return k.name
@@ -43,6 +46,9 @@ func (k *Key) Value() string {
 // String returns string representation of value.
 func (k *Key) String() string {
 	val := k.value
+	if k.s.f.ValueMapper != nil {
+		val = k.s.f.ValueMapper(val)
+	}
 	if strings.Index(val, "%") == -1 {
 		return val
 	}
