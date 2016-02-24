@@ -568,7 +568,7 @@ func main() {
 }
 ```
 
-which would set the value of `env.Foo` to the value of the environment variable `MY_VAR`
+This would set the value of `env.Foo` to the value of the environment variable `MY_VAR`.
 
 #### Other Notes On Map/Reflect
 

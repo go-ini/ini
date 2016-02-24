@@ -127,7 +127,6 @@ type File struct {
 	looseMode bool
 
 	NameMapper
-
 	ValueMapper
 }
 
