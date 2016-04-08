@@ -141,7 +141,7 @@ names := cfg.Section("").KeyStrings()
 To get a clone hash of keys and corresponding values:
 
 ```go
-hash := cfg.GetSection("").KeysHash()
+hash := cfg.Section("").KeysHash()
 ```
 
 ### Working with values
