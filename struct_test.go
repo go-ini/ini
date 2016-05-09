@@ -47,17 +47,17 @@ type testStruct struct {
 }
 
 type testStructPassingFlags struct {
-	Name		string `ini:"NAME" iniFlags:"mustExist"`
-	Age			int `iniFlags:"strictParse"`
-	Male		bool `iniFlags:"mustExist;strictParse"`
+	Name string `ini:"NAME" iniFlags:"mustExist"`
+	Age  int    `iniFlags:"strictParse"`
+	Male bool   `iniFlags:"mustExist;strictParse"`
 }
 
 type testStructFailingMustExistFlag struct {
-	Job			string `iniFlags:"mustExist"`
+	Job string `iniFlags:"mustExist"`
 }
 
 type testStructFailingStrictParseFlag struct {
-	Name		int `ini:"NAME" iniFlags:"strictParse"`
+	Name int `ini:"NAME" iniFlags:"strictParse"`
 }
 
 const _CONF_DATA_STRUCT = `
@@ -123,11 +123,11 @@ Cities =
 `
 
 type zeroValueDataStruct struct {
-	ZeroAge			int
-	ZeroMoney		float64
-	ZeroDuration	time.Duration
-	Age				int
-	Money			float64
+	ZeroAge      int
+	ZeroMoney    float64
+	ZeroDuration time.Duration
+	Age          int
+	Money        float64
 }
 
 const _ZERO_VALUE_DATA_CONF_STRUCT = `
@@ -235,14 +235,14 @@ func Test_Struct(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(cfg.MapTo(&testStructFailingMustExistFlag{}), ShouldNotBeNil)
 		})
-		Convey("Map to struct with defaults overridden by 0 vals in ini", func(){
+		Convey("Map to struct with defaults overridden by 0 vals in ini", func() {
 			cfg, err := Load([]byte(_ZERO_VALUE_DATA_CONF_STRUCT))
 			So(err, ShouldBeNil)
 			testStruct := &zeroValueDataStruct{ZeroAge: 3,
-											   ZeroMoney: 2.2,
-											   ZeroDuration: 25,
-											   Age: 3,
-											   Money: 2.2}
+				ZeroMoney:    2.2,
+				ZeroDuration: 25,
+				Age:          3,
+				Money:        2.2}
 			So(cfg.MapTo(testStruct), ShouldBeNil)
 			So(testStruct.ZeroAge, ShouldEqual, 0)
 			So(testStruct.ZeroMoney, ShouldEqual, 0)

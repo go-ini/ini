@@ -19,9 +19,9 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 	"unicode"
-	"strings"
 )
 
 // NameMapper represents a ini tag name mapper.
@@ -112,7 +112,7 @@ func setIntLike(key *Key, field reflect.Value, retrievedValue reflect.Value, ret
 	} else if retrievedValue.Int() != 0 {
 		field.SetInt(retrievedValue.Int())
 		return nil
-	// Parse duration returns error on empty string
+		// Parse duration returns error on empty string
 	} else if fieldTypeName == "duration" && retrievedValue.Int() == 0 {
 		field.SetInt(retrievedValue.Int())
 		return nil
@@ -139,7 +139,7 @@ func setUintLike(key *Key, field reflect.Value, retrievedValue reflect.Value, re
 	} else if retrievedValue.Uint() != 0 {
 		field.SetUint(retrievedValue.Uint())
 		return nil
-	// Parse duration returns error on empty string
+		// Parse duration returns error on empty string
 	} else if fieldTypeName == "duration" && retrievedValue.Int() == 0 {
 		field.SetUint(retrievedValue.Uint())
 		return nil
@@ -153,7 +153,6 @@ func setUintLike(key *Key, field reflect.Value, retrievedValue reflect.Value, re
 		}
 	}
 }
-
 
 // setWithProperTypeWithFlags sets proper value to field based on its type,
 // returning errors during parsing based on flags provided.
