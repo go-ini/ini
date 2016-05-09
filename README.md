@@ -611,7 +611,7 @@ Age = 21
 ```
 
 ### MapTo special flags
-In addition to the flags mentioned above, you can specify `strictParse` and `mustExist` in a semicolon delimited list on the `iniFlags` tag in a struct definition.  `strictParse` will cause `MapTo` to return an error if a field does not parse to the type specified in the strict instead of silently failing.  `mustExist` will cause an error to be returned if the struct field does not exist in the loaded ini data.
+In addition to the flags mentioned above, you can specify `strictParse` and `mustExist` in a semicolon delimited list on the `iniFlags` tag in a struct definition.  `strictParse` will cause `MapTo` to return an error if a field does not parse to the type specified in the struct instead of silently failing.  `mustExist` will cause an error to be returned if the struct field does not exist in the loaded ini data.
 
 ```ini
 Name = Bob
