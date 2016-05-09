@@ -127,6 +127,34 @@ func setIntLike(key *Key, field reflect.Value, retrievedValue reflect.Value, ret
 	}
 }
 
+func setUintLike(key *Key, field reflect.Value, retrievedValue reflect.Value, retrievalError error, flags map[string]bool, fieldTypeName string) error {
+	// force parse failure errors so upstream can handle
+	strictFlags := make(map[string]bool)
+	for flag, value := range flags {
+		strictFlags[flag] = value
+	}
+	strictFlags["strictParse"] = true
+	if retrievalError != nil {
+		return handleParseError(key, strictFlags, fieldTypeName)
+	} else if retrievedValue.Uint() != 0 {
+		field.SetUint(retrievedValue.Uint())
+		return nil
+	// Parse duration returns error on empty string
+	} else if fieldTypeName == "duration" && retrievedValue.Int() == 0 {
+		field.SetUint(retrievedValue.Uint())
+		return nil
+	} else {
+		str := key.String()
+		if str != "0" && str != "-0" {
+			return handleParseError(key, strictFlags, fieldTypeName)
+		} else {
+			field.SetUint(retrievedValue.Uint())
+			return nil
+		}
+	}
+}
+
+
 // setWithProperTypeWithFlags sets proper value to field based on its type,
 // returning errors during parsing based on flags provided.
 func setWithProperTypeWithFlags(t reflect.Type, key *Key, field reflect.Value, delim string, flags map[string]bool) error {
@@ -159,10 +187,10 @@ func setWithProperTypeWithFlags(t reflect.Type, key *Key, field reflect.Value, d
 	//	byte is an alias for uint8, so supporting uint8 breaks support for byte
 	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		uintVal, err := key.Uint64()
-		intErr := setIntLike(key, field, reflect.ValueOf(uintVal), err, flags, "uint")
+		intErr := setUintLike(key, field, reflect.ValueOf(uintVal), err, flags, "uint")
 		if intErr != nil {
 			durVal, err := key.Duration()
-			durErr := setIntLike(key, field, reflect.ValueOf(durVal), err, flags, "duration")
+			durErr := setUintLike(key, field, reflect.ValueOf(durVal), err, flags, "duration")
 			if durErr != nil {
 				if flags["strictParse"] {
 					return intErr
