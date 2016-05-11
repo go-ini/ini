@@ -293,10 +293,10 @@ func (s *Section) mapTo(val reflect.Value) error {
 				if err = sec.mapTo(field); err != nil {
 					return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
 				}
-				continue
 			} else if flags["mustExist"] {
 				return fmt.Errorf("%s defined with mustExist but field(%s) not found in loaded data: %v", tpField.Name, fieldName, err)
 			}
+			continue
 		}
 
 		//if tpFiled.Type.Kind() ==
