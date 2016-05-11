@@ -242,19 +242,13 @@ func setWithProperTypeWithFlags(t reflect.Type, key *Key, field reflect.Value, d
 }
 
 func (s *Section) mapTo(val reflect.Value) error {
-	fmt.Println(val)
-	var typ reflect.Type
 	if val.Kind() == reflect.Ptr {
-		fmt.Println(val, "is ptr")
 		val = val.Elem()
 	}
-	typ = val.Type()
-	//typ = reflect.TypeOf(val)
-	//fmt.Println(val, "typeof", typ)
+	typ := val.Type()
 	for i := 0; i < typ.NumField(); i++ {
 		field := val.Field(i)
 		tpField := typ.Field(i)
-		fmt.Println("iter", field, tpField)
 
 		tag := tpField.Tag.Get("ini")
 		flags := make(map[string]bool)
@@ -273,17 +267,10 @@ func (s *Section) mapTo(val reflect.Value) error {
 		isAnonymous := tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous
 		isStruct := tpField.Type.Kind() == reflect.Struct
 		isStructPtr := tpField.Type.Kind() == reflect.Ptr && reflect.TypeOf(field.Elem()).Kind() == reflect.Struct
-		fmt.Println(val, field, isAnonymous, isStruct, isStructPtr)
 		if isStructPtr {
-			fmt.Println("struct ptr")
 			if field.Elem() == reflect.Zero(reflect.TypeOf(field.Elem())).Interface() {
-				fmt.Println("got zero")
-				fmt.Println(field.Elem(), reflect.TypeOf(field.Elem()), tpField.Type)
 				field.Set(reflect.New(tpField.Type.Elem()))
 			}
-			// fmt.Println("before", field)
-			// field = field.Elem()
-			// fmt.Println("after", field)
 		} else if isAnonymous {
 			field.Set(reflect.New(tpField.Type.Elem()))
 		}
