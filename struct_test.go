@@ -46,8 +46,22 @@ type testStruct struct {
 	Unsigned     uint
 }
 
+type testStructPassingFlags struct {
+	Name string `ini:"NAME" iniFlags:"mustExist"`
+	Age  int    `iniFlags:"strictParse"`
+	Male bool   `iniFlags:"mustExist;strictParse"`
+}
+
+type testStructFailingMustExistFlag struct {
+	Job string `iniFlags:"mustExist"`
+}
+
+type testStructFailingStrictParseFlag struct {
+	Name int `ini:"NAME" iniFlags:"strictParse"`
+}
+
 const _CONF_DATA_STRUCT = `
-NAME = Unknwon
+NAME = Unknown
 Age = 21
 Male = true
 Money = 1.25
@@ -108,13 +122,28 @@ Born = nil
 Cities = 
 `
 
+type zeroValueDataStruct struct {
+	ZeroAge      int
+	ZeroMoney    float64
+	ZeroDuration time.Duration
+	Age          int
+	Money        float64
+}
+
+const _ZERO_VALUE_DATA_CONF_STRUCT = `
+ZeroAge = 0
+ZeroMoney = 0.0
+ZeroDuration = 0
+Age =
+`
+
 func Test_Struct(t *testing.T) {
 	Convey("Map to struct", t, func() {
 		Convey("Map file to struct", func() {
 			ts := new(testStruct)
 			So(MapTo(ts, []byte(_CONF_DATA_STRUCT)), ShouldBeNil)
 
-			So(ts.Name, ShouldEqual, "Unknwon")
+			So(ts.Name, ShouldEqual, "Unknown")
 			So(ts.Age, ShouldEqual, 21)
 			So(ts.Male, ShouldBeTrue)
 			So(ts.Money, ShouldEqual, 1.25)
@@ -187,6 +216,40 @@ func Test_Struct(t *testing.T) {
 			So(dv.Born.String(), ShouldEqual, t.String())
 			So(strings.Join(dv.Cities, ","), ShouldEqual, "HangZhou,Boston")
 		})
+		Convey("Map to struct with passing iniFlags", func() {
+			cfg, err := Load([]byte(_CONF_DATA_STRUCT))
+			So(err, ShouldBeNil)
+			testStruct := new(testStructPassingFlags)
+			So(cfg.MapTo(testStruct), ShouldBeNil)
+			So(testStruct.Name, ShouldEqual, "Unknown")
+			So(testStruct.Age, ShouldEqual, 21)
+			So(testStruct.Male, ShouldBeTrue)
+		})
+		Convey("Map to struct with failing strictParse", func() {
+			cfg, err := Load([]byte(_CONF_DATA_STRUCT))
+			So(err, ShouldBeNil)
+			So(cfg.MapTo(&testStructFailingStrictParseFlag{}), ShouldNotBeNil)
+		})
+		Convey("Map to struct with failing mustExist", func() {
+			cfg, err := Load([]byte(_CONF_DATA_STRUCT))
+			So(err, ShouldBeNil)
+			So(cfg.MapTo(&testStructFailingMustExistFlag{}), ShouldNotBeNil)
+		})
+		Convey("Map to struct with defaults overridden by 0 vals in ini", func() {
+			cfg, err := Load([]byte(_ZERO_VALUE_DATA_CONF_STRUCT))
+			So(err, ShouldBeNil)
+			testStruct := &zeroValueDataStruct{ZeroAge: 3,
+				ZeroMoney:    2.2,
+				ZeroDuration: 25,
+				Age:          3,
+				Money:        2.2}
+			So(cfg.MapTo(testStruct), ShouldBeNil)
+			So(testStruct.ZeroAge, ShouldEqual, 0)
+			So(testStruct.ZeroMoney, ShouldEqual, 0)
+			So(testStruct.ZeroDuration, ShouldEqual, 0)
+			So(testStruct.Age, ShouldEqual, 3)
+			So(testStruct.Money, ShouldEqual, 2.2)
+		})
 	})
 
 	Convey("Reflect from struct", t, func() {
@@ -203,7 +266,7 @@ func Test_Struct(t *testing.T) {
 			NeverMind string `ini:"-"`
 			*Embeded  `ini:"infos"`
 		}
-		a := &Author{"Unknwon", true, 21, 2.8, "",
+		a := &Author{"Unknown", true, 21, 2.8, "",
 			&Embeded{
 				[]time.Time{time.Now(), time.Now()},
 				[]string{"HangZhou", "Boston"},

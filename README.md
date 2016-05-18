@@ -610,6 +610,39 @@ Name = Unknwon
 Age = 21
 ```
 
+### MapTo special flags
+In addition to the flags mentioned above, you can specify `strictParse` and `mustExist` in a semicolon delimited list on the `iniFlags` tag in a struct definition.  `strictParse` will cause `MapTo` to return an error if a field does not parse to the type specified in the struct instead of silently failing.  `mustExist` will cause an error to be returned if the struct field does not exist in the loaded ini data.
+
+```ini
+Name = Bob
+Age = thirty
+```
+
+```go
+type Person struct {
+	Name string
+	Age int `iniFlags:"strictParse"`
+}
+// Will return error from MapTo.
+```
+
+```go
+type Person struct {
+	Name string
+	Age int
+	Salary float64 `iniFlags:"mustExist"`
+}
+// Will return error from MapTo.
+```
+
+```go
+type Person struct {
+	Name string
+	Age int `iniFlags:"strictParse;mustExist"`
+}
+// Will return error from MapTo.
+```
+
 ## Getting Help
 
 - [API Documentation](https://gowalker.org/gopkg.in/ini.v1)
