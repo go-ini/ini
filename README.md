@@ -519,6 +519,38 @@ Places = HangZhou,Boston
 None =
 ```
 
+What if I want to compose a struct template of other structs?
+
+### Struct pointers as field types
+
+```ini
+Foo=1
+[Bar1]
+Baz=2
+[Bar2]
+Baz=3
+```
+
+```go
+type Bar struct {
+	Baz int
+}
+
+type FullIni struct {
+	Foo int
+	Bar1 *Bar
+	Bar2 *Bar
+}
+
+func main() {
+	cfg, err := ini.Load("path/to/ini")
+	// ...
+	i := new(FullIni)
+	err = cfg.MapTo(i)
+	// ...
+}
+```
+
 #### Name Mapper
 
 To save your time and make your code cleaner, this library supports [`NameMapper`](https://gowalker.org/gopkg.in/ini.v1#NameMapper) between struct field and actual section and key name.
