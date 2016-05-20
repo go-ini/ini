@@ -611,7 +611,7 @@ Age = 21
 ```
 
 ### MapTo special flags
-In addition to the flags mentioned above, you can specify `strictParse` and `mustExist` in a semicolon delimited list on the `iniFlags` tag in a struct definition.  `strictParse` will cause `MapTo` to return an error if a field does not parse to the type specified in the struct instead of silently failing.  `mustExist` will cause an error to be returned if the struct field does not exist in the loaded ini data.
+In addition to the flags mentioned above, you can specify `strict` and `mustExist` in a comma delimited list on the `ini` tag in a struct definition.  `strict` will cause `MapTo` to return an error if a field does not parse to the type specified in the struct instead of silently failing.  `mustExist` will cause an error to be returned if the struct field does not exist in the loaded ini data.  The first value in the `ini` tag must be the field name override as described above.  If no override is desired but other tags are needed, there must be a leading comma before the flag list.
 
 ```ini
 Name = Bob
@@ -621,26 +621,42 @@ Age = thirty
 ```go
 type Person struct {
 	Name string
-	Age int `iniFlags:"strictParse"`
+	Age int `ini:",strict"`
 }
-// Will return error from MapTo.
+// Will return error from MapTo (Field set strict, but Age cannot parse to int).
 ```
 
 ```go
 type Person struct {
 	Name string
 	Age int
-	Salary float64 `iniFlags:"mustExist"`
+	Salary float64 `ini:",mustExist"`
 }
-// Will return error from MapTo.
+// Will return error from MapTo (Salary field set mustExist, but does not exist).
 ```
 
 ```go
 type Person struct {
 	Name string
-	Age int `iniFlags:"strictParse;mustExist"`
+	Age int `ini:",strict,mustExist"`
 }
-// Will return error from MapTo.
+// Will return error from MapTo (Field set strict, but Age cannot parse to int).
+```
+
+```go
+type Person struct {
+	MyName string `ini:"Name,strict"`
+	Age int
+}
+// Will map without error.
+```
+
+```go
+type Person struct {
+	Name string `ini:"MyName,mustExist,strict"`
+	Age int
+}
+// Will return error from MapTo (No field MyName and mustExist).
 ```
 
 ## Getting Help

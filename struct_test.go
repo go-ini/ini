@@ -47,17 +47,17 @@ type testStruct struct {
 }
 
 type testStructPassingFlags struct {
-	Name string `ini:"NAME" iniFlags:"mustExist"`
-	Age  int    `iniFlags:"strictParse"`
-	Male bool   `iniFlags:"mustExist;strictParse"`
+	Name string `ini:"NAME,mustExist"`
+	Age  int    `ini:",strict"`
+	Male bool   `ini:",mustExist,strict"`
 }
 
 type testStructFailingMustExistFlag struct {
-	Job string `iniFlags:"mustExist"`
+	Job string `ini:",mustExist"`
 }
 
 type testStructFailingStrictParseFlag struct {
-	Name int `ini:"NAME" iniFlags:"strictParse"`
+	Name int `ini:"NAME,strict"`
 }
 
 const _CONF_DATA_STRUCT = `
