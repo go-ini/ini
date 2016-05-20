@@ -24,6 +24,31 @@ import (
 	"unicode"
 )
 
+type fieldTags struct {
+	NameOverride string
+	Strict       bool
+	MustExist    bool
+}
+
+func extractTags(field reflect.StructField) *fieldTags {
+	tag := field.Tag.Get("ini")
+	if tag == "" {
+		return &fieldTags{"", false, false}
+	}
+	parts := strings.Split(tag, ",")
+	tags := &fieldTags{NameOverride: parts[0]}
+	if len(parts) > 1 {
+		for _, tagPart := range parts[1:] {
+			if tagPart == "strict" {
+				tags.Strict = true
+			} else if tagPart == "mustExist" {
+				tags.MustExist = true
+			}
+		}
+	}
+	return tags
+}
+
 // NameMapper represents a ini tag name mapper.
 type NameMapper func(string) string
 
@@ -75,17 +100,17 @@ func parseDelim(actual string) string {
 	return ","
 }
 
-var reflectTime = reflect.TypeOf(time.Now()).Kind()
+var timeType = reflect.TypeOf(time.Now())
 
 // setWithProperType sets proper value to field based on its type,
 // but it does not return error for failing parsing,
 // because we want to use default value that is already assigned to strcut.
 func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim string) error {
-	return setWithProperTypeWithFlags(t, key, field, delim, make(map[string]bool))
+	return setWithProperTypeWithFlags(t, key, field, delim, &fieldTags{"", false, false})
 }
 
-func handleParseError(key *Key, flags map[string]bool, targetTypeName string) error {
-	if flags["strictParse"] {
+func handleParseError(key *Key, tags *fieldTags, targetTypeName string) error {
+	if tags.Strict {
 		var val string
 		if targetTypeName == "string" {
 			val = "<string parse failure>"
@@ -95,20 +120,20 @@ func handleParseError(key *Key, flags map[string]bool, targetTypeName string) er
 				val = "<empty or could not parse as string>"
 			}
 		}
-		return fmt.Errorf("strictParse set on field, but '%s' could not parse as %s.", val, targetTypeName)
+		return fmt.Errorf("strict set on field, but '%s' could not parse as %s.", val, targetTypeName)
 	}
 	return nil
 }
 
-func setIntLike(key *Key, field reflect.Value, retrievedValue reflect.Value, retrievalError error, flags map[string]bool, fieldTypeName string) error {
+func setIntLike(key *Key, field reflect.Value, retrievedValue reflect.Value, retrievalError error, tags *fieldTags, fieldTypeName string) error {
 	// force parse failure errors so upstream can handle
-	strictFlags := make(map[string]bool)
-	for flag, value := range flags {
-		strictFlags[flag] = value
+	strictTags := &fieldTags{
+		NameOverride: tags.NameOverride,
+		Strict:       true,
+		MustExist:    tags.MustExist,
 	}
-	strictFlags["strictParse"] = true
 	if retrievalError != nil {
-		return handleParseError(key, strictFlags, fieldTypeName)
+		return handleParseError(key, strictTags, fieldTypeName)
 	} else if retrievedValue.Int() != 0 {
 		field.SetInt(retrievedValue.Int())
 		return nil
@@ -119,7 +144,7 @@ func setIntLike(key *Key, field reflect.Value, retrievedValue reflect.Value, ret
 	} else {
 		str := key.String()
 		if str != "0" && str != "-0" {
-			return handleParseError(key, strictFlags, fieldTypeName)
+			return handleParseError(key, strictTags, fieldTypeName)
 		} else {
 			field.SetInt(retrievedValue.Int())
 			return nil
@@ -127,15 +152,15 @@ func setIntLike(key *Key, field reflect.Value, retrievedValue reflect.Value, ret
 	}
 }
 
-func setUintLike(key *Key, field reflect.Value, retrievedValue reflect.Value, retrievalError error, flags map[string]bool, fieldTypeName string) error {
+func setUintLike(key *Key, field reflect.Value, retrievedValue reflect.Value, retrievalError error, tags *fieldTags, fieldTypeName string) error {
 	// force parse failure errors so upstream can handle
-	strictFlags := make(map[string]bool)
-	for flag, value := range flags {
-		strictFlags[flag] = value
+	strictTags := &fieldTags{
+		NameOverride: tags.NameOverride,
+		Strict:       true,
+		MustExist:    tags.MustExist,
 	}
-	strictFlags["strictParse"] = true
 	if retrievalError != nil {
-		return handleParseError(key, strictFlags, fieldTypeName)
+		return handleParseError(key, strictTags, fieldTypeName)
 	} else if retrievedValue.Uint() != 0 {
 		field.SetUint(retrievedValue.Uint())
 		return nil
@@ -146,7 +171,7 @@ func setUintLike(key *Key, field reflect.Value, retrievedValue reflect.Value, re
 	} else {
 		str := key.String()
 		if str != "0" && str != "-0" {
-			return handleParseError(key, strictFlags, fieldTypeName)
+			return handleParseError(key, strictTags, fieldTypeName)
 		} else {
 			field.SetUint(retrievedValue.Uint())
 			return nil
@@ -155,28 +180,28 @@ func setUintLike(key *Key, field reflect.Value, retrievedValue reflect.Value, re
 }
 
 // setWithProperTypeWithFlags sets proper value to field based on its type,
-// returning errors during parsing based on flags provided.
-func setWithProperTypeWithFlags(t reflect.Type, key *Key, field reflect.Value, delim string, flags map[string]bool) error {
+// returning errors during parsing based on tags provided.
+func setWithProperTypeWithFlags(t reflect.Type, key *Key, field reflect.Value, delim string, tags *fieldTags) error {
 	switch t.Kind() {
 	case reflect.String:
 		if len(key.String()) == 0 {
-			return handleParseError(key, flags, "string")
+			return handleParseError(key, tags, "string")
 		}
 		field.SetString(key.String())
 	case reflect.Bool:
 		boolVal, err := key.Bool()
 		if err != nil {
-			return handleParseError(key, flags, "bool")
+			return handleParseError(key, tags, "bool")
 		}
 		field.SetBool(boolVal)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		intVal, err := key.Int64()
-		intErr := setIntLike(key, field, reflect.ValueOf(intVal), err, flags, "int")
+		intErr := setIntLike(key, field, reflect.ValueOf(intVal), err, tags, "int")
 		if intErr != nil {
 			durVal, err := key.Duration()
-			durErr := setIntLike(key, field, reflect.ValueOf(durVal), err, flags, "duration")
+			durErr := setIntLike(key, field, reflect.ValueOf(durVal), err, tags, "duration")
 			if durErr != nil {
-				if flags["strictParse"] {
+				if tags.Strict {
 					return intErr
 				} else {
 					return nil
@@ -186,12 +211,12 @@ func setWithProperTypeWithFlags(t reflect.Type, key *Key, field reflect.Value, d
 	//	byte is an alias for uint8, so supporting uint8 breaks support for byte
 	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		uintVal, err := key.Uint64()
-		intErr := setUintLike(key, field, reflect.ValueOf(uintVal), err, flags, "uint")
+		intErr := setUintLike(key, field, reflect.ValueOf(uintVal), err, tags, "uint")
 		if intErr != nil {
 			durVal, err := key.Duration()
-			durErr := setUintLike(key, field, reflect.ValueOf(durVal), err, flags, "duration")
+			durErr := setUintLike(key, field, reflect.ValueOf(durVal), err, tags, "duration")
 			if durErr != nil {
-				if flags["strictParse"] {
+				if tags.Strict {
 					return intErr
 				} else {
 					return nil
@@ -202,33 +227,37 @@ func setWithProperTypeWithFlags(t reflect.Type, key *Key, field reflect.Value, d
 	case reflect.Float64:
 		floatVal, err := key.Float64()
 		if err != nil {
-			return handleParseError(key, flags, "float")
+			return handleParseError(key, tags, "float")
 		}
 		field.SetFloat(floatVal)
-	case reflectTime:
+	// This is working by accident only.
+	// reflect.TypeOf(time.Now()).Kind() == reflect.Struct
+	case timeType.Kind():
 		timeVal, err := key.Time()
 		if err != nil {
-			return handleParseError(key, flags, "time")
+			return handleParseError(key, tags, "time")
 		}
 		field.Set(reflect.ValueOf(timeVal))
 	case reflect.Slice:
 		vals := key.Strings(delim)
 		numVals := len(vals)
 		if numVals == 0 {
-			return handleParseError(key, flags, "slice")
+			return handleParseError(key, tags, "slice")
 		}
 
 		sliceOf := field.Type().Elem().Kind()
 
 		var times []time.Time
-		if sliceOf == reflectTime {
+		// This is working by accident only.
+		// reflect.TypeOf(time.Now()).Kind() == reflect.Struct
+		if sliceOf == timeType.Kind() {
 			times = key.Times(delim)
 		}
 
 		slice := reflect.MakeSlice(field.Type(), numVals, numVals)
 		for i := 0; i < numVals; i++ {
 			switch sliceOf {
-			case reflectTime:
+			case timeType.Kind():
 				slice.Index(i).Set(reflect.ValueOf(times[i]))
 			default:
 				slice.Index(i).Set(reflect.ValueOf(vals[i]))
@@ -249,21 +278,27 @@ func (s *Section) mapTo(val reflect.Value) error {
 	for i := 0; i < typ.NumField(); i++ {
 		field := val.Field(i)
 		tpField := typ.Field(i)
-
-		tag := tpField.Tag.Get("ini")
-		flags := make(map[string]bool)
-		for _, flag := range strings.Split(tpField.Tag.Get("iniFlags"), ";") {
-			flags[flag] = true
-		}
-		if tag == "-" {
+		tags := extractTags(tpField)
+		if tags.NameOverride == "-" {
 			continue
 		}
 
-		fieldName := s.parseFieldName(tpField.Name, tag)
+		fieldName := s.parseFieldName(tpField.Name, tags.NameOverride)
 		if len(fieldName) == 0 || !field.CanSet() {
 			continue
 		}
-
+		// Hack around the fact that time.Time is a struct, but is a special
+		// case for parsing.
+		if tpField.Type == timeType {
+			if key, err := s.GetKey(fieldName); err == nil {
+				if err = setWithProperTypeWithFlags(tpField.Type, key, field, parseDelim(tpField.Tag.Get("delim")), tags); err != nil {
+					return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
+				}
+			} else if tags.MustExist {
+				return fmt.Errorf("%s defined with mustExist but field(%s) not found in loaded data: %v", tpField.Name, fieldName, err)
+			}
+			continue
+		}
 		isAnonymous := tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous
 		isStruct := tpField.Type.Kind() == reflect.Struct
 		isStructPtr := tpField.Type.Kind() == reflect.Ptr && reflect.TypeOf(field.Elem()).Kind() == reflect.Struct
@@ -274,25 +309,22 @@ func (s *Section) mapTo(val reflect.Value) error {
 		} else if isAnonymous {
 			field.Set(reflect.New(tpField.Type.Elem()))
 		}
-
 		if isAnonymous || isStruct || isStructPtr {
 			if sec, err := s.f.GetSection(fieldName); err == nil {
 				if err = sec.mapTo(field); err != nil {
 					return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
 				}
-			} else if flags["mustExist"] {
+			} else if tags.MustExist {
 				return fmt.Errorf("%s defined with mustExist but field(%s) not found in loaded data: %v", tpField.Name, fieldName, err)
 			}
 			continue
 		}
 
-		//if tpFiled.Type.Kind() ==
-
 		if key, err := s.GetKey(fieldName); err == nil {
-			if err = setWithProperTypeWithFlags(tpField.Type, key, field, parseDelim(tpField.Tag.Get("delim")), flags); err != nil {
+			if err = setWithProperTypeWithFlags(tpField.Type, key, field, parseDelim(tpField.Tag.Get("delim")), tags); err != nil {
 				return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
 			}
-		} else if flags["mustExist"] {
+		} else if tags.MustExist {
 			return fmt.Errorf("%s defined with mustExist but field(%s) not found in loaded data: %v", tpField.Name, fieldName, err)
 		}
 	}
@@ -342,7 +374,7 @@ func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim 
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float64,
-		reflectTime:
+		timeType.Kind():
 		key.SetValue(fmt.Sprint(field))
 	case reflect.Slice:
 		vals := field.Slice(0, field.Len())
@@ -377,12 +409,12 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 		field := val.Field(i)
 		tpField := typ.Field(i)
 
-		tag := tpField.Tag.Get("ini")
-		if tag == "-" {
+		tags := extractTags(tpField)
+		if tags.NameOverride == "-" {
 			continue
 		}
 
-		fieldName := s.parseFieldName(tpField.Name, tag)
+		fieldName := s.parseFieldName(tpField.Name, tags.NameOverride)
 		if len(fieldName) == 0 || !field.CanSet() {
 			continue
 		}
