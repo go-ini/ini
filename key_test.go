@@ -59,6 +59,13 @@ func Test_Key(t *testing.T) {
 			}
 		})
 
+		Convey("Get parent-keys that are available to the child section", func() {
+			parentKeys := cfg.Section("package.sub").ParentKeys()
+			for _, k := range parentKeys {
+				So(k.Name(), ShouldEqual, "CLONE_URL")
+			}
+		})
+
 		Convey("Get overwrite value", func() {
 			So(cfg.Section("author").Key("E-MAIL").String(), ShouldEqual, "u@gogs.io")
 		})
