@@ -364,12 +364,22 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 			}
 		}
 
-		// Count and generate alignment length and buffer spaces
+		// Count and generate alignment length and buffer spaces using the
+		// longest key. Keys may be modifed if they contain certain characters so
+		// we need to take that into account in our calculation.
 		alignLength := 0
 		if PrettyFormat {
-			for i := 0; i < len(sec.keyList); i++ {
-				if len(sec.keyList[i]) > alignLength {
-					alignLength = len(sec.keyList[i])
+			for _, kname := range sec.keyList {
+				keyLength := len(kname)
+				// First case will surround key by ` and second by """
+				if strings.ContainsAny(kname, "\"=:") {
+					keyLength += 2
+				} else if strings.Contains(kname, "`") {
+					keyLength += 6
+				}
+
+				if keyLength > alignLength {
+					alignLength = keyLength
 				}
 			}
 		}
