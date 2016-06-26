@@ -134,7 +134,7 @@ names := cfg.Section("").KeyStrings()
 获取分区下的所有键值对的克隆：
 
 ```go
-hash := cfg.GetSection("").KeysHash()
+hash := cfg.Section("").KeysHash()
 ```
 
 ### 操作键值（Value）
