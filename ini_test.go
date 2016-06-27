@@ -216,7 +216,7 @@ func Test_File_WriteTo(t *testing.T) {
 	})
 }
 
-func Test_File_SaveTo(t *testing.T) {
+func Test_File_SaveTo_WriteTo(t *testing.T) {
 	Convey("Save file", t, func() {
 		cfg, err := Load([]byte(_CONF_DATA), "testdata/conf.ini")
 		So(err, ShouldBeNil)
@@ -230,7 +230,91 @@ func Test_File_SaveTo(t *testing.T) {
 		So(cfg.SaveTo("testdata/conf_out.ini"), ShouldBeNil)
 
 		cfg.Section("author").Key("NAME").Comment = "This is author name"
+
 		So(cfg.SaveToIndent("testdata/conf_out.ini", "\t"), ShouldBeNil)
+
+		var buf bytes.Buffer
+		_, err = cfg.WriteToIndent(&buf, "\t")
+		So(err, ShouldBeNil)
+		So(buf.String(), ShouldEqual, `; Package name
+NAME        = ini
+; Package version
+VERSION     = v1
+; Package import path
+IMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s
+
+; Information about package author
+# Bio can be written in multiple lines.
+[author]
+	; This is author name
+	NAME   = Unknwon
+	E-MAIL = u@gogs.io
+	GITHUB = https://github.com/%(NAME)s
+	# Succeeding comment
+	BIO    = """Gopher.
+Coding addict.
+Good man.
+"""
+
+[package]
+	CLONE_URL = https://%(IMPORT_PATH)s
+
+[package.sub]
+	UNUSED_KEY = should be deleted
+
+[features]
+	-  = Support read/write comments of keys and sections
+	-  = Support auto-increment of key names
+	-  = Support load multiple files to overwrite key values
+
+[types]
+	STRING     = str
+	BOOL       = true
+	BOOL_FALSE = false
+	FLOAT64    = 1.25
+	INT        = 10
+	TIME       = 2015-01-01T20:17:05Z
+	DURATION   = 2h45m
+	UINT       = 3
+
+[array]
+	STRINGS  = en, zh, de
+	FLOAT64S = 1.1, 2.2, 3.3
+	INTS     = 1, 2, 3
+	UINTS    = 1, 2, 3
+	TIMES    = 2015-01-01T20:17:05Z,2015-01-01T20:17:05Z,2015-01-01T20:17:05Z
+
+[note]
+	empty_lines = next line is empty
+
+; Comment before the section
+; This is a comment for the section too
+[comments]
+	; Comment before key
+	key  = value
+	; This is a comment for key2
+	key2 = value2
+	key3 = "one", "two", "three"
+
+[advance]
+	value with quotes  = some value
+	value quote2 again = some value
+	true               = 2+3=5
+	`+"`"+`1+1=2`+"`"+`            = true
+	`+"`"+`6+1=7`+"`"+`            = true
+	"""`+"`"+`5+5`+"`"+`"""        = 10
+	`+"`"+`"6+6"`+"`"+`            = 12
+	`+"`"+`7-2=4`+"`"+`            = false
+	ADDRESS            = """404 road,
+NotFound, State, 50000"""
+	two_lines          = how about continuation lines?
+	lots_of_lines      = 1 2 3 4 
+
+[advanced]
+	val w/ pound                       = `+"`"+`my#password`+"`"+`
+	`+"`"+`longest key has a colon : yes/no`+"`"+` = yes
+
+`)
 	})
 }
 
