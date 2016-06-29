@@ -170,6 +170,20 @@ func Test_Load(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 	})
+
+	Convey("Get section and key insensitively", t, func() {
+		cfg, err := InsensitiveLoad([]byte(_CONF_DATA), "testdata/conf.ini")
+		So(err, ShouldBeNil)
+		So(cfg, ShouldNotBeNil)
+
+		sec, err := cfg.GetSection("Author")
+		So(err, ShouldBeNil)
+		So(sec, ShouldNotBeNil)
+
+		key, err := sec.GetKey("E-mail")
+		So(err, ShouldBeNil)
+		So(key, ShouldNotBeNil)
+	})
 }
 
 func Test_LooseLoad(t *testing.T) {
