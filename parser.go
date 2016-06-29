@@ -258,7 +258,8 @@ func (f *File) parse(reader io.Reader) (err error) {
 		// Section
 		if line[0] == '[' {
 			// Read to the next ']' (TODO: support quoted strings)
-			closeIdx := bytes.LastIndexByte(line, ']')
+			// TODO(unknwon): use LastIndexByte when stop supporting Go1.4
+			closeIdx := bytes.LastIndex(line, []byte("]"))
 			if closeIdx == -1 {
 				return fmt.Errorf("unclosed section: %s", line)
 			}
