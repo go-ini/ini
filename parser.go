@@ -258,7 +258,7 @@ func (f *File) parse(reader io.Reader) (err error) {
 		// Section
 		if line[0] == '[' {
 			// Read to the next ']' (TODO: support quoted strings)
-			closeIdx := bytes.IndexByte(line, ']')
+			closeIdx := bytes.LastIndexByte(line, ']')
 			if closeIdx == -1 {
 				return fmt.Errorf("unclosed section: %s", line)
 			}
