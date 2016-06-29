@@ -7,7 +7,9 @@ go:
   - 1.6
   - tip
 
-script: go test -v -cover -race
+script: 
+  - go get -v github.com/smartystreets/goconvey
+  - go test -v -cover -race
 
 notifications:
   email:
