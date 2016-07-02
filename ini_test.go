@@ -184,6 +184,16 @@ func Test_Load(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(key, ShouldNotBeNil)
 	})
+
+	Convey("Load with ignoring continuation lines", t, func() {
+		cfg, err := LoadSources(LoadOptions{IgnoreContinuation: true}, []byte(`key1=a\b\
+key2=c\d\`))
+		So(err, ShouldBeNil)
+		So(cfg, ShouldNotBeNil)
+
+		So(cfg.Section("").Key("key1").String(), ShouldEqual, `a\b\`)
+		So(cfg.Section("").Key("key2").String(), ShouldEqual, `c\d\`)
+	})
 }
 
 func Test_LooseLoad(t *testing.T) {

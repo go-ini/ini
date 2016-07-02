@@ -83,6 +83,8 @@ key1, err := cfg.GetKey("Key")
 key2, err := cfg.GetKey("KeY")
 ```
 
+If you want to give more advanced load options, use `LoadSources` and take a look at [`LoadOptions`](https://github.com/go-ini/ini/blob/v1.16.1/ini.go#L156).
+
 The cool thing is, whenever the file is available to load while you're calling `Reload` method, it will be counted as usual.
 
 ### Working with sections

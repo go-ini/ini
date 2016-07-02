@@ -76,6 +76,8 @@ key1, err := cfg.GetKey("Key")
 key2, err := cfg.GetKey("KeY")
 ```
 
+如果您想要更加自定义的加载选项，可以使用 `LoadSources` 方法并参见 [`LoadOptions`](https://github.com/go-ini/ini/blob/v1.16.1/ini.go#L156)。
+
 更牛逼的是，当那些之前不存在的文件在重新调用 `Reload` 方法的时候突然出现了，那么它们会被正常加载。
 
 ### 操作分区（Section）
