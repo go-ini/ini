@@ -552,6 +552,38 @@ Places = HangZhou,Boston
 None =
 ```
 
+What if I want to compose a struct template of other structs?
+
+### Struct pointers as field types
+
+```ini
+Foo=1
+[Bar1]
+Baz=2
+[Bar2]
+Baz=3
+```
+
+```go
+type Bar struct {
+	Baz int
+}
+
+type FullIni struct {
+	Foo int
+	Bar1 *Bar
+	Bar2 *Bar
+}
+
+func main() {
+	cfg, err := ini.Load("path/to/ini")
+	// ...
+	i := new(FullIni)
+	err = cfg.MapTo(i)
+	// ...
+}
+```
+
 #### Name Mapper
 
 To save your time and make your code cleaner, this library supports [`NameMapper`](https://gowalker.org/gopkg.in/ini.v1#NameMapper) between struct field and actual section and key name.
@@ -641,6 +673,55 @@ City = Boston
 [Parent]
 Name = Unknwon
 Age = 21
+```
+
+### MapTo special flags
+In addition to the flags mentioned above, you can specify `strict` and `mustExist` in a comma delimited list on the `ini` tag in a struct definition.  `strict` will cause `MapTo` to return an error if a field does not parse to the type specified in the struct instead of silently failing.  `mustExist` will cause an error to be returned if the struct field does not exist in the loaded ini data.  The first value in the `ini` tag must be the field name override as described above.  If no override is desired but other tags are needed, there must be a leading comma before the flag list.
+
+```ini
+Name = Bob
+Age = thirty
+```
+
+```go
+type Person struct {
+	Name string
+	Age int `ini:",strict"`
+}
+// Will return error from MapTo (Field set strict, but Age cannot parse to int).
+```
+
+```go
+type Person struct {
+	Name string
+	Age int
+	Salary float64 `ini:",mustExist"`
+}
+// Will return error from MapTo (Salary field set mustExist, but does not exist).
+```
+
+```go
+type Person struct {
+	Name string
+	Age int `ini:",strict,mustExist"`
+}
+// Will return error from MapTo (Field set strict, but Age cannot parse to int).
+```
+
+```go
+type Person struct {
+	MyName string `ini:"Name,strict"`
+	Age int
+}
+// Will map without error.
+```
+
+```go
+type Person struct {
+	Name string `ini:"MyName,mustExist,strict"`
+	Age int
+}
+// Will return error from MapTo (No field MyName and mustExist).
 ```
 
 ## Getting Help
