@@ -76,6 +76,59 @@ func parseDelim(actual string) string {
 
 var reflectTime = reflect.TypeOf(time.Now()).Kind()
 
+// setSliceWithProperType sets proper values to slice based on its type.
+func setSliceWithProperType(key *Key, field reflect.Value, delim string) error {
+	strs := key.Strings(delim)
+	numVals := len(strs)
+	if numVals == 0 {
+		return nil
+	}
+
+	var vals interface{}
+
+	sliceOf := field.Type().Elem().Kind()
+	switch sliceOf {
+	case reflect.String:
+		vals = strs
+	case reflect.Int:
+		vals = key.Ints(delim)
+	case reflect.Int64:
+		vals = key.Int64s(delim)
+	case reflect.Uint:
+		vals = key.Uints(delim)
+	case reflect.Uint64:
+		vals = key.Uint64s(delim)
+	case reflect.Float64:
+		vals = key.Float64s(delim)
+	case reflectTime:
+		vals = key.Times(delim)
+	default:
+		return fmt.Errorf("unsupported type '[]%s'", sliceOf)
+	}
+
+	slice := reflect.MakeSlice(field.Type(), numVals, numVals)
+	for i := 0; i < numVals; i++ {
+		switch sliceOf {
+		case reflect.String:
+			slice.Index(i).Set(reflect.ValueOf(vals.([]string)[i]))
+		case reflect.Int:
+			slice.Index(i).Set(reflect.ValueOf(vals.([]int)[i]))
+		case reflect.Int64:
+			slice.Index(i).Set(reflect.ValueOf(vals.([]int64)[i]))
+		case reflect.Uint:
+			slice.Index(i).Set(reflect.ValueOf(vals.([]uint)[i]))
+		case reflect.Uint64:
+			slice.Index(i).Set(reflect.ValueOf(vals.([]uint64)[i]))
+		case reflect.Float64:
+			slice.Index(i).Set(reflect.ValueOf(vals.([]float64)[i]))
+		case reflectTime:
+			slice.Index(i).Set(reflect.ValueOf(vals.([]time.Time)[i]))
+		}
+	}
+	field.Set(slice)
+	return nil
+}
+
 // setWithProperType sets proper value to field based on its type,
 // but it does not return error for failing parsing,
 // because we want to use default value that is already assigned to strcut.
@@ -132,29 +185,7 @@ func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim stri
 		}
 		field.Set(reflect.ValueOf(timeVal))
 	case reflect.Slice:
-		vals := key.Strings(delim)
-		numVals := len(vals)
-		if numVals == 0 {
-			return nil
-		}
-
-		sliceOf := field.Type().Elem().Kind()
-
-		var times []time.Time
-		if sliceOf == reflectTime {
-			times = key.Times(delim)
-		}
-
-		slice := reflect.MakeSlice(field.Type(), numVals, numVals)
-		for i := 0; i < numVals; i++ {
-			switch sliceOf {
-			case reflectTime:
-				slice.Index(i).Set(reflect.ValueOf(times[i]))
-			default:
-				slice.Index(i).Set(reflect.ValueOf(vals[i]))
-			}
-		}
-		field.Set(slice)
+		return setSliceWithProperType(key, field, delim)
 	default:
 		return fmt.Errorf("unsupported type '%s'", t)
 	}
@@ -239,7 +270,7 @@ func MapTo(v, source interface{}, others ...interface{}) error {
 	return MapToWithMapper(v, nil, source, others...)
 }
 
-// reflectWithProperType does the opposite thing with setWithProperType.
+// reflectWithProperType does the opposite thing as setWithProperType.
 func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim string) error {
 	switch t.Kind() {
 	case reflect.String:
