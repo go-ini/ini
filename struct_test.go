@@ -221,14 +221,16 @@ func Test_Struct(t *testing.T) {
 			Name      string `ini:"NAME"`
 			Male      bool
 			Age       int
+			Height    uint
 			GPA       float64
+			Date      time.Time
 			NeverMind string `ini:"-"`
 			*Embeded  `ini:"infos"`
 		}
 
 		t, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
 		So(err, ShouldBeNil)
-		a := &Author{"Unknwon", true, 21, 2.8, "",
+		a := &Author{"Unknwon", true, 21, 100, 2.8, t, "",
 			&Embeded{
 				[]time.Time{t, t},
 				[]string{"HangZhou", "Boston"},
@@ -245,10 +247,12 @@ func Test_Struct(t *testing.T) {
 		var buf bytes.Buffer
 		_, err = cfg.WriteTo(&buf)
 		So(err, ShouldBeNil)
-		So(buf.String(), ShouldEqual, `NAME = Unknwon
-Male = true
-Age  = 21
-GPA  = 2.8
+		So(buf.String(), ShouldEqual, `NAME   = Unknwon
+Male   = true
+Age    = 21
+Height = 100
+GPA    = 2.8
+Date   = 1993-10-07T20:17:05Z
 
 [infos]
 Dates       = 1993-10-07T20:17:05Z|1993-10-07T20:17:05Z

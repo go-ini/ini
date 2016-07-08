@@ -270,34 +270,53 @@ func MapTo(v, source interface{}, others ...interface{}) error {
 	return MapToWithMapper(v, nil, source, others...)
 }
 
+// reflectSliceWithProperType does the opposite thing as setSliceWithProperType.
+func reflectSliceWithProperType(key *Key, field reflect.Value, delim string) error {
+	slice := field.Slice(0, field.Len())
+	if field.Len() == 0 {
+		return nil
+	}
+
+	var buf bytes.Buffer
+	sliceOf := field.Type().Elem().Kind()
+	for i := 0; i < field.Len(); i++ {
+		switch sliceOf {
+		case reflect.String:
+			buf.WriteString(slice.Index(i).String())
+		case reflect.Int, reflect.Int64:
+			buf.WriteString(fmt.Sprint(slice.Index(i).Int()))
+		case reflect.Uint, reflect.Uint64:
+			buf.WriteString(fmt.Sprint(slice.Index(i).Uint()))
+		case reflect.Float64:
+			buf.WriteString(fmt.Sprint(slice.Index(i).Float()))
+		case reflectTime:
+			buf.WriteString(slice.Index(i).Interface().(time.Time).Format(time.RFC3339))
+		default:
+			return fmt.Errorf("unsupported type '[]%s'", sliceOf)
+		}
+		buf.WriteString(delim)
+	}
+	key.SetValue(buf.String()[:buf.Len()-1])
+	return nil
+}
+
 // reflectWithProperType does the opposite thing as setWithProperType.
 func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim string) error {
 	switch t.Kind() {
 	case reflect.String:
 		key.SetValue(field.String())
-	case reflect.Bool,
-		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Float64,
-		reflectTime:
-		key.SetValue(fmt.Sprint(field))
+	case reflect.Bool:
+		key.SetValue(fmt.Sprint(field.Bool()))
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		key.SetValue(fmt.Sprint(field.Int()))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		key.SetValue(fmt.Sprint(field.Uint()))
+	case reflect.Float32, reflect.Float64:
+		key.SetValue(fmt.Sprint(field.Float()))
+	case reflectTime:
+		key.SetValue(fmt.Sprint(field.Interface().(time.Time).Format(time.RFC3339)))
 	case reflect.Slice:
-		vals := field.Slice(0, field.Len())
-		if field.Len() == 0 {
-			return nil
-		}
-
-		var buf bytes.Buffer
-		isTime := fmt.Sprint(field.Type()) == "[]time.Time"
-		for i := 0; i < field.Len(); i++ {
-			if isTime {
-				buf.WriteString(vals.Index(i).Interface().(time.Time).Format(time.RFC3339))
-			} else {
-				buf.WriteString(fmt.Sprint(vals.Index(i)))
-			}
-			buf.WriteString(delim)
-		}
-		key.SetValue(buf.String()[:buf.Len()-1])
+		return reflectSliceWithProperType(key, field, delim)
 	default:
 		return fmt.Errorf("unsupported type '%s'", t)
 	}
@@ -325,7 +344,7 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 		}
 
 		if (tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous) ||
-			(tpField.Type.Kind() == reflect.Struct) {
+			(tpField.Type.Kind() == reflect.Struct && tpField.Type.Kind() != reflectTime) {
 			// Note: The only error here is section doesn't exist.
 			sec, err := s.f.GetSection(fieldName)
 			if err != nil {
