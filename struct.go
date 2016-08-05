@@ -372,7 +372,7 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 		}
 
 		if (tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous) ||
-			(tpField.Type.Kind() == reflect.Struct && tpField.Type.Kind() != reflectTime) {
+			(tpField.Type.Kind() == reflect.Struct && tpField.Type.Name() != "Time") {
 			// Note: The only error here is section doesn't exist.
 			sec, err := s.f.GetSection(fieldName)
 			if err != nil {
