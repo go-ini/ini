@@ -291,16 +291,6 @@ omitempty  = 9
 
 `)
 		})
-
-		Convey("Reflect from struct with too many opts in a tag", func() {
-			cfg := Empty()
-			type SpecialStruct struct {
-				TooManyOpts string `ini:"first_name,second,third"`
-				LastName    string `ini:"last_name"`
-			}
-
-			So(ReflectFrom(cfg, &SpecialStruct{TooManyOpts: "John", LastName: "Doe"}), ShouldNotBeNil)
-		})
 	})
 }
 

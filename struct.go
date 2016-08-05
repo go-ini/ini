@@ -324,6 +324,8 @@ func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim 
 	return nil
 }
 
+// CR: copied from encoding/json/encode.go with modifications of time.Time support.
+// TODO: add more test coverage.
 func isEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
@@ -359,16 +361,9 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 			continue
 		}
 
-		opts := strings.Split(tag, ",")
-		if len(opts) > 2 {
-			return fmt.Errorf("Expected max. 2 comma-separated values in a tag, %d given", len(opts))
-		}
-
-		if len(opts) == 2 {
-			v := opts[1]
-			if v == "omitempty" && isEmptyValue(field) {
-				continue
-			}
+		opts := strings.SplitN(tag, ",", 2)
+		if len(opts) == 2 && opts[1] == "omitempty" && isEmptyValue(field) {
+			continue
 		}
 
 		fieldName := s.parseFieldName(tpField.Name, opts[0])
@@ -385,7 +380,7 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 				sec, _ = s.f.NewSection(fieldName)
 			}
 			if err = sec.reflectFrom(field); err != nil {
-				return fmt.Errorf("error reflecting field(%s): %v", fieldName, err)
+				return fmt.Errorf("error reflecting field (%s): %v", fieldName, err)
 			}
 			continue
 		}
@@ -396,7 +391,7 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 			key, _ = s.NewKey(fieldName, "")
 		}
 		if err = reflectWithProperType(tpField.Type, key, field, parseDelim(tpField.Tag.Get("delim"))); err != nil {
-			return fmt.Errorf("error reflecting field(%s): %v", fieldName, err)
+			return fmt.Errorf("error reflecting field (%s): %v", fieldName, err)
 		}
 
 	}
