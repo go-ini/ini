@@ -582,6 +582,26 @@ func main() {
 
 Same rules of name mapper apply to `ini.ReflectFromWithMapper` function.
 
+#### Value Mapper
+
+To expand values, e.g. from environment variables, you can use the `ValueMapper` to transform values:
+
+```go
+type Env struct {
+	Foo string `ini:"foo"`
+}
+
+func main() {
+	cfg, err := ini.Load([]byte("[env]\nfoo = ${MY_VAR}\n")
+	cfg.ValueMapper = os.ExpandEnv
+	// ...
+	env := &Env{}
+	err = cfg.Section("env").MapTo(env)
+}
+```
+
+This would set the value of `env.Foo` to the value of the environment variable `MY_VAR`.
+
 #### Other Notes On Map/Reflect
 
 Any embedded struct is treated as a section by default, and there is no automatic parent-child relations in map/reflect feature:

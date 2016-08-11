@@ -129,6 +129,7 @@ type File struct {
 	options LoadOptions
 
 	NameMapper
+	ValueMapper
 }
 
 // newFile initializes File object with given data sources.
