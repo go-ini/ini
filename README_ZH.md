@@ -573,6 +573,26 @@ func main() {
 
 使用函数 `ini.ReflectFromWithMapper` 时也可应用相同的规则。
 
+#### 值映射器（Value Mapper）
+
+值映射器允许使用一个自定义函数自动展开值的具体内容，例如：运行时获取环境变量：
+
+```go
+type Env struct {
+	Foo string `ini:"foo"`
+}
+
+func main() {
+	cfg, err := ini.Load([]byte("[env]\nfoo = ${MY_VAR}\n")
+	cfg.ValueMapper = os.ExpandEnv
+	// ...
+	env := &Env{}
+	err = cfg.Section("env").MapTo(env)
+}
+```
+
+本例中，`env.Foo` 将会是运行时所获取到环境变量 `MY_VAR` 的值。
+
 #### 映射/反射的其它说明
 
 任何嵌入的结构都会被默认认作一个不同的分区，并且不会自动产生所谓的父子分区关联：

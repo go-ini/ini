@@ -584,7 +584,7 @@ Same rules of name mapper apply to `ini.ReflectFromWithMapper` function.
 
 #### Value Mapper
 
-To expand values, e.g. from environment variables, you can use the `ValueMapper` to transform values:
+To expand values (e.g. from environment variables), you can use the `ValueMapper` to transform values:
 
 ```go
 type Env struct {
