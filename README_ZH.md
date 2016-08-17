@@ -63,6 +63,8 @@ cfg, err := ini.LooseLoad("filename", "filename_404")
 
 更牛逼的是，当那些之前不存在的文件在重新调用 `Reload` 方法的时候突然出现了，那么它们会被正常加载。
 
+#### 忽略键名的大小写
+
 有时候分区和键的名称大小写混合非常烦人，这个时候就可以通过 `InsensitiveLoad` 将所有分区和键名在读取里强制转换为小写：
 
 ```go
@@ -78,7 +80,24 @@ key1, err := cfg.GetKey("Key")
 key2, err := cfg.GetKey("KeY")
 ```
 
-如果您想要更加自定义的加载选项，可以使用 `LoadSources` 方法并参见 [`LoadOptions`](https://github.com/go-ini/ini/blob/v1.16.1/ini.go#L156)。
+#### 类似 MySQL 配置中的布尔值键
+
+MySQL 的配置文件中会出现没有具体值的布尔类型的键：
+
+```ini
+[mysqld]
+...
+skip-host-cache
+skip-name-resolve
+```
+
+默认情况下这被认为是缺失值而无法完成解析，但可以通过高级的加载选项对它们进行处理：
+
+```go
+cfg, err := LoadSources(LoadOptions{AllowBooleanKeys: true}, "my.cnf"))
+```
+
+这些键的值永远为 `true`，且在保存到文件时也只会输出键名。
 
 ### 操作分区（Section）
 

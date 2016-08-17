@@ -194,6 +194,21 @@ key2=c\d\`))
 		So(cfg.Section("").Key("key1").String(), ShouldEqual, `a\b\`)
 		So(cfg.Section("").Key("key2").String(), ShouldEqual, `c\d\`)
 	})
+
+	Convey("Load with boolean type keys", t, func() {
+		cfg, err := LoadSources(LoadOptions{AllowBooleanKeys: true}, []byte(`key1=hello
+key2`))
+		So(err, ShouldBeNil)
+		So(cfg, ShouldNotBeNil)
+
+		So(cfg.Section("").Key("key2").MustBool(false), ShouldBeTrue)
+
+		var buf bytes.Buffer
+		cfg.WriteTo(&buf)
+		So(buf.String(), ShouldEqual, `key1 = hello
+key2
+`)
+	})
 }
 
 func Test_LooseLoad(t *testing.T) {

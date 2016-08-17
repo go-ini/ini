@@ -36,7 +36,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.20.0"
+	_VERSION      = "1.21.0"
 )
 
 // Version returns current package version literal.
@@ -161,6 +161,9 @@ type LoadOptions struct {
 	Insensitive bool
 	// IgnoreContinuation indicates whether to ignore continuation lines while parsing.
 	IgnoreContinuation bool
+	// AllowBooleanKeys indicates whether to allow boolean type keys or treat as value is missing.
+	// This type of keys are mostly used in my.cnf.
+	AllowBooleanKeys bool
 }
 
 func LoadSources(opts LoadOptions, source interface{}, others ...interface{}) (_ *File, err error) {
@@ -423,7 +426,7 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 			}
 
 			switch {
-			case key.isAutoIncr:
+			case key.isAutoIncrement:
 				kname = "-"
 			case strings.ContainsAny(kname, "\"=:"):
 				kname = "`" + kname + "`"
@@ -432,6 +435,10 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 			}
 			if _, err = buf.WriteString(kname); err != nil {
 				return 0, err
+			}
+
+			if key.isBooleanType {
+				continue
 			}
 
 			// Write out alignment spaces before "=" sign
