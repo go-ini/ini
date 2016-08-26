@@ -51,6 +51,7 @@ type testStruct struct {
 	*testEmbeded `ini:"grade"`
 	Unused       int `ini:"-"`
 	Unsigned     uint
+	Omitted      bool `ini:"omitthis,omitempty"`
 }
 
 const _CONF_DATA_STRUCT = `
@@ -61,6 +62,7 @@ Money = 1.25
 Born = 1993-10-07T20:17:05Z
 Duration = 2h45m
 Unsigned = 3
+omitthis = true
 
 [Others]
 Cities = HangZhou|Boston
@@ -183,6 +185,13 @@ func Test_Struct(t *testing.T) {
 			So(cfg.MapTo(&unsupport{}), ShouldNotBeNil)
 			So(cfg.MapTo(&unsupport2{}), ShouldNotBeNil)
 			So(cfg.MapTo(&unsupport4{}), ShouldNotBeNil)
+		})
+
+		Convey("Map to omitempty field", func() {
+			ts := new(testStruct)
+			So(MapTo(ts, []byte(_CONF_DATA_STRUCT)), ShouldBeNil)
+
+			So(ts.Omitted, ShouldEqual, true)
 		})
 
 		Convey("Map from invalid data source", func() {
