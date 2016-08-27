@@ -209,7 +209,8 @@ func (s *Section) mapTo(val reflect.Value) error {
 			continue
 		}
 
-		fieldName := s.parseFieldName(tpField.Name, tag)
+		opts := strings.SplitN(tag, ",", 2) // strip off possible omitempty
+		fieldName := s.parseFieldName(tpField.Name, opts[0])
 		if len(fieldName) == 0 || !field.CanSet() {
 			continue
 		}
