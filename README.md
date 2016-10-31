@@ -106,6 +106,16 @@ cfg, err := LoadSources(LoadOptions{AllowBooleanKeys: true}, "my.cnf"))
 
 The value of those keys are always `true`, and when you save to a file, it will keep in the same foramt as you read.
 
+#### Comment
+
+Take care that following format will be treated as comment
+
+1. Line begin with \# or ;
+2. Words after \# or ;
+3. Words after section name (i.e words after [some section name])
+
+If you want to set a value with \# or ;, please quote them with ```\```` or ```"""```
+
 ### Working with sections
 
 To get a section, you would need to:
