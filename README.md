@@ -114,7 +114,7 @@ Take care that following format will be treated as comment
 2. Words after \# or ;
 3. Words after section name (i.e words after [some section name])
 
-If you want to set a value with \# or ;, please quote them with ``` \` ``` or ``` """ ```
+If you want to set a value with \# or ;, please quote them with ``` ` ``` or ``` """ ```
 
 ### Working with sections
 
