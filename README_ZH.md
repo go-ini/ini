@@ -116,7 +116,7 @@ section, err := cfg.GetSection("")
 当您非常确定某个分区是存在的，可以使用以下简便方法：
 
 ```go
-section := cfg.Section("")
+section := cfg.Section("section name")
 ```
 
 如果不小心判断错了，要获取的分区其实是不存在的，那会发生什么呢？没事的，它会自动创建并返回一个对应的分区对象给您。
