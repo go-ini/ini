@@ -75,11 +75,20 @@ func (p *parser) readUntil(delim byte) ([]byte, error) {
 }
 
 func cleanComment(in []byte) ([]byte, bool) {
-	i := bytes.IndexAny(in, "#;")
-	if i == -1 {
-		return nil, false
+	length := len(in)
+	for i := 0; i < length; i++ {
+		thebyte := in[i]
+		if i == 0 {
+			if thebyte == ';' || thebyte == '#' {
+				return in, true
+			}
+		} else {
+			if in[i-1] != '\\' && (thebyte == ';' || thebyte == '#') {
+				return in[i:], true
+			}
+		}
 	}
-	return in[i:], true
+	return nil, false
 }
 
 func readKeyName(in []byte) (string, int, error) {
@@ -210,11 +219,13 @@ func (p *parser) readValue(in []byte, ignoreContinuation bool) (string, error) {
 		return p.readContinuationLines(line[:len(line)-1])
 	}
 
-	i := strings.IndexAny(line, "#;")
-	if i > -1 {
-		p.comment.WriteString(line[i:])
-		line = strings.TrimSpace(line[:i])
+	comment, has := cleanComment([]byte(line))
+	if has {
+		p.comment.Write(comment)
+		line = strings.TrimSpace(line[:strings.Index(line, string(comment))])
 	}
+	line = strings.Replace(line, "\\#", "#", -1)
+	line = strings.Replace(line, "\\;", ";", -1)
 
 	// Trim single quotes
 	if hasSurroundedQuote(line, '\'') ||
