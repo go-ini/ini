@@ -106,6 +106,16 @@ cfg, err := LoadSources(LoadOptions{AllowBooleanKeys: true}, "my.cnf"))
 
 The value of those keys are always `true`, and when you save to a file, it will keep in the same foramt as you read.
 
+#### Comment
+
+Take care that following format will be treated as comment
+
+1. Line begin with \# or ;
+2. Words after \# or ;
+3. Words after section name (i.e words after [some section name])
+
+If you want to set a value with \# or ;, please quote them with ``` ` ``` or ``` """ ```
+
 ### Working with sections
 
 To get a section, you would need to:
@@ -123,7 +133,7 @@ section, err := cfg.GetSection("")
 When you're pretty sure the section exists, following code could make your life easier:
 
 ```go
-section := cfg.Section("")
+section := cfg.Section("section name")
 ```
 
 What happens when the section somehow does not exist? Don't panic, it automatically creates and returns a new section to you.
