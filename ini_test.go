@@ -371,14 +371,15 @@ func Test_File_WriteTo_SectionRaw(t *testing.T) {
 		So(buf.String(), ShouldEqual, `[Core]
 	Lesson_Location = 87
 	Lesson_Status   = C
-	Score           =
+	Score           = 3
 	Time            = 00:02:30
 
 [CORE_LESSON]
 my lesson state data – 1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000 – end my lesson state data
 [COMMENTS]
-<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`)
+<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
+`)
 	})
 }
 
