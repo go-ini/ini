@@ -235,6 +235,7 @@ func (f *File) parse(reader io.Reader) (err error) {
 	section, _ := f.NewSection(DEFAULT_SECTION)
 
 	var line []byte
+	var inUnparseableSection bool
 	for !p.isEOF {
 		line, err = p.readUntil('\n')
 		if err != nil {
@@ -280,6 +281,22 @@ func (f *File) parse(reader io.Reader) (err error) {
 			// Reset aotu-counter and comments
 			p.comment.Reset()
 			p.count = 1
+
+			inUnparseableSection = false
+			if len(f.options.UnparseableSections) > 0 {
+				for _, sectionName := range f.options.UnparseableSections {
+					if sectionName == name ||
+						(f.options.Insensitive && strings.ToLower(sectionName) == strings.ToLower(name)) {
+						inUnparseableSection = true
+						continue
+					}
+				}
+			}
+			continue
+		}
+
+		if inUnparseableSection {
+			section.rawBody += string(line)
 			continue
 		}
 
