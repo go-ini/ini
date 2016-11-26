@@ -236,6 +236,13 @@ func (f *File) NewSection(name string) (*Section, error) {
 	return f.sections[name], nil
 }
 
+// NewRawSection creates a new section as an unparseable body.
+func (f *File) NewRawSection(name string, body string) (*Section, error) {
+	section, err := f.NewSection(name)
+	section.rawBody = body
+	return section, err
+}
+
 // NewSections creates a list of sections.
 func (f *File) NewSections(names ...string) (err error) {
 	for _, name := range names {
@@ -387,6 +394,13 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 			if len(sec.keyList) == 0 {
 				continue
 			}
+		}
+
+		if sec.rawBody != "" {
+			if _, err = buf.WriteString(sec.rawBody); err != nil {
+				return 0, err
+			}
+			continue
 		}
 
 		// Count and generate alignment length and buffer spaces using the
