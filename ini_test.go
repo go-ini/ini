@@ -206,16 +206,21 @@ key2=c\d\`))
 
 	Convey("Load with boolean type keys", t, func() {
 		cfg, err := LoadSources(LoadOptions{AllowBooleanKeys: true}, []byte(`key1=hello
-key2`))
+key2
+#key3
+key4`))
 		So(err, ShouldBeNil)
 		So(cfg, ShouldNotBeNil)
 
+		// it fails in presence of a #commented out line, the previous key keeps a trailing \n
+		So(strings.Join(cfg.Section("").KeyStrings(), ","), ShouldEqual, "key1,key2,key4")
 		So(cfg.Section("").Key("key2").MustBool(false), ShouldBeTrue)
 
 		var buf bytes.Buffer
 		cfg.WriteTo(&buf)
 		So(buf.String(), ShouldEqual, `key1 = hello
 key2
+key4
 `)
 	})
 }
