@@ -219,8 +219,10 @@ key5`))
 
 		var buf bytes.Buffer
 		cfg.WriteTo(&buf)
+		// there is always a trailing \n at the end of the section
 		So(buf.String(), ShouldEqual, `key1 = hello
 key2
+#key3
 key4
 key5
 `)
