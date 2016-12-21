@@ -28,10 +28,11 @@ type Section struct {
 	keys     map[string]*Key
 	keyList  []string
 	keysHash map[string]string
+	duplicates []*Section
 }
 
 func newSection(f *File, name string) *Section {
-	return &Section{f, "", name, make(map[string]*Key), make([]string, 0, 10), make(map[string]string)}
+	return &Section{f, "", name, make(map[string]*Key), make([]string, 0, 10), make(map[string]string), nil}
 }
 
 // Name returns name of Section.
@@ -203,4 +204,9 @@ func (s *Section) DeleteKey(name string) {
 			return
 		}
 	}
+}
+
+// Duplicates MySQL NDB engine's config.ini
+func (s *Section) Duplicates() []*Section {
+	return s.duplicates
 }

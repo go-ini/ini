@@ -224,8 +224,12 @@ func (f *File) NewSection(name string) (*Section, error) {
 		defer f.lock.Unlock()
 	}
 
+
 	if inSlice(name, f.sectionList) {
-		return f.sections[name], nil
+		sec  := f.sections[name]
+		nsec := newSection(f, name)
+		sec.duplicates = append(sec.duplicates, nsec)
+		return nsec, nil
 	}
 
 	f.sectionList = append(f.sectionList, name)
@@ -366,6 +370,10 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 	buf := bytes.NewBuffer(nil)
 	for i, sname := range f.sectionList {
 		sec := f.Section(sname)
+		dup := sec.Duplicates()
+		duplen := len(dup)
+
+	secAgain:		
 		if len(sec.Comment) > 0 {
 			if sec.Comment[0] != '#' && sec.Comment[0] != ';' {
 				sec.Comment = "; " + sec.Comment
@@ -461,6 +469,14 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 		// Put a line between sections
 		if _, err = buf.WriteString(LineBreak); err != nil {
 			return 0, err
+		}
+
+		// write duplicates
+		if duplen > 0 {
+			duplen--
+			sec = dup[0]
+			dup = dup[duplen:]			
+			goto secAgain
 		}
 	}
 
