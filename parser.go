@@ -48,16 +48,31 @@ func newParser(r io.Reader) *parser {
 	}
 }
 
-// BOM handles header of BOM-UTF8 format.
+// BOM handles header of UTF-8, UTF-16 LE and UTF-16 BE's BOM format.
 // http://en.wikipedia.org/wiki/Byte_order_mark#Representations_of_byte_order_marks_by_encoding
 func (p *parser) BOM() error {
-	mask, err := p.buf.Peek(3)
+	mask, err := p.buf.Peek(2)
 	if err != nil && err != io.EOF {
 		return err
-	} else if len(mask) < 3 {
+	} else if len(mask) < 2 {
 		return nil
-	} else if mask[0] == 239 && mask[1] == 187 && mask[2] == 191 {
+	}
+
+	switch {
+	case mask[0] == 254 && mask[1] == 255:
+		fallthrough
+	case mask[0] == 255 && mask[1] == 254:
 		p.buf.Read(mask)
+	case mask[0] == 239 && mask[1] == 187:
+		mask, err := p.buf.Peek(3)
+		if err != nil && err != io.EOF {
+			return err
+		} else if len(mask) < 3 {
+			return nil
+		}
+		if mask[2] == 191 {
+			p.buf.Read(mask)
+		}
 	}
 	return nil
 }
