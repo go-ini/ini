@@ -463,6 +463,21 @@ cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v1
 cfg.Section("package.sub").ParentKeys() // ["CLONE_URL"]
 ```
 
+### Unparsable Sections
+
+Sometimes, you have sections that do not contain key-value pairs but raw content, to handle such case, you can use `LoadOptions.UnparsableSections`:
+
+```go
+cfg, err := LoadSources(LoadOptions{UnparseableSections: []string{"COMMENTS"}}, `[COMMENTS]
+<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`))
+
+body := cfg.Section("COMMENTS").Body()
+
+/* --- start ---
+<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
+------  end  --- */
+```
+
 ### Auto-increment Key Names
 
 If key name is `-` in data source, then it would be seen as special syntax for auto-increment key name start from 1, and every section is independent on counter.

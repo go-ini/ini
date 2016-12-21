@@ -36,7 +36,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.21.2"
+	_VERSION      = "1.22.0"
 )
 
 // Version returns current package version literal.
@@ -165,7 +165,7 @@ type LoadOptions struct {
 	// This type of keys are mostly used in my.cnf.
 	AllowBooleanKeys bool
 	// Some INI formats allow group blocks that store a block of raw content that doesn't otherwise
-	// conform to key/value pairs.  Specify the names of those blocks here.
+	// conform to key/value pairs. Specify the names of those blocks here.
 	UnparseableSections []string
 }
 
@@ -236,11 +236,16 @@ func (f *File) NewSection(name string) (*Section, error) {
 	return f.sections[name], nil
 }
 
-// NewRawSection creates a new section as an unparseable body.
-func (f *File) NewRawSection(name string, body string) (*Section, error) {
+// NewRawSection creates a new section with an unparseable body.
+func (f *File) NewRawSection(name, body string) (*Section, error) {
 	section, err := f.NewSection(name)
+	if err != nil {
+		return nil, err
+	}
+
+	section.isRawSection = true
 	section.rawBody = body
-	return section, err
+	return section, nil
 }
 
 // NewSections creates a list of sections.
@@ -396,7 +401,7 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 			}
 		}
 
-		if sec.rawBody != "" {
+		if sec.isRawSection {
 			if _, err = buf.WriteString(sec.rawBody); err != nil {
 				return 0, err
 			}

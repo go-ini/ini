@@ -298,19 +298,18 @@ func (f *File) parse(reader io.Reader) (err error) {
 			p.count = 1
 
 			inUnparseableSection = false
-			if len(f.options.UnparseableSections) > 0 {
-				for _, sectionName := range f.options.UnparseableSections {
-					if sectionName == name ||
-						(f.options.Insensitive && strings.ToLower(sectionName) == strings.ToLower(name)) {
-						inUnparseableSection = true
-						continue
-					}
+			for i := range f.options.UnparseableSections {
+				if f.options.UnparseableSections[i] == name ||
+					(f.options.Insensitive && strings.ToLower(f.options.UnparseableSections[i]) == strings.ToLower(name)) {
+					inUnparseableSection = true
+					continue
 				}
 			}
 			continue
 		}
 
 		if inUnparseableSection {
+			section.isRawSection = true
 			section.rawBody += string(line)
 			continue
 		}

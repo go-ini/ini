@@ -28,11 +28,19 @@ type Section struct {
 	keys     map[string]*Key
 	keyList  []string
 	keysHash map[string]string
-	rawBody  string
+
+	isRawSection bool
+	rawBody      string
 }
 
 func newSection(f *File, name string) *Section {
-	return &Section{f, "", name, make(map[string]*Key), make([]string, 0, 10), make(map[string]string), ""}
+	return &Section{
+		f:        f,
+		name:     name,
+		keys:     make(map[string]*Key),
+		keyList:  make([]string, 0, 10),
+		keysHash: make(map[string]string),
+	}
 }
 
 // Name returns name of Section.

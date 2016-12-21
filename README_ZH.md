@@ -409,9 +409,9 @@ cfg.WriteToIndent(writer, "\t")
 ini.PrettyFormat = false
 ``` 
 
-### 高级用法
+## 高级用法
 
-#### 递归读取键值
+### 递归读取键值
 
 在获取所有键值的过程中，特殊语法 `%(<name>)s` 会被应用，其中 `<name>` 可以是相同分区或者默认分区下的键名。字符串 `%(<name>)s` 会被相应的键值所替代，如果指定的键不存在，则会用空字符串替代。您可以最多使用 99 层的递归嵌套。
 
@@ -431,7 +431,7 @@ cfg.Section("author").Key("GITHUB").String()		// https://github.com/Unknwon
 cfg.Section("package").Key("FULL_NAME").String()	// github.com/go-ini/ini
 ```
 
-#### 读取父子分区
+### 读取父子分区
 
 您可以在分区名称中使用 `.` 来表示两个或多个分区之间的父子关系。如果某个键在子分区中不存在，则会去它的父分区中再次寻找，直到没有父分区为止。
 
@@ -450,13 +450,28 @@ CLONE_URL = https://%(IMPORT_PATH)s
 cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v1
 ```
 
-#### 获取上级父分区下的所有键名
+### 获取上级父分区下的所有键名
 
 ```go
 cfg.Section("package.sub").ParentKeys() // ["CLONE_URL"]
 ```
 
-#### 读取自增键名
+### 无法解析的分区
+
+如果遇到一些比较特殊的分区，它们不包含常见的键值对，而是没有固定格式的纯文本，则可以使用 `LoadOptions.UnparsableSections` 进行处理：
+
+```go
+cfg, err := LoadSources(LoadOptions{UnparseableSections: []string{"COMMENTS"}}, `[COMMENTS]
+<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`))
+
+body := cfg.Section("COMMENTS").Body()
+
+/* --- start ---
+<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
+------  end  --- */
+```
+
+### 读取自增键名
 
 如果数据源中的键名为 `-`，则认为该键使用了自增键名的特殊语法。计数器从 1 开始，并且分区之间是相互独立的。
 
