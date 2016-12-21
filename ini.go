@@ -164,6 +164,9 @@ type LoadOptions struct {
 	// AllowBooleanKeys indicates whether to allow boolean type keys or treat as value is missing.
 	// This type of keys are mostly used in my.cnf.
 	AllowBooleanKeys bool
+	// Some INI formats allow group blocks that store a block of raw content that doesn't otherwise
+	// conform to key/value pairs.  Specify the names of those blocks here.
+	UnparseableSections []string
 }
 
 func LoadSources(opts LoadOptions, source interface{}, others ...interface{}) (_ *File, err error) {
@@ -231,6 +234,13 @@ func (f *File) NewSection(name string) (*Section, error) {
 	f.sectionList = append(f.sectionList, name)
 	f.sections[name] = newSection(f, name)
 	return f.sections[name], nil
+}
+
+// NewRawSection creates a new section as an unparseable body.
+func (f *File) NewRawSection(name string, body string) (*Section, error) {
+	section, err := f.NewSection(name)
+	section.rawBody = body
+	return section, err
 }
 
 // NewSections creates a list of sections.
@@ -384,6 +394,13 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 			if len(sec.keyList) == 0 {
 				continue
 			}
+		}
+
+		if sec.rawBody != "" {
+			if _, err = buf.WriteString(sec.rawBody); err != nil {
+				return 0, err
+			}
+			continue
 		}
 
 		// Count and generate alignment length and buffer spaces using the

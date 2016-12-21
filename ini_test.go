@@ -357,6 +357,32 @@ NotFound, State, 50000"""
 	})
 }
 
+func Test_File_WriteTo_SectionRaw(t *testing.T) {
+	Convey("Write a INI with a raw section", t, func() {
+		var buf bytes.Buffer
+		cfg, err := LoadSources(
+			LoadOptions{
+				UnparseableSections: []string{"CORE_LESSON", "COMMENTS"},
+			},
+			"testdata/aicc.ini")
+		So(err, ShouldBeNil)
+		So(cfg, ShouldNotBeNil)
+		cfg.WriteToIndent(&buf, "\t")
+		So(buf.String(), ShouldEqual, `[Core]
+	Lesson_Location = 87
+	Lesson_Status   = C
+	Score           = 3
+	Time            = 00:02:30
+
+[CORE_LESSON]
+my lesson state data – 1111111111111111111000000000000000001110000
+111111111111111111100000000000111000000000 – end my lesson state data
+[COMMENTS]
+<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
+`)
+	})
+}
+
 // Helpers for slice tests.
 func float64sEqual(values []float64, expected ...float64) {
 	So(values, ShouldHaveLength, len(expected))
