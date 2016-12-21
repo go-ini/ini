@@ -133,7 +133,7 @@ section, err := cfg.GetSection("")
 When you're pretty sure the section exists, following code could make your life easier:
 
 ```go
-section := cfg.Section("")
+section := cfg.Section("section name")
 ```
 
 What happens when the section somehow does not exist? Don't panic, it automatically creates and returns a new section to you.
