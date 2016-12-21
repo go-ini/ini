@@ -450,7 +450,7 @@ CLONE_URL = https://%(IMPORT_PATH)s
 cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v1
 ```
 
-### 获取上级父分区下的所有键名
+#### 获取上级父分区下的所有键名
 
 ```go
 cfg.Section("package.sub").ParentKeys() // ["CLONE_URL"]

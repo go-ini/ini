@@ -463,7 +463,7 @@ cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v1
 cfg.Section("package.sub").ParentKeys() // ["CLONE_URL"]
 ```
 
-### Unparsable Sections
+### Unparseable Sections
 
 Sometimes, you have sections that do not contain key-value pairs but raw content, to handle such case, you can use `LoadOptions.UnparsableSections`:
 
