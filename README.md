@@ -108,13 +108,13 @@ The value of those keys are always `true`, and when you save to a file, it will 
 
 #### Comment
 
-Take care that following format will be treated as comment
+Take care that following format will be treated as comment:
 
-1. Line begin with \# or ;
-2. Words after \# or ;
-3. Words after section name (i.e words after [some section name])
+1. Line begins with `#` or `;`
+2. Words after `#` or `;`
+3. Words after section name (i.e words after `[some section name]`)
 
-If you want to set a value with \# or ;, please quote them with ``` ` ``` or ``` """ ```
+If you want to save a value with `#` or `;`, please quote them with ``` ` ``` or ``` """ ```.
 
 ### Working with sections
 
