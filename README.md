@@ -9,7 +9,7 @@ Package ini provides INI file read and write functionality in Go.
 
 ## Feature
 
-- Load multiple data sources(`[]byte` or file) with overwrites.
+- Load multiple data sources(`[]byte`, file and `io.ReadCloser`) with overwrites.
 - Read with recursion values.
 - Read with parent-child sections.
 - Read with auto-increment key names.
@@ -44,10 +44,10 @@ Please add `-u` flag to update in the future.
 
 ### Loading from data sources
 
-A **Data Source** is either raw data in type `[]byte` or a file name with type `string` and you can load **as many data sources as you want**. Passing other types will simply return an error.
+A **Data Source** is either raw data in type `[]byte`, a file name with type `string` or `io.ReadCloser`. You can load **as many data sources as you want**. Passing other types will simply return an error.
 
 ```go
-cfg, err := ini.Load([]byte("raw data"), "filename")
+cfg, err := ini.Load([]byte("raw data"), "filename", ioutil.NopCloser(bytes.NewReader([]byte("some other data"))))
 ```
 
 Or start with an empty object:

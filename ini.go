@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"runtime"
@@ -36,7 +37,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.22.0"
+	_VERSION      = "1.23.0"
 )
 
 // Version returns current package version literal.
@@ -108,7 +109,16 @@ type sourceData struct {
 }
 
 func (s *sourceData) ReadCloser() (io.ReadCloser, error) {
-	return &bytesReadCloser{bytes.NewReader(s.data)}, nil
+	return ioutil.NopCloser(bytes.NewReader(s.data)), nil
+}
+
+// sourceReadCloser represents an input stream with Close method.
+type sourceReadCloser struct {
+	reader io.ReadCloser
+}
+
+func (s *sourceReadCloser) ReadCloser() (io.ReadCloser, error) {
+	return s.reader, nil
 }
 
 // File represents a combination of a or more INI file(s) in memory.
@@ -149,6 +159,8 @@ func parseDataSource(source interface{}) (dataSource, error) {
 		return sourceFile{s}, nil
 	case []byte:
 		return &sourceData{s}, nil
+	case io.ReadCloser:
+		return &sourceReadCloser{s}, nil
 	default:
 		return nil, fmt.Errorf("error parsing data source: unknown type '%s'", s)
 	}

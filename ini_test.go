@@ -16,6 +16,7 @@ package ini
 
 import (
 	"bytes"
+	"io/ioutil"
 	"testing"
 	"time"
 
@@ -113,13 +114,21 @@ func Test_Load(t *testing.T) {
 		})
 
 		Convey("Load with multiple data sources", func() {
-			cfg, err := Load([]byte(_CONF_DATA), "testdata/conf.ini")
+			cfg, err := Load([]byte(_CONF_DATA), "testdata/conf.ini", ioutil.NopCloser(bytes.NewReader([]byte(_CONF_DATA))))
 			So(err, ShouldBeNil)
 			So(cfg, ShouldNotBeNil)
 
 			f, err := Load([]byte(_CONF_DATA), "testdata/404.ini")
 			So(err, ShouldNotBeNil)
 			So(f, ShouldBeNil)
+		})
+
+		Convey("Load with io.ReadCloser", func() {
+			cfg, err := Load(ioutil.NopCloser(bytes.NewReader([]byte(_CONF_DATA))))
+			So(err, ShouldBeNil)
+			So(cfg, ShouldNotBeNil)
+
+			So(cfg.Section("").Key("NAME").String(), ShouldEqual, "ini")
 		})
 	})
 

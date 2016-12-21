@@ -2,7 +2,7 @@
 
 ## 功能特性
 
-- 支持覆盖加载多个数据源（`[]byte` 或文件）
+- 支持覆盖加载多个数据源（`[]byte`、文件和 `io.ReadCloser`）
 - 支持递归读取键值
 - 支持读取父子分区
 - 支持读取自增键名
@@ -37,10 +37,10 @@
 
 ### 从数据源加载
 
-一个 **数据源** 可以是 `[]byte` 类型的原始数据，或 `string` 类型的文件路径。您可以加载 **任意多个** 数据源。如果您传递其它类型的数据源，则会直接返回错误。
+一个 **数据源** 可以是 `[]byte` 类型的原始数据，`string` 类型的文件路径或 `io.ReadCloser`。您可以加载 **任意多个** 数据源。如果您传递其它类型的数据源，则会直接返回错误。
 
 ```go
-cfg, err := ini.Load([]byte("raw data"), "filename")
+cfg, err := ini.Load([]byte("raw data"), "filename", ioutil.NopCloser(bytes.NewReader([]byte("some other data"))))
 ```
 
 或者从一个空白的文件开始：
