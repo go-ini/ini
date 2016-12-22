@@ -17,6 +17,7 @@ package ini
 import (
 	"bytes"
 	"io/ioutil"
+	"strings"
 	"testing"
 	"time"
 
