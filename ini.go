@@ -472,6 +472,9 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 			}
 
 			if key.isBooleanType {
+				if kname != sec.keyList[len(sec.keyList)-1] {
+					buf.WriteString(LineBreak)
+				}
 				continue
 			}
 
