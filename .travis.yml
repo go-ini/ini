@@ -8,7 +8,8 @@ go:
   - master
 
 script: 
-  - go get -v github.com/smartystreets/goconvey
+  - go get golang.org/x/tools/cmd/cover
+  - go get github.com/smartystreets/goconvey
   - go test -v -cover -race
 
 notifications:
