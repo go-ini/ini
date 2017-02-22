@@ -455,7 +455,7 @@ func Test_Key_Shadows(t *testing.T) {
 		})
 
 		Convey("Enable shadows", func() {
-			cfg, err := LoadSources(LoadOptions{AllowShadows: true}, []byte(_CONF_GIT_CONFIG))
+			cfg, err := ShadowLoad([]byte(_CONF_GIT_CONFIG))
 			So(err, ShouldBeNil)
 			So(cfg.Section(`remote "origin"`).Key("url").String(), ShouldEqual, "https://github.com/Antergone/test1.git")
 			So(strings.Join(cfg.Section(`remote "origin"`).Key("url").ValueWithShadows(), " "), ShouldEqual,
