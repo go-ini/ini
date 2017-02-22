@@ -48,6 +48,8 @@ func newKey(s *Section, name, val string) *Key {
 func (k *Key) addShadow(val string) error {
 	if k.isShadow {
 		return errors.New("cannot add shadow to another shadow key")
+	} else if k.isAutoIncrement || k.isBooleanType {
+		return errors.New("cannot add shadow to auto-increment or boolean key")
 	}
 
 	shadow := newKey(k.s, k.name, val)

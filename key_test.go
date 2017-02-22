@@ -15,6 +15,7 @@
 package ini
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -459,6 +460,17 @@ func Test_Key_Shadows(t *testing.T) {
 			So(cfg.Section(`remote "origin"`).Key("url").String(), ShouldEqual, "https://github.com/Antergone/test1.git")
 			So(strings.Join(cfg.Section(`remote "origin"`).Key("url").ValueWithShadows(), " "), ShouldEqual,
 				"https://github.com/Antergone/test1.git https://github.com/Antergone/test2.git")
+
+			Convey("Save with shadows", func() {
+				var buf bytes.Buffer
+				_, err := cfg.WriteTo(&buf)
+				So(err, ShouldBeNil)
+				So(buf.String(), ShouldEqual, `[remote "origin"]
+url = https://github.com/Antergone/test1.git
+url = https://github.com/Antergone/test2.git
+
+`)
+			})
 		})
 	})
 }
