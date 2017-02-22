@@ -439,6 +439,30 @@ key2= ; comment`
 	})
 }
 
+const _CONF_GIT_CONFIG = `
+[remote "origin"]
+        url = https://github.com/Antergone/test1.git
+        url = https://github.com/Antergone/test2.git
+`
+
+func Test_Key_Shadows(t *testing.T) {
+	Convey("Shadows keys", t, func() {
+		Convey("Disable shadows", func() {
+			cfg, err := Load([]byte(_CONF_GIT_CONFIG))
+			So(err, ShouldBeNil)
+			So(cfg.Section(`remote "origin"`).Key("url").String(), ShouldEqual, "https://github.com/Antergone/test2.git")
+		})
+
+		Convey("Enable shadows", func() {
+			cfg, err := LoadSources(LoadOptions{AllowShadows: true}, []byte(_CONF_GIT_CONFIG))
+			So(err, ShouldBeNil)
+			So(cfg.Section(`remote "origin"`).Key("url").String(), ShouldEqual, "https://github.com/Antergone/test1.git")
+			So(strings.Join(cfg.Section(`remote "origin"`).Key("url").ValueWithShadows(), " "), ShouldEqual,
+				"https://github.com/Antergone/test1.git https://github.com/Antergone/test2.git")
+		})
+	})
+}
+
 func newTestFile(block bool) *File {
 	c, _ := Load([]byte(_CONF_DATA))
 	c.BlockMode = block

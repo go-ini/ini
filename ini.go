@@ -37,7 +37,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.24.0"
+	_VERSION      = "1.25.0"
 )
 
 // Version returns current package version literal.
@@ -176,6 +176,8 @@ type LoadOptions struct {
 	// AllowBooleanKeys indicates whether to allow boolean type keys or treat as value is missing.
 	// This type of keys are mostly used in my.cnf.
 	AllowBooleanKeys bool
+	// AllowShadows indicates whether to keep track of keys with same name under same section.
+	AllowShadows bool
 	// Some INI formats allow group blocks that store a block of raw content that doesn't otherwise
 	// conform to key/value pairs. Specify the names of those blocks here.
 	UnparseableSections []string
