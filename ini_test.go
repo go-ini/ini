@@ -90,6 +90,8 @@ key3 = "one", "two", "three"
 [advance]
 value with quotes = "some value"
 value quote2 again = 'some value'
+includes comment sign = ` + "`" + "my#password" + "`" + `
+includes comment sign2 = ` + "`" + "my;password" + "`" + `
 true = 2+3=5
 "1+1=2" = true
 """6+1=7""" = true
@@ -354,18 +356,20 @@ Good man.
 	key3 = "one", "two", "three"
 
 [advance]
-	value with quotes  = some value
-	value quote2 again = some value
-	true               = 2+3=5
-	`+"`"+`1+1=2`+"`"+`            = true
-	`+"`"+`6+1=7`+"`"+`            = true
-	"""`+"`"+`5+5`+"`"+`"""        = 10
-	`+"`"+`"6+6"`+"`"+`            = 12
-	`+"`"+`7-2=4`+"`"+`            = false
-	ADDRESS            = """404 road,
+	value with quotes      = some value
+	value quote2 again     = some value
+	includes comment sign  = `+"`"+"my#password"+"`"+`
+	includes comment sign2 = `+"`"+"my;password"+"`"+`
+	true                   = 2+3=5
+	`+"`"+`1+1=2`+"`"+`                = true
+	`+"`"+`6+1=7`+"`"+`                = true
+	"""`+"`"+`5+5`+"`"+`"""            = 10
+	`+"`"+`"6+6"`+"`"+`                = 12
+	`+"`"+`7-2=4`+"`"+`                = false
+	ADDRESS                = """404 road,
 NotFound, State, 50000"""
-	two_lines          = how about continuation lines?
-	lots_of_lines      = 1 2 3 4 
+	two_lines              = how about continuation lines?
+	lots_of_lines          = 1 2 3 4 
 
 [advanced]
 	val w/ pound                       = `+"`"+`my#password`+"`"+`
