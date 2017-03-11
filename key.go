@@ -92,16 +92,16 @@ func (k *Key) ValueWithShadows() []string {
 	return vals
 }
 
-// String returns string representation of value.
-func (k *Key) String() string {
-	val := k.value
+// transformValue takes a raw value and transforms to its final string.
+func (k *Key) transformValue(val string) string {
 	if k.s.f.ValueMapper != nil {
 		val = k.s.f.ValueMapper(val)
 	}
-	if strings.Index(val, "%") == -1 {
+
+	// Fail-fast if no indicate char found for recursive value
+	if !strings.Contains(val, "%") {
 		return val
 	}
-
 	for i := 0; i < _DEPTH_VALUES; i++ {
 		vr := varPattern.FindString(val)
 		if len(vr) == 0 {
@@ -123,6 +123,11 @@ func (k *Key) String() string {
 		val = strings.Replace(val, vr, nk.value, -1)
 	}
 	return val
+}
+
+// String returns string representation of value.
+func (k *Key) String() string {
+	return k.transformValue(k.value)
 }
 
 // Validate accepts a validate function which can
@@ -441,9 +446,29 @@ func (k *Key) Strings(delim string) []string {
 
 	vals := strings.Split(str, delim)
 	for i := range vals {
+		// vals[i] = k.transformValue(strings.TrimSpace(vals[i]))
 		vals[i] = strings.TrimSpace(vals[i])
 	}
 	return vals
+}
+
+// StringsWithShadows returns list of string divided by given delimiter.
+// Shadows will also be appended if any.
+func (k *Key) StringsWithShadows(delim string) []string {
+	vals := k.ValueWithShadows()
+	results := make([]string, 0, len(vals)*2)
+	for i := range vals {
+		if len(vals) == 0 {
+			continue
+		}
+
+		results = append(results, strings.Split(vals[i], delim)...)
+	}
+
+	for i := range results {
+		results[i] = k.transformValue(strings.TrimSpace(results[i]))
+	}
+	return results
 }
 
 // Float64s returns list of float64 divided by given delimiter. Any invalid input will be treated as zero value.

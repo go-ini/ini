@@ -51,7 +51,8 @@ type testStruct struct {
 	*testEmbeded `ini:"grade"`
 	Unused       int `ini:"-"`
 	Unsigned     uint
-	Omitted      bool `ini:"omitthis,omitempty"`
+	Omitted      bool     `ini:"omitthis,omitempty"`
+	Shadows      []string `ini:",,allowshadow"`
 }
 
 const _CONF_DATA_STRUCT = `
@@ -63,6 +64,8 @@ Born = 1993-10-07T20:17:05Z
 Duration = 2h45m
 Unsigned = 3
 omitthis = true
+Shadows = 1, 2
+Shadows = 3, 4
 
 [Others]
 Cities = HangZhou|Boston
@@ -192,6 +195,15 @@ func Test_Struct(t *testing.T) {
 			So(MapTo(ts, []byte(_CONF_DATA_STRUCT)), ShouldBeNil)
 
 			So(ts.Omitted, ShouldEqual, true)
+		})
+
+		Convey("Map with shadows", func() {
+			cfg, err := LoadSources(LoadOptions{AllowShadows: true}, []byte(_CONF_DATA_STRUCT))
+			So(err, ShouldBeNil)
+			ts := new(testStruct)
+			So(cfg.MapTo(ts), ShouldBeNil)
+
+			So(strings.Join(ts.Shadows, " "), ShouldEqual, "1 2 3 4")
 		})
 
 		Convey("Map from invalid data source", func() {
