@@ -53,6 +53,7 @@ type testStruct struct {
 	Unsigned     uint
 	Omitted      bool     `ini:"omitthis,omitempty"`
 	Shadows      []string `ini:",,allowshadow"`
+	ShadowInts   []int    `ini:"Shadows,,allowshadow"`
 }
 
 const _CONF_DATA_STRUCT = `
@@ -204,6 +205,7 @@ func Test_Struct(t *testing.T) {
 			So(cfg.MapTo(ts), ShouldBeNil)
 
 			So(strings.Join(ts.Shadows, " "), ShouldEqual, "1 2 3 4")
+			So(fmt.Sprintf("%v", ts.ShadowInts), ShouldEqual, "[1 2 3 4]")
 		})
 
 		Convey("Map from invalid data source", func() {

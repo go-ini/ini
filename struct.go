@@ -98,9 +98,9 @@ func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowSh
 	case reflect.String:
 		vals = strs
 	case reflect.Int:
-		vals = key.Ints(delim)
+		vals, _ = key.parseInts(strs, true, false)
 	case reflect.Int64:
-		vals = key.Int64s(delim)
+		vals, _ = key.parseInt64s(strs, true, false)
 	case reflect.Uint:
 		vals = key.Uints(delim)
 	case reflect.Uint64:

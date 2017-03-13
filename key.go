@@ -479,13 +479,13 @@ func (k *Key) Float64s(delim string) []float64 {
 
 // Ints returns list of int divided by given delimiter. Any invalid input will be treated as zero value.
 func (k *Key) Ints(delim string) []int {
-	vals, _ := k.getInts(delim, true, false)
+	vals, _ := k.parseInts(k.Strings(delim), true, false)
 	return vals
 }
 
 // Int64s returns list of int64 divided by given delimiter. Any invalid input will be treated as zero value.
 func (k *Key) Int64s(delim string) []int64 {
-	vals, _ := k.getInt64s(delim, true, false)
+	vals, _ := k.parseInt64s(k.Strings(delim), true, false)
 	return vals
 }
 
@@ -524,14 +524,14 @@ func (k *Key) ValidFloat64s(delim string) []float64 {
 // ValidInts returns list of int divided by given delimiter. If some value is not integer, then it will
 // not be included to result list.
 func (k *Key) ValidInts(delim string) []int {
-	vals, _ := k.getInts(delim, false, false)
+	vals, _ := k.parseInts(k.Strings(delim), false, false)
 	return vals
 }
 
 // ValidInt64s returns list of int64 divided by given delimiter. If some value is not 64-bit integer,
 // then it will not be included to result list.
 func (k *Key) ValidInt64s(delim string) []int64 {
-	vals, _ := k.getInt64s(delim, false, false)
+	vals, _ := k.parseInt64s(k.Strings(delim), false, false)
 	return vals
 }
 
@@ -567,12 +567,12 @@ func (k *Key) StrictFloat64s(delim string) ([]float64, error) {
 
 // StrictInts returns list of int divided by given delimiter or error on first invalid input.
 func (k *Key) StrictInts(delim string) ([]int, error) {
-	return k.getInts(delim, false, true)
+	return k.parseInts(k.Strings(delim), false, true)
 }
 
 // StrictInt64s returns list of int64 divided by given delimiter or error on first invalid input.
 func (k *Key) StrictInt64s(delim string) ([]int64, error) {
-	return k.getInt64s(delim, false, true)
+	return k.parseInt64s(k.Strings(delim), false, true)
 }
 
 // StrictUints returns list of uint divided by given delimiter or error on first invalid input.
@@ -613,9 +613,8 @@ func (k *Key) getFloat64s(delim string, addInvalid, returnOnInvalid bool) ([]flo
 	return vals, nil
 }
 
-// getInts returns list of int divided by given delimiter.
-func (k *Key) getInts(delim string, addInvalid, returnOnInvalid bool) ([]int, error) {
-	strs := k.Strings(delim)
+// parseInts transforms strings to ints.
+func (k *Key) parseInts(strs []string, addInvalid, returnOnInvalid bool) ([]int, error) {
 	vals := make([]int, 0, len(strs))
 	for _, str := range strs {
 		val, err := strconv.Atoi(str)
@@ -629,9 +628,8 @@ func (k *Key) getInts(delim string, addInvalid, returnOnInvalid bool) ([]int, er
 	return vals, nil
 }
 
-// getInt64s returns list of int64 divided by given delimiter.
-func (k *Key) getInt64s(delim string, addInvalid, returnOnInvalid bool) ([]int64, error) {
-	strs := k.Strings(delim)
+// parseInt64s transforms strings to int64s.
+func (k *Key) parseInt64s(strs []string, addInvalid, returnOnInvalid bool) ([]int64, error) {
 	vals := make([]int64, 0, len(strs))
 	for _, str := range strs {
 		val, err := strconv.ParseInt(str, 10, 64)
