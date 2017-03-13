@@ -90,7 +90,7 @@ func (p *parser) readUntil(delim byte) ([]byte, error) {
 }
 
 func cleanComment(in []byte) ([]byte, bool) {
-	i := bytes.IndexAny(in, "#;")
+	i := bytes.IndexAny(in, ";")
 	if i == -1 {
 		return nil, false
 	}
@@ -225,7 +225,7 @@ func (p *parser) readValue(in []byte, ignoreContinuation bool) (string, error) {
 		return p.readContinuationLines(line[:len(line)-1])
 	}
 
-	i := strings.IndexAny(line, "#;")
+	i := strings.IndexAny(line, ";")
 	if i > -1 {
 		p.comment.WriteString(line[i:])
 		line = strings.TrimSpace(line[:i])
