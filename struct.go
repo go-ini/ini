@@ -102,13 +102,13 @@ func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowSh
 	case reflect.Int64:
 		vals, _ = key.parseInt64s(strs, true, false)
 	case reflect.Uint:
-		vals = key.Uints(delim)
+		vals, _ = key.parseUints(strs, true, false)
 	case reflect.Uint64:
-		vals = key.Uint64s(delim)
+		vals, _ = key.parseUint64s(strs, true, false)
 	case reflect.Float64:
-		vals = key.Float64s(delim)
+		vals, _ = key.parseFloat64s(strs, true, false)
 	case reflectTime:
-		vals = key.Times(delim)
+		vals, _ = key.parseTimesFormat(time.RFC3339, strs, true, false)
 	default:
 		return fmt.Errorf("unsupported type '[]%s'", sliceOf)
 	}
