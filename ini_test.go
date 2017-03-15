@@ -207,6 +207,16 @@ key2=c\d\`))
 		So(cfg.Section("").Key("key2").String(), ShouldEqual, `c\d\`)
 	})
 
+	Convey("Load with ignoring inline comments", t, func() {
+		cfg, err := LoadSources(LoadOptions{IgnoreInlineComment: true}, []byte(`key1=value ;comment
+key2=value #comment2`))
+		So(err, ShouldBeNil)
+		So(cfg, ShouldNotBeNil)
+
+		So(cfg.Section("").Key("key1").String(), ShouldEqual, `value ;comment`)
+		So(cfg.Section("").Key("key2").String(), ShouldEqual, `value #comment2`)
+	})
+
 	Convey("Load with boolean type keys", t, func() {
 		cfg, err := LoadSources(LoadOptions{AllowBooleanKeys: true}, []byte(`key1=hello
 key2

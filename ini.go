@@ -37,7 +37,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.25.5"
+	_VERSION      = "1.26.0"
 )
 
 // Version returns current package version literal.
@@ -173,6 +173,8 @@ type LoadOptions struct {
 	Insensitive bool
 	// IgnoreContinuation indicates whether to ignore continuation lines while parsing.
 	IgnoreContinuation bool
+	// IgnoreInlineComment indicates whether to ignore comments at the end of value and treat it as part of value.
+	IgnoreInlineComment bool
 	// AllowBooleanKeys indicates whether to allow boolean type keys or treat as value is missing.
 	// This type of keys are mostly used in my.cnf.
 	AllowBooleanKeys bool
