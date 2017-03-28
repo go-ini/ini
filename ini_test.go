@@ -241,6 +241,31 @@ key5
 	})
 }
 
+func Test_File_ChildSections(t *testing.T) {
+	Convey("Find child sections by parent name", t, func() {
+		cfg, err := Load([]byte(`
+[node]
+
+[node.biz1]
+
+[node.biz2]
+
+[node.biz3]
+
+[node.bizN]
+`))
+		So(err, ShouldBeNil)
+		So(cfg, ShouldNotBeNil)
+
+		children := cfg.ChildSections("node")
+		names := make([]string, len(children))
+		for i := range children {
+			names[i] = children[i].name
+		}
+		So(strings.Join(names, ","), ShouldEqual, "node.biz1,node.biz2,node.biz3,node.bizN")
+	})
+}
+
 func Test_LooseLoad(t *testing.T) {
 	Convey("Loose load from data sources", t, func() {
 		Convey("Loose load mixed with nonexistent file", func() {

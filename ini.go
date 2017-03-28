@@ -37,7 +37,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.26.0"
+	_VERSION      = "1.27.0"
 )
 
 // Version returns current package version literal.
@@ -319,6 +319,11 @@ func (f *File) Sections() []*Section {
 		sections[i] = f.Section(f.sectionList[i])
 	}
 	return sections
+}
+
+// ChildSections returns a list of child sections of given section name.
+func (f *File) ChildSections(name string) []*Section {
+	return f.Section(name).ChildSections()
 }
 
 // SectionStrings returns list of section names.
