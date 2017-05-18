@@ -37,7 +37,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.27.1"
+	_VERSION      = "1.27.2"
 )
 
 // Version returns current package version literal.
@@ -504,7 +504,7 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 				// In case key value contains "\n", "`", "\"", "#" or ";"
 				if strings.ContainsAny(val, "\n`") {
 					val = `"""` + val + `"""`
-				} else if strings.ContainsAny(val, "#;") {
+				} else if !f.options.IgnoreInlineComment && strings.ContainsAny(val, "#;") {
 					val = "`" + val + "`"
 				}
 				if _, err = buf.WriteString(equalSign + val + LineBreak); err != nil {
