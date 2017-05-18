@@ -76,8 +76,8 @@ sec1, err := cfg.GetSection("Section")
 sec2, err := cfg.GetSection("SecTIOn")
 
 // key1 和 key2 指向同一个键对象
-key1, err := cfg.GetKey("Key")
-key2, err := cfg.GetKey("KeY")
+key1, err := sec1.GetKey("Key")
+key2, err := sec2.GetKey("KeY")
 ```
 
 #### 类似 MySQL 配置中的布尔值键
