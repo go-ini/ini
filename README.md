@@ -122,6 +122,12 @@ Take care that following format will be treated as comment:
 
 If you want to save a value with `#` or `;`, please quote them with ``` ` ``` or ``` """ ```.
 
+Alternatively, you can use following `LoadOptions` to completely ignore inline comments:
+
+```go
+cfg, err := LoadSources(LoadOptions{IgnoreInlineComment: true}, "app.ini"))
+```
+
 ### Working with sections
 
 To get a section, you would need to:

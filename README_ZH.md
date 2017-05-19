@@ -115,6 +115,12 @@ key, err := sec.NewBooleanKey("skip-host-cache")
 
 如果你希望使用包含 `#` 或 `;` 的值，请使用 ``` ` ``` 或 ``` """ ``` 进行包覆。
 
+除此之外，您还可以通过 `LoadOptions` 完全忽略行内注释：
+
+```go
+cfg, err := LoadSources(LoadOptions{IgnoreInlineComment: true}, "app.ini"))
+```
+
 ### 操作分区（Section）
 
 获取指定分区：
