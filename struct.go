@@ -161,7 +161,7 @@ func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim stri
 		}
 
 		intVal, err := key.Int64()
-		if err != nil || intVal == 0 {
+		if err != nil {
 			return nil
 		}
 		field.SetInt(intVal)
