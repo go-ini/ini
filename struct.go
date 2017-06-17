@@ -316,6 +316,7 @@ func MapToWithMapper(v interface{}, mapper NameMapper, source interface{}, other
 		return err
 	}
 	cfg.NameMapper = mapper
+	cfg.BlockMode = false
 	return cfg.MapTo(v)
 }
 
@@ -327,6 +328,7 @@ func StrictMapToWithMapper(v interface{}, mapper NameMapper, source interface{},
 		return err
 	}
 	cfg.NameMapper = mapper
+	cfg.BlockMode = false
 	return cfg.StrictMapTo(v)
 }
 
