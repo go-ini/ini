@@ -414,6 +414,8 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 		if len(sec.Comment) > 0 {
 			if sec.Comment[0] != '#' && sec.Comment[0] != ';' {
 				sec.Comment = "; " + sec.Comment
+			} else {
+				sec.Comment = sec.Comment[:1] + " " + strings.TrimSpace(sec.Comment[1:])
 			}
 			if _, err = buf.WriteString(sec.Comment + LineBreak); err != nil {
 				return 0, err
@@ -468,6 +470,8 @@ func (f *File) WriteToIndent(w io.Writer, indent string) (n int64, err error) {
 				}
 				if key.Comment[0] != '#' && key.Comment[0] != ';' {
 					key.Comment = "; " + key.Comment
+				} else {
+					key.Comment = key.Comment[:1] + " " + strings.TrimSpace(key.Comment[1:])
 				}
 				if _, err = buf.WriteString(key.Comment + LineBreak); err != nil {
 					return 0, err
