@@ -379,7 +379,11 @@ func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim 
 	case reflect.Bool:
 		key.SetValue(fmt.Sprint(field.Bool()))
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		key.SetValue(fmt.Sprint(field.Int()))
+		if t.String() == "time.Duration" {
+			key.SetValue(field.Interface().(time.Duration).String())
+		} else {
+			key.SetValue(fmt.Sprint(field.Int()))
+		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		key.SetValue(fmt.Sprint(field.Uint()))
 	case reflect.Float32, reflect.Float64:
@@ -450,6 +454,12 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 				// Note: fieldName can never be empty here, ignore error.
 				sec, _ = s.f.NewSection(fieldName)
 			}
+
+			// add comment from comment tag
+			if len(sec.Comment) == 0 {
+				sec.Comment = tpField.Tag.Get("comment")
+			}
+
 			if err = sec.reflectFrom(field); err != nil {
 				return fmt.Errorf("error reflecting field (%s): %v", fieldName, err)
 			}
@@ -461,6 +471,12 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 		if err != nil {
 			key, _ = s.NewKey(fieldName, "")
 		}
+
+		// add comment from comment tag
+		if len(key.Comment) == 0 {
+			key.Comment = tpField.Tag.Get("comment")
+		}
+
 		if err = reflectWithProperType(tpField.Type, key, field, parseDelim(tpField.Tag.Get("delim"))); err != nil {
 			return fmt.Errorf("error reflecting field (%s): %v", fieldName, err)
 		}

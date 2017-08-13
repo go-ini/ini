@@ -573,7 +573,7 @@ Why not?
 
 ```go
 type Embeded struct {
-	Dates  []time.Time `delim:"|"`
+	Dates  []time.Time `delim:"|" comment:"time data"`
 	Places []string    `ini:"places,omitempty"`
 	None   []int       `ini:",omitempty"`
 }
@@ -581,10 +581,10 @@ type Embeded struct {
 type Author struct {
 	Name      string `ini:"NAME"`
 	Male      bool
-	Age       int
+	Age       int `comment:"Author's age"`
 	GPA       float64
 	NeverMind string `ini:"-"`
-	*Embeded
+	*Embeded `comment:"Embeded section"`
 }
 
 func main() {
@@ -605,10 +605,13 @@ So, what do I get?
 ```ini
 NAME = Unknwon
 Male = true
+; Author's age
 Age = 21
 GPA = 2.8
 
+; Embeded section
 [Embeded]
+; time data
 Dates = 2015-08-07T22:14:22+08:00|2015-08-07T22:14:22+08:00
 places = HangZhou,Boston
 ```
