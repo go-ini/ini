@@ -202,6 +202,8 @@ func (p *parser) readValue(in []byte, ignoreContinuation, ignoreInlineComment bo
 	var valQuote string
 	if len(line) > 3 && string(line[0:3]) == `"""` {
 		valQuote = `"""`
+	} else if line[0] == '"' {
+		valQuote = `"`
 	} else if line[0] == '`' {
 		valQuote = "`"
 	}
@@ -212,6 +214,9 @@ func (p *parser) readValue(in []byte, ignoreContinuation, ignoreInlineComment bo
 		// Check for multi-line value
 		if pos == -1 {
 			return p.readMultilines(line, line[startIdx:], valQuote)
+		}
+		if valQuote == `"` {
+			return strings.Replace(line[startIdx:pos+startIdx], `\"`, `"`, -1), nil
 		}
 
 		return line[startIdx : pos+startIdx], nil
