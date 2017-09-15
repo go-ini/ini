@@ -113,8 +113,8 @@ func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowSh
 	default:
 		return fmt.Errorf("unsupported type '[]%s'", sliceOf)
 	}
-	if isStrict {
-		return err
+	if err != nil {
+		return wrapStrictError(err, isStrict)
 	}
 
 	slice := reflect.MakeSlice(field.Type(), numVals, numVals)

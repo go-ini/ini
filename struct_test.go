@@ -244,6 +244,20 @@ age=a30`))
 		So(cfg.Section("").StrictMapTo(s), ShouldNotBeNil)
 	})
 
+	Convey("Map slice in strict mode", t, func() {
+		cfg, err := Load([]byte(`
+names=alice, bruce`))
+		So(err, ShouldBeNil)
+
+		type Strict struct {
+			Names []string `ini:"names"`
+		}
+		s := new(Strict)
+
+		So(cfg.Section("").StrictMapTo(s), ShouldBeNil)
+		So(fmt.Sprint(s.Names), ShouldEqual, "[alice bruce]")
+	})
+
 	Convey("Reflect from struct", t, func() {
 		type Embeded struct {
 			Dates       []time.Time `delim:"|"`
