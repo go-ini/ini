@@ -93,6 +93,7 @@ key2 = value1\, value2
 key3 = val\ue1, value2
 key4 = value1\\, value\\\\2
 key5 = value1\,, value2
+key6 = aaa bbb\ and\ space ccc
 
 [advance]
 value with quotes = "some value"
@@ -410,6 +411,7 @@ Good man.
 	key3 = val\ue1, value2
 	key4 = value1\\, value\\\\2
 	key5 = value1\,, value2
+	key6 = aaa bbb\ and\ space ccc
 
 [advance]
 	value with quotes      = some value

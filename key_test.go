@@ -250,6 +250,7 @@ func Test_Key(t *testing.T) {
 			So(sec.Key("key3").Strings(","), ShouldResemble, []string{`val\ue1`, "value2"})
 			So(sec.Key("key4").Strings(","), ShouldResemble, []string{`value1\`, `value\\2`})
 			So(sec.Key("key5").Strings(",,"), ShouldResemble, []string{"value1,, value2"})
+			So(sec.Key("key6").Strings(" "), ShouldResemble, []string{"aaa", "bbb and space", "ccc"})
 		})
 
 		Convey("Get valid values into slice", func() {
