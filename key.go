@@ -446,10 +446,10 @@ func (k *Key) Strings(delim string) []string {
 	}
 
 	runes := []rune(str)
-	vals := make([]string, 0)
-	idx := 0
+	vals := make([]string, 0, 2)
 	var buf bytes.Buffer
 	escape := false
+	idx := 0
 	for {
 		if escape {
 			escape = false
