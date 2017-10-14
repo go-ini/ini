@@ -35,7 +35,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.29.0"
+	_VERSION      = "1.29.1"
 )
 
 // Version returns current package version literal.
@@ -411,6 +411,8 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 		if len(sec.Comment) > 0 {
 			if sec.Comment[0] != '#' && sec.Comment[0] != ';' {
 				sec.Comment = "; " + sec.Comment
+			} else {
+				sec.Comment = sec.Comment[:1] + " " + strings.TrimSpace(sec.Comment[1:])
 			}
 			if _, err := buf.WriteString(sec.Comment + LineBreak); err != nil {
 				return nil, err
@@ -465,6 +467,8 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 				}
 				if key.Comment[0] != '#' && key.Comment[0] != ';' {
 					key.Comment = "; " + key.Comment
+				} else {
+					key.Comment = key.Comment[:1] + " " + strings.TrimSpace(key.Comment[1:])
 				}
 				if _, err := buf.WriteString(key.Comment + LineBreak); err != nil {
 					return nil, err

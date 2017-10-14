@@ -241,7 +241,7 @@ key5`))
 		// there is always a trailing \n at the end of the section
 		So(buf.String(), ShouldEqual, `key1 = hello
 key2
-#key3
+# key3
 key4
 key5
 `)
