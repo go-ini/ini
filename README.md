@@ -101,7 +101,7 @@ skip-name-resolve
 By default, this is considered as missing value. But if you know you're going to deal with those cases, you can assign advanced load options:
 
 ```go
-cfg, err := LoadSources(LoadOptions{AllowBooleanKeys: true}, "my.cnf"))
+cfg, err := ini.LoadSources(ini.LoadOptions{AllowBooleanKeys: true}, "my.cnf"))
 ```
 
 The value of those keys are always `true`, and when you save to a file, it will keep in the same foramt as you read.
@@ -125,7 +125,7 @@ If you want to save a value with `#` or `;`, please quote them with ``` ` ``` or
 Alternatively, you can use following `LoadOptions` to completely ignore inline comments:
 
 ```go
-cfg, err := LoadSources(LoadOptions{IgnoreInlineComment: true}, "app.ini"))
+cfg, err := ini.LoadSources(ini.LoadOptions{IgnoreInlineComment: true}, "app.ini"))
 ```
 
 ### Working with sections
@@ -329,6 +329,20 @@ foo = "some value" // foo: some value
 bar = 'some value' // bar: some value
 ```
 
+Sometimes you downloaded file from [Crowdin](https://crowdin.com/) has values like the following (value is surrounded by double quotes and quotes in the value are escaped):
+
+```ini
+create_repo="created repository <a href=\"%s\">%s</a>"
+```
+
+How do you transform this to regular format automatically?
+
+```go
+cfg, err := ini.LoadSources(ini.LoadOptions{UnescapeValueDoubleQuotes: true}, "en-US.ini"))
+cfg.Section("<name of your section>").Key("create_repo").String() 
+// You got: created repository <a href="%s">%s</a>
+```
+
 That's all? Hmm, no.
 
 #### Helper methods of working with values
@@ -480,7 +494,7 @@ cfg.Section("package.sub").ParentKeys() // ["CLONE_URL"]
 Sometimes, you have sections that do not contain key-value pairs but raw content, to handle such case, you can use `LoadOptions.UnparsableSections`:
 
 ```go
-cfg, err := LoadSources(LoadOptions{UnparseableSections: []string{"COMMENTS"}}, `[COMMENTS]
+cfg, err := ini.LoadSources(ini.LoadOptions{UnparseableSections: []string{"COMMENTS"}}, `[COMMENTS]
 <1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`))
 
 body := cfg.Section("COMMENTS").Body()

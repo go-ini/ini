@@ -294,6 +294,17 @@ func Test_LooseLoad(t *testing.T) {
 
 }
 
+func Test_LoadOptions_UnescapeValueDoubleQuotes(t *testing.T) {
+	Convey("Load with option UnescapeValueDoubleQuotes enabled", t, func() {
+		cfg, err := LoadSources(LoadOptions{UnescapeValueDoubleQuotes: true},
+			[]byte(`create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
+		So(err, ShouldBeNil)
+		So(cfg, ShouldNotBeNil)
+
+		So(cfg.Section("").Key("create_repo").String(), ShouldEqual, `创建了仓库 <a href="%s">%s</a>`)
+	})
+}
+
 func Test_File_Append(t *testing.T) {
 	Convey("Append data sources", t, func() {
 		cfg, err := Load([]byte(""))
