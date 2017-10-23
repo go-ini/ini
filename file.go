@@ -27,20 +27,17 @@ import (
 
 // File represents a combination of a or more INI file(s) in memory.
 type File struct {
+	options     LoadOptions
+	dataSources []dataSource
+
 	// Should make things safe, but sometimes doesn't matter.
 	BlockMode bool
-	// Make sure data is safe in multiple goroutines.
-	lock sync.RWMutex
-
-	// Allow combination of multiple data sources.
-	dataSources []dataSource
-	// Actual data is stored here.
-	sections map[string]*Section
+	lock      sync.RWMutex
 
 	// To keep data in order.
 	sectionList []string
-
-	options LoadOptions
+	// Actual data is stored here.
+	sections map[string]*Section
 
 	NameMapper
 	ValueMapper
@@ -258,6 +255,13 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 		if sec.isRawSection {
 			if _, err := buf.WriteString(sec.rawBody); err != nil {
 				return nil, err
+			}
+
+			if PrettySection {
+				// Put a line between sections
+				if _, err := buf.WriteString(LineBreak); err != nil {
+					return nil, err
+				}
 			}
 			continue
 		}

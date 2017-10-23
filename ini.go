@@ -32,7 +32,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.30.1"
+	_VERSION      = "1.30.2"
 )
 
 // Version returns current package version literal.
@@ -87,18 +87,6 @@ type sourceFile struct {
 
 func (s sourceFile) ReadCloser() (_ io.ReadCloser, err error) {
 	return os.Open(s.name)
-}
-
-type bytesReadCloser struct {
-	reader io.Reader
-}
-
-func (rc *bytesReadCloser) Read(p []byte) (n int, err error) {
-	return rc.reader.Read(p)
-}
-
-func (rc *bytesReadCloser) Close() error {
-	return nil
 }
 
 // sourceData represents an object that contains content in memory.

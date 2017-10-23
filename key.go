@@ -26,6 +26,7 @@ import (
 // Key represents a key under a section.
 type Key struct {
 	s               *Section
+	Comment         string
 	name            string
 	value           string
 	isAutoIncrement bool
@@ -33,8 +34,6 @@ type Key struct {
 
 	isShadow bool
 	shadows  []*Key
-
-	Comment string
 }
 
 // newKey simply return a key object with given values.
