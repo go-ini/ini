@@ -10,4 +10,5 @@ go:
 script: 
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/smartystreets/goconvey
+  - go install -v
   - go test -v -cover -race
