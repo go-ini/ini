@@ -370,3 +370,18 @@ func Test_NameGetter(t *testing.T) {
 		So(tg.PackageName, ShouldEqual, "ini")
 	})
 }
+
+type testDurationStruct struct {
+	Duration time.Duration `ini:"Duration"`
+}
+
+func Test_Duration(t *testing.T) {
+	Convey("Duration less than 16m50s", t, func() {
+		ds := new(testDurationStruct)
+		So(ini.MapTo(ds, []byte("Duration=16m49s")), ShouldBeNil)
+
+		dur, err := time.ParseDuration("16m49s")
+		So(err, ShouldBeNil)
+		So(ds.Duration.Seconds(), ShouldEqual, dur.Seconds())
+	})
+}
