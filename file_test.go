@@ -150,6 +150,18 @@ func TestFile_Section(t *testing.T) {
 			So(sec.Name(), ShouldEqual, "404")
 		})
 	})
+
+	Convey("Get default section in lower case with insensitive load", t, func() {
+		f, err := ini.InsensitiveLoad([]byte(`
+[default]
+NAME = ini
+VERSION = v1`))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+
+		So(f.Section("").Key("name").String(), ShouldEqual, "ini")
+		So(f.Section("").Key("version").String(), ShouldEqual, "v1")
+	})
 }
 
 func TestFile_Sections(t *testing.T) {

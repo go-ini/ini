@@ -255,7 +255,11 @@ func (f *File) parse(reader io.Reader) (err error) {
 	}
 
 	// Ignore error because default section name is never empty string.
-	section, _ := f.NewSection(DEFAULT_SECTION)
+	name := DEFAULT_SECTION
+	if f.options.Insensitive {
+		name = strings.ToLower(DEFAULT_SECTION)
+	}
+	section, _ := f.NewSection(name)
 
 	var line []byte
 	var inUnparseableSection bool

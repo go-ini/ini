@@ -109,7 +109,8 @@ func (f *File) NewSections(names ...string) (err error) {
 func (f *File) GetSection(name string) (*Section, error) {
 	if len(name) == 0 {
 		name = DEFAULT_SECTION
-	} else if f.options.Insensitive {
+	}
+	if f.options.Insensitive {
 		name = strings.ToLower(name)
 	}
 
