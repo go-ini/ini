@@ -247,6 +247,12 @@ func (p *parser) readValue(in []byte, ignoreContinuation, ignoreInlineComment, u
 	return line, nil
 }
 
+var specialCharReplacesr = strings.NewReplacer("\\0", "\000", "\\a", "\a", "\\b", "\b", "\\t", "\t", "\\r", "\r", "\\n", "\n", "\\;", ";", "\\#", "#", "\\=", "=", "\\:", ":", "\\\\", "\\")
+
+func unescapeSpecialCharacters(in string) string {
+	return specialCharReplacesr.Replace(in)
+}
+
 // parse parses data through an io.Reader.
 func (f *File) parse(reader io.Reader) (err error) {
 	p := newParser(reader)
@@ -364,7 +370,7 @@ func (f *File) parse(reader io.Reader) (err error) {
 			return err
 		}
 
-		key, err := section.NewKey(kname, value)
+		key, err := section.NewKey(kname, unescapeSpecialCharacters(value))
 		if err != nil {
 			return err
 		}
