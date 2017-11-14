@@ -114,7 +114,7 @@ func (k *Key) transformValue(val string) string {
 
 		// Search in the same section.
 		nk, err := k.s.GetKey(noption)
-		if err != nil {
+		if err != nil || k == nk {
 			// Search again in default section.
 			nk, _ = k.s.f.Section("").GetKey(noption)
 		}
