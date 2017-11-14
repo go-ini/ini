@@ -478,3 +478,15 @@ func TestKey_SetValue(t *testing.T) {
 		So(k.Value(), ShouldEqual, "ini.v1")
 	})
 }
+
+func TestRecursiveValues(t *testing.T) {
+	Convey("Recursive values should not reflect on same key", t, func() {
+		f, err := ini.Load([]byte(`
+NAME = ini
+[package]
+NAME = %(NAME)s`))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+		So(f.Section("package").Key("NAME").String(), ShouldEqual, "ini")
+	})
+}

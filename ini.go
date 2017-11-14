@@ -32,7 +32,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.31.0"
+	_VERSION      = "1.31.1"
 )
 
 // Version returns current package version literal.
