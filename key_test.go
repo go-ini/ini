@@ -15,6 +15,7 @@
 package ini_test
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -476,6 +477,36 @@ func TestKey_SetValue(t *testing.T) {
 
 		k.SetValue("ini.v1")
 		So(k.Value(), ShouldEqual, "ini.v1")
+	})
+}
+
+func TestKey_NestedValues(t *testing.T) {
+	Convey("Read and write nested values", t, func() {
+		f, err := ini.LoadSources(ini.LoadOptions{
+			AllowNestedValues: true,
+		}, []byte(`
+aws_access_key_id = foo
+aws_secret_access_key = bar
+region = us-west-2
+s3 =
+  max_concurrent_requests=10
+  max_queue_size=1000`))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+
+		So(f.Section("").Key("s3").NestedValues(), ShouldResemble, []string{"max_concurrent_requests=10", "max_queue_size=1000"})
+
+		var buf bytes.Buffer
+		_, err = f.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		So(buf.String(), ShouldEqual, `aws_access_key_id     = foo
+aws_secret_access_key = bar
+region                = us-west-2
+s3                    = 
+  max_concurrent_requests=10
+  max_queue_size=1000
+
+`)
 	})
 }
 

@@ -270,12 +270,24 @@ func (f *File) parse(reader io.Reader) (err error) {
 	}
 	section, _ := f.NewSection(name)
 
+	// This "last" is not strictly equivalent to "previous one" if current key is not the first nested key
+	var isLastValueEmpty bool
+	var lastRegularKey *Key
+
 	var line []byte
 	var inUnparseableSection bool
 	for !p.isEOF {
 		line, err = p.readUntil('\n')
 		if err != nil {
 			return err
+		}
+
+		if f.options.AllowNestedValues &&
+			isLastValueEmpty && len(line) > 0 {
+			if line[0] == ' ' || line[0] == '\t' {
+				lastRegularKey.addNestedValue(string(bytes.TrimSpace(line)))
+				continue
+			}
 		}
 
 		line = bytes.TrimLeftFunc(line, unicode.IsSpace)
@@ -374,6 +386,7 @@ func (f *File) parse(reader io.Reader) (err error) {
 		if err != nil {
 			return err
 		}
+		isLastValueEmpty = len(value) == 0
 
 		key, err := section.NewKey(kname, value)
 		if err != nil {
@@ -382,6 +395,7 @@ func (f *File) parse(reader io.Reader) (err error) {
 		key.isAutoIncrement = isAutoIncr
 		key.Comment = strings.TrimSpace(p.comment.String())
 		p.comment.Reset()
+		lastRegularKey = key
 	}
 	return nil
 }

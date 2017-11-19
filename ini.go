@@ -32,7 +32,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.31.1"
+	_VERSION      = "1.32.0"
 )
 
 // Version returns current package version literal.
@@ -134,6 +134,9 @@ type LoadOptions struct {
 	AllowBooleanKeys bool
 	// AllowShadows indicates whether to keep track of keys with same name under same section.
 	AllowShadows bool
+	// AllowNestedValues indicates whether to allow AWS-like nested values.
+	// Docs: http://docs.aws.amazon.com/cli/latest/topic/config-vars.html#nested-values
+	AllowNestedValues bool
 	// UnescapeValueDoubleQuotes indicates whether to unescape double quotes inside value to regular format
 	// when value is surrounded by double quotes, e.g. key="a \"value\"" => key=a "value"
 	UnescapeValueDoubleQuotes bool
