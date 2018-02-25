@@ -332,7 +332,7 @@ create_repo="创建了仓库 <a href=\"%s\">%s</a>"
 
 ```go
 cfg, err := ini.LoadSources(ini.LoadOptions{UnescapeValueDoubleQuotes: true}, "en-US.ini"))
-cfg.Section("<name of your section>").Key("create_repo").String() 
+cfg.Section("<name of your section>").Key("create_repo").String()
 // You got: 创建了仓库 <a href="%s">%s</a>
 ```
 
@@ -433,7 +433,7 @@ cfg.WriteToIndent(writer, "\t")
 
 ```go
 ini.PrettyFormat = false
-``` 
+```
 
 ## 高级用法
 
