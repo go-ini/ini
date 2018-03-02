@@ -87,7 +87,7 @@ key1, err := sec1.GetKey("Key")
 key2, err := sec2.GetKey("KeY")
 ```
 
-#### MySQL-like boolean key 
+#### MySQL-like boolean key
 
 MySQL's configuration allows a key without value as follows:
 
@@ -320,7 +320,7 @@ cfg, err := ini.LoadSources(ini.LoadOptions{
 }, "filename")
 ```
 
-Holy crap! 
+Holy crap!
 
 Note that single quotes around values will be stripped:
 
@@ -339,7 +339,7 @@ How do you transform this to regular format automatically?
 
 ```go
 cfg, err := ini.LoadSources(ini.LoadOptions{UnescapeValueDoubleQuotes: true}, "en-US.ini"))
-cfg.Section("<name of your section>").Key("create_repo").String() 
+cfg.Section("<name of your section>").Key("create_repo").String()
 // You got: created repository <a href="%s">%s</a>
 ```
 
@@ -440,7 +440,7 @@ By default, spaces are used to align "=" sign between key and values, to disable
 
 ```go
 ini.PrettyFormat = false
-``` 
+```
 
 ## Advanced Usage
 
