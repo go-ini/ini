@@ -489,6 +489,33 @@ cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v1
 cfg.Section("package.sub").ParentKeys() // ["CLONE_URL"]
 ```
 
+### Same Key with Multiple Values
+
+Do you ever have a configuration file like this?
+
+```ini
+[remote "origin"]
+url = https://github.com/Antergone/test1.git
+url = https://github.com/Antergone/test2.git
+fetch = +refs/heads/*:refs/remotes/origin/*
+```
+
+By default, only the last read value will be kept for the key `url`. If you want to keep all copies of value of this key, you can use `ShadowLoad` to achieve it:
+
+```go
+cfg, err := ini.ShadowLoad(".gitconfig")
+// ...
+
+f.Section(`remote "origin"`).Key("url").String() 
+// Result: https://github.com/Antergone/test1.git
+
+f.Section(`remote "origin"`).Key("url").ValueWithShadows()
+// Result:  []string{
+//              "https://github.com/Antergone/test1.git",
+//              "https://github.com/Antergone/test2.git",
+//          }
+```
+
 ### Unparseable Sections
 
 Sometimes, you have sections that do not contain key-value pairs but raw content, to handle such case, you can use `LoadOptions.UnparsableSections`:
