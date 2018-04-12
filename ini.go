@@ -53,6 +53,9 @@ var (
 	// or reduce all possible spaces for compact format.
 	PrettyFormat = true
 
+	// Place spaces around "=" sign even when PrettyFormat is false
+	PrettyEqual = false
+
 	// Explicitly write DEFAULT section header
 	DefaultHeader = false
 
