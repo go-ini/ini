@@ -326,14 +326,13 @@ func (f *File) parse(reader io.Reader) (err error) {
 	var line []byte
 	var inUnparseableSection bool
 
-	parserBufferSize := 0
-	// NOTE: Peek 1kb at a time.
-	currentPeekSize := 1024
-
 	// NOTE: Iterate and increase `currentPeekSize` until
 	// the size of the parser buffer is found.
 	// TODO: When Golang 1.10 is the lowest version supported,
 	// replace with `parserBufferSize := p.buf.Size()`.
+	parserBufferSize := 0
+	// NOTE: Peek 1kb at a time.
+	currentPeekSize := 1024
 
 	if f.options.AllowPythonMultilineValues {
 		for {
