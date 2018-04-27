@@ -244,7 +244,7 @@ func (s *Section) mapTo(val reflect.Value, isStrict bool) error {
 			continue
 		}
 
-		isAnonymous := tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous
+		isAnonymous := tpField.Type.Kind() == reflect.Ptr && (tpField.Anonymous || tpField.Type.Elem().Kind() == reflect.Struct)
 		isStruct := tpField.Type.Kind() == reflect.Struct
 		if isAnonymous {
 			field.Set(reflect.New(tpField.Type.Elem()))
