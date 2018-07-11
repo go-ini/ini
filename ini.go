@@ -1,3 +1,5 @@
+// +build go1.6
+
 // Copyright 2014 Unknwon
 //
 // Licensed under the Apache License, Version 2.0 (the "License"): you may
