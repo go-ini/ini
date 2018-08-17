@@ -171,7 +171,11 @@ func (s *Section) Key(name string) *Key {
 	if err != nil {
 		// It's OK here because the only possible error is empty key name,
 		// but if it's empty, this piece of code won't be executed.
-		key, _ = s.NewKey(name, "")
+		key, err = s.NewKey(name, "")
+		if err != nil {
+			// assert err != nil
+			panic(err)
+		}
 		return key
 	}
 	return key
