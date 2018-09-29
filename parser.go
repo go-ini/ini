@@ -185,6 +185,11 @@ func (p *parser) readContinuationLines(val string) (string, error) {
 		}
 		val = val[:len(val)-1]
 	}
+	// Trim single and double quotes
+	if hasSurroundedQuote(val, '\'') ||
+		hasSurroundedQuote(val, '"') {
+		val = val[1 : len(val)-1]
+	}
 	return val, nil
 }
 
