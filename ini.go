@@ -48,6 +48,10 @@ var (
 	// at package init time.
 	LineBreak = "\n"
 
+	// Place custom spaces when close PrettyFormat and PrettyEqual
+	DefaultFormatLeft = ""
+	DefaultFormatRight = ""
+
 	// Variable regexp pattern: %(variable)s
 	varPattern = regexp.MustCompile(`%\(([^\)]+)\)s`)
 
