@@ -48,7 +48,7 @@ var (
 	// at package init time.
 	LineBreak = "\n"
 
-	// Place custom spaces when close PrettyFormat and PrettyEqual
+	// Place custom spaces when PrettyFormat and PrettyEqual are both disabled
 	DefaultFormatLeft = ""
 	DefaultFormatRight = ""
 
