@@ -34,7 +34,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	_DEPTH_VALUES = 99
-	_VERSION      = "1.38.2"
+	_VERSION      = "1.38.3"
 )
 
 // Version returns current package version literal.
@@ -49,7 +49,7 @@ var (
 	LineBreak = "\n"
 
 	// Place custom spaces when PrettyFormat and PrettyEqual are both disabled
-	DefaultFormatLeft = ""
+	DefaultFormatLeft  = ""
 	DefaultFormatRight = ""
 
 	// Variable regexp pattern: %(variable)s
