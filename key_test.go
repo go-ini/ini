@@ -514,10 +514,13 @@ func TestRecursiveValues(t *testing.T) {
 	Convey("Recursive values should not reflect on same key", t, func() {
 		f, err := ini.Load([]byte(`
 NAME = ini
+expires = yes
 [package]
-NAME = %(NAME)s`))
+NAME = %(NAME)s
+expires = %(expires)s`))
 		So(err, ShouldBeNil)
 		So(f, ShouldNotBeNil)
 		So(f.Section("package").Key("NAME").String(), ShouldEqual, "ini")
+		So(f.Section("package").Key("expires").String(), ShouldEqual, "yes")
 	})
 }
