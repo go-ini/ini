@@ -667,7 +667,8 @@ func (k *Key) parseFloat64s(strs []string, addInvalid, returnOnInvalid bool) ([]
 func (k *Key) parseInts(strs []string, addInvalid, returnOnInvalid bool) ([]int, error) {
 	vals := make([]int, 0, len(strs))
 	for _, str := range strs {
-		val, err := strconv.Atoi(str)
+		val_i64, err := strconv.ParseInt(str, 0, 64)
+		val := int(val_i64)        
 		if err != nil && returnOnInvalid {
 			return nil, err
 		}
