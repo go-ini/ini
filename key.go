@@ -186,7 +186,8 @@ func (k *Key) Float64() (float64, error) {
 
 // Int returns int type value.
 func (k *Key) Int() (int, error) {
-	return strconv.Atoi(k.String())
+    v, err := strconv.ParseInt(k.String(), 0, 64)
+    return int(v), err
 }
 
 // Int64 returns int64 type value.

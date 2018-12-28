@@ -524,3 +524,36 @@ expires = %(expires)s`))
 		So(f.Section("package").Key("expires").String(), ShouldEqual, "yes")
 	})
 }
+
+func TestParseHexNumber(t *testing.T) {
+	Convey("Parse hex number", t, func(){
+		f, err := ini.Load([]byte(`
+[Meter]
+addr1 = 0x3000
+addr2 = 3000
+`))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+		
+		addr1, err := f.Section("Meter").Key("addr1").Int()
+		So(err, ShouldBeNil)
+		So(addr1, ShouldEqual, 0x3000)
+
+		addr2, err := f.Section("Meter").Key("addr2").Int()
+		So(err, ShouldBeNil)
+		So(addr2, ShouldEqual, 3000)
+
+		type Meter struct{
+			Addr1 int `ini:"addr1"`
+			Addr2 int `ini:"addr2"`	
+		}
+		ini_cfg := struct{
+			Meter Meter
+		}{}
+
+		err = f.MapTo(&ini_cfg)
+		So(err, ShouldBeNil)
+		So(ini_cfg.Meter.Addr1, ShouldEqual, 0x3000)
+		So(ini_cfg.Meter.Addr2, ShouldEqual, 3000)
+	})
+}
