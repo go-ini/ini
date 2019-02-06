@@ -170,6 +170,8 @@ type LoadOptions struct {
 	UnparseableSections []string
 	// KeyValueDelimiters is the sequence of delimiters that are used to separate key and value. By default, it is "=:".
 	KeyValueDelimiters string
+	// PreserveSurroundedQuote indicates whether to preserve surrounded quote
+	PreserveSurroundedQuote bool
 }
 
 func LoadSources(opts LoadOptions, source interface{}, others ...interface{}) (_ *File, err error) {
