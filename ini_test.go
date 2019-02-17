@@ -1248,3 +1248,35 @@ key2!value2
 		So(f.Section("section").Key("key2").String(), ShouldEqual, "value2")
 	})
 }
+
+func Test_PreserveSurroundedQuote(t *testing.T) {
+	Convey("Preserve surrounded quote test", t, func() {
+		f, err := ini.LoadSources(ini.LoadOptions{
+			PreserveSurroundedQuote: true,
+		}, []byte(`
+[section]
+key1 = "value1"
+key2 = value2
+`))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+
+		So(f.Section("section").Key("key1").String(), ShouldEqual, "\"value1\"")
+		So(f.Section("section").Key("key2").String(), ShouldEqual, "value2")
+	})
+
+	Convey("Preserve surrounded quote test inverse test", t, func() {
+		f, err := ini.LoadSources(ini.LoadOptions{
+			PreserveSurroundedQuote: false,
+		}, []byte(`
+[section]
+key1 = "value1"
+key2 = value2
+`))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+
+		So(f.Section("section").Key("key1").String(), ShouldEqual, "value1")
+		So(f.Section("section").Key("key2").String(), ShouldEqual, "value2")
+	})
+}
