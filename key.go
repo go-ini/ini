@@ -126,7 +126,7 @@ func (k *Key) transformValue(val string) string {
 	if !strings.Contains(val, "%") {
 		return val
 	}
-	for i := 0; i < _DEPTH_VALUES; i++ {
+	for i := 0; i < depthValues; i++ {
 		vr := varPattern.FindString(val)
 		if len(vr) == 0 {
 			break

@@ -30,16 +30,18 @@ import (
 const (
 	// Name for default section. You can use this constant or the string literal.
 	// In most of cases, an empty string is all you need to access the section.
-	DEFAULT_SECTION = "DEFAULT"
+	DefaultSection = "DEFAULT"
+	// Deprecated: Use "DefaultSection" instead.
+	DEFAULT_SECTION = DefaultSection
 
 	// Maximum allowed depth when recursively substituing variable names.
-	_DEPTH_VALUES = 99
-	_VERSION      = "1.42.0"
+	depthValues = 99
+	version     = "1.42.1"
 )
 
 // Version returns current package version literal.
 func Version() string {
-	return _VERSION
+	return version
 }
 
 var (
