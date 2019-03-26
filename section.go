@@ -129,9 +129,8 @@ func (s *Section) GetKey(name string) (*Key, error) {
 					continue
 				}
 				return sec.GetKey(name)
-			} else {
-				break
 			}
+			break
 		}
 		return nil, fmt.Errorf("error when getting key of section '%s': key '%s' not exists", s.name, name)
 	}

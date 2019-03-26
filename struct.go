@@ -283,7 +283,7 @@ func (s *Section) MapTo(v interface{}) error {
 	return s.mapTo(val, false)
 }
 
-// MapTo maps section to given struct in strict mode,
+// StrictMapTo maps section to given struct in strict mode,
 // which returns all possible error including value parsing error.
 func (s *Section) StrictMapTo(v interface{}) error {
 	typ := reflect.TypeOf(v)
@@ -303,13 +303,13 @@ func (f *File) MapTo(v interface{}) error {
 	return f.Section("").MapTo(v)
 }
 
-// MapTo maps file to given struct in strict mode,
+// StrictMapTo maps file to given struct in strict mode,
 // which returns all possible error including value parsing error.
 func (f *File) StrictMapTo(v interface{}) error {
 	return f.Section("").StrictMapTo(v)
 }
 
-// MapTo maps data sources to given struct with name mapper.
+// MapToWithMapper maps data sources to given struct with name mapper.
 func MapToWithMapper(v interface{}, mapper NameMapper, source interface{}, others ...interface{}) error {
 	cfg, err := Load(source, others...)
 	if err != nil {
@@ -500,7 +500,7 @@ func (f *File) ReflectFrom(v interface{}) error {
 	return f.Section("").ReflectFrom(v)
 }
 
-// ReflectFrom reflects data sources from given struct with name mapper.
+// ReflectFromWithMapper reflects data sources from given struct with name mapper.
 func ReflectFromWithMapper(cfg *File, v interface{}, mapper NameMapper) error {
 	cfg.NameMapper = mapper
 	return cfg.ReflectFrom(v)
