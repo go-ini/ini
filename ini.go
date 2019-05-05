@@ -42,6 +42,11 @@ var (
 	// This variable will be changed to "\r\n" automatically on Windows at package init time.
 	LineBreak = "\n"
 
+	// DefaultFormatLeft places custom spaces on the left when PrettyFormat and PrettyEqual are both disabled.
+	DefaultFormatLeft = ""
+	// DefaultFormatRight places custom spaces on the right when PrettyFormat and PrettyEqual are both disabled.
+	DefaultFormatRight = ""
+
 	// Variable regexp pattern: %(variable)s
 	varPattern = regexp.MustCompile(`%\(([^)]+)\)s`)
 
@@ -115,6 +120,8 @@ type LoadOptions struct {
 	DebugFunc DebugFunc
 	// ReaderBufferSize is the buffer size of the reader in bytes.
 	ReaderBufferSize int
+	// AllowNonUniqueSections indicates whether to allow sections with the same name multiple times.
+	AllowNonUniqueSections bool
 }
 
 // DebugFunc is the type of function called to log parse events.

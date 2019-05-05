@@ -249,7 +249,7 @@ func (s *Section) ChildSections() []*Section {
 	children := make([]*Section, 0, 3)
 	for _, name := range s.f.sectionList {
 		if strings.HasPrefix(name, prefix) {
-			children = append(children, s.f.sections[name])
+			children = append(children, s.f.sections[name]...)
 		}
 	}
 	return children

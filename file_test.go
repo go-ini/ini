@@ -64,6 +64,105 @@ func TestFile_NewSection(t *testing.T) {
 	})
 }
 
+func TestFile_NewNonUniqueSection(t *testing.T) {
+	Convey("Read and write non unique sections", t, func() {
+		f, err := ini.LoadSources(ini.LoadOptions{
+			AllowNonUniqueSections: true,
+		}, []byte(`[Interface]
+Address = 192.168.2.1
+PrivateKey = <server's privatekey>
+ListenPort = 51820
+
+[Peer]
+PublicKey = <client's publickey>
+AllowedIPs = 192.168.2.2/32
+
+[Peer]
+PublicKey = <client2's publickey>
+AllowedIPs = 192.168.2.3/32`))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+
+		sec, err := f.NewSection("Peer")
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+
+		sec.NewKey("PublicKey", "<client3's publickey>")
+		sec.NewKey("AllowedIPs", "192.168.2.4/32")
+
+		var buf bytes.Buffer
+		_, err = f.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		str := buf.String()
+		So(str, ShouldEqual, `[Interface]
+Address    = 192.168.2.1
+PrivateKey = <server's privatekey>
+ListenPort = 51820
+
+[Peer]
+PublicKey  = <client's publickey>
+AllowedIPs = 192.168.2.2/32
+
+[Peer]
+PublicKey  = <client2's publickey>
+AllowedIPs = 192.168.2.3/32
+
+[Peer]
+PublicKey  = <client3's publickey>
+AllowedIPs = 192.168.2.4/32
+
+`)
+	})
+}
+
+func TestFile_DeleteNonUniqueSection(t *testing.T) {
+	Convey("Delete non unique section", t, func() {
+		f, err := ini.LoadSources(ini.LoadOptions{
+			AllowNonUniqueSections: true,
+		}, []byte(`[Interface]
+Address    = 192.168.2.1
+PrivateKey = <server's privatekey>
+ListenPort = 51820
+
+[Peer]
+PublicKey  = <client's publickey>
+AllowedIPs = 192.168.2.2/32
+
+[Peer]
+PublicKey  = <client2's publickey>
+AllowedIPs = 192.168.2.3/32
+
+[Peer]
+PublicKey  = <client3's publickey>
+AllowedIPs = 192.168.2.4/32
+
+`))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+
+		f.DeleteSpecificSection("Peer", 1)
+
+		var buf bytes.Buffer
+		_, err = f.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		str := buf.String()
+		So(str, ShouldEqual, `[Interface]
+Address    = 192.168.2.1
+PrivateKey = <server's privatekey>
+ListenPort = 51820
+
+[Peer]
+PublicKey  = <client's publickey>
+AllowedIPs = 192.168.2.2/32
+
+[Peer]
+PublicKey  = <client3's publickey>
+AllowedIPs = 192.168.2.4/32
+
+`)
+	})
+}
+
 func TestFile_NewRawSection(t *testing.T) {
 	Convey("Create a new raw section", t, func() {
 		f := ini.Empty()
