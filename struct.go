@@ -263,8 +263,8 @@ func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim stri
 	return nil
 }
 
-func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bool) {
-	opts := strings.SplitN(tag, ",", 3)
+func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bool, allowNonUnique bool) {
+	opts := strings.SplitN(tag, ",", 4)
 	rawName = opts[0]
 	if len(opts) > 1 {
 		omitEmpty = opts[1] == "omitempty"
@@ -272,7 +272,10 @@ func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bo
 	if len(opts) > 2 {
 		allowShadow = opts[2] == "allowshadow"
 	}
-	return rawName, omitEmpty, allowShadow
+	if len(opts) > 3 {
+		allowNonUnique = opts[3] == "allowNonUnique"
+	}
+	return rawName, omitEmpty, allowShadow, allowNonUnique
 }
 
 func (s *Section) mapTo(val reflect.Value, isStrict bool) error {
@@ -290,7 +293,8 @@ func (s *Section) mapTo(val reflect.Value, isStrict bool) error {
 			continue
 		}
 
-		rawName, _, allowShadow := parseTagOptions(tag)
+		rawName, _, allowShadow, allowNonUnique := parseTagOptions(tag)
+		fmt.Println(allowNonUnique)
 		fieldName := s.parseFieldName(tpField.Name, rawName)
 		if len(fieldName) == 0 || !field.CanSet() {
 			continue
@@ -317,6 +321,28 @@ func (s *Section) mapTo(val reflect.Value, isStrict bool) error {
 				continue
 			}
 		}
+
+		// add nonUniqueSections
+		if isSlice && allowNonUnique {
+			if secs, err := s.f.GetSections(fieldName); err == nil {
+				for _, sec := range secs {
+					sliceType := tpField.Type.Elem()
+
+					// create new element
+					newElement := reflect.New(sliceType)
+					if err = sec.mapTo(newElement, isStrict); err != nil {
+						return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
+					}
+
+					// add element to field
+					field = reflect.Append(field, newElement.Elem())
+					// set val.Field(i) to the field
+					val.Field(i).Set(field)
+				}
+				continue
+			}
+		}
+
 		if key, err := s.GetKey(fieldName); err == nil {
 			delim := parseDelim(tpField.Tag.Get("delim"))
 			if err = setWithProperType(tpField.Type, key, field, delim, allowShadow, isStrict); err != nil {
@@ -369,7 +395,8 @@ func (f *File) StrictMapTo(v interface{}) error {
 
 // MapToWithMapper maps data sources to given struct with name mapper.
 func MapToWithMapper(v interface{}, mapper NameMapper, source interface{}, others ...interface{}) error {
-	cfg, err := Load(source, others...)
+	// Option AllowNonUniqueSections needed. Otherwise non unique sections would not be possible
+	cfg, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, source, others...)
 	if err != nil {
 		return err
 	}
@@ -380,7 +407,8 @@ func MapToWithMapper(v interface{}, mapper NameMapper, source interface{}, other
 // StrictMapToWithMapper maps data sources to given struct with name mapper in strict mode,
 // which returns all possible error including value parsing error.
 func StrictMapToWithMapper(v interface{}, mapper NameMapper, source interface{}, others ...interface{}) error {
-	cfg, err := Load(source, others...)
+	// Option AllowNonUniqueSections needed. Otherwise non unique sections would not be possible
+	cfg, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, source, others...)
 	if err != nil {
 		return err
 	}
@@ -439,6 +467,7 @@ func reflectSliceWithProperType(key *Key, field reflect.Value, delim string, all
 	}
 
 	var buf bytes.Buffer
+	sliceOf := field.Type().Elem().Kind()
 	for i := 0; i < field.Len(); i++ {
 		switch sliceOf {
 		case reflect.String:

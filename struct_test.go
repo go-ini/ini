@@ -75,6 +75,23 @@ type testStruct struct {
 	DurationPtrNil *time.Duration
 }
 
+type testInterface struct {
+	Address    string
+	ListenPort int
+	PrivateKey string
+}
+
+type testPeer struct {
+	PublicKey    string
+	PresharedKey string
+	AllowedIPs   []string `delim:","`
+}
+
+type testNonUniqueSectionsStruct struct {
+	Interface testInterface
+	Peer      []testPeer `ini:",,,allowNonUnique"`
+}
+
 const _CONF_DATA_STRUCT = `
 NAME = Unknwon
 Age = 21
@@ -123,6 +140,24 @@ GPA = 2.8
 [foo.bar]
 Here = there
 When = then
+`
+
+const _CONF_NON_UNIQUE_SECTION_DATA_STRUCT = `
+[Interface]
+Address = 10.2.0.1/24
+ListenPort = 34777
+PrivateKey = privServerKey
+
+[Peer]
+PublicKey = pubClientKey
+PresharedKey = psKey
+AllowedIPs = 10.2.0.2/32,fd00:2::2/128
+
+[Peer]
+PublicKey = pubClientKey2
+PresharedKey = psKey2
+AllowedIPs = 10.2.0.3/32,fd00:2::3/128
+
 `
 
 type unsupport struct {
@@ -327,6 +362,29 @@ names=alice, bruce`))
 
 		So(f.Section("").StrictMapTo(s), ShouldBeNil)
 		So(fmt.Sprint(s.Names), ShouldEqual, "[alice bruce]")
+	})
+}
+
+func Test_MapToStructNonUniqueSections(t *testing.T) {
+	Convey("Map to struct non unique", t, func() {
+		Convey("Map file to struct non unique", func() {
+			ts := new(testNonUniqueSectionsStruct)
+			So(ini.MapTo(ts, []byte(_CONF_NON_UNIQUE_SECTION_DATA_STRUCT)), ShouldBeNil)
+
+			So(ts.Interface.Address, ShouldEqual, "10.2.0.1/24")
+			So(ts.Interface.ListenPort, ShouldEqual, 34777)
+			So(ts.Interface.PrivateKey, ShouldEqual, "privServerKey")
+
+			So(ts.Peer[0].PublicKey, ShouldEqual, "pubClientKey")
+			So(ts.Peer[0].PresharedKey, ShouldEqual, "psKey")
+			So(ts.Peer[0].AllowedIPs[0], ShouldEqual, "10.2.0.2/32")
+			So(ts.Peer[0].AllowedIPs[1], ShouldEqual, "fd00:2::2/128")
+
+			So(ts.Peer[1].PublicKey, ShouldEqual, "pubClientKey2")
+			So(ts.Peer[1].PresharedKey, ShouldEqual, "psKey2")
+			So(ts.Peer[1].AllowedIPs[0], ShouldEqual, "10.2.0.3/32")
+			So(ts.Peer[1].AllowedIPs[1], ShouldEqual, "fd00:2::3/128")
+		})
 	})
 }
 
