@@ -42,11 +42,6 @@ var (
 	// This variable will be changed to "\r\n" automatically on Windows at package init time.
 	LineBreak = "\n"
 
-	// DefaultFormatLeft places custom spaces on the left when PrettyFormat and PrettyEqual are both disabled.
-	DefaultFormatLeft = ""
-	// DefaultFormatRight places custom spaces on the right when PrettyFormat and PrettyEqual are both disabled.
-	DefaultFormatRight = ""
-
 	// Variable regexp pattern: %(variable)s
 	varPattern = regexp.MustCompile(`%\(([^)]+)\)s`)
 

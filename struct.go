@@ -294,7 +294,6 @@ func (s *Section) mapTo(val reflect.Value, isStrict bool) error {
 		}
 
 		rawName, _, allowShadow, allowNonUnique := parseTagOptions(tag)
-		fmt.Println(allowNonUnique)
 		fieldName := s.parseFieldName(tpField.Name, rawName)
 		if len(fieldName) == 0 || !field.CanSet() {
 			continue
@@ -303,6 +302,7 @@ func (s *Section) mapTo(val reflect.Value, isStrict bool) error {
 		isStruct := tpField.Type.Kind() == reflect.Struct
 		isStructPtr := tpField.Type.Kind() == reflect.Ptr && tpField.Type.Elem().Kind() == reflect.Struct
 		isAnonymous := tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous
+		isSlice := tpField.Type.Kind() == reflect.Slice
 		if isAnonymous {
 			field.Set(reflect.New(tpField.Type.Elem()))
 		}
@@ -324,22 +324,11 @@ func (s *Section) mapTo(val reflect.Value, isStrict bool) error {
 
 		// add nonUniqueSections
 		if isSlice && allowNonUnique {
-			if secs, err := s.f.GetSections(fieldName); err == nil {
-				for _, sec := range secs {
-					sliceType := tpField.Type.Elem()
-
-					// create new element
-					newElement := reflect.New(sliceType)
-					if err = sec.mapTo(newElement, isStrict); err != nil {
-						return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
-					}
-
-					// add element to field
-					field = reflect.Append(field, newElement.Elem())
-					// set val.Field(i) to the field
-					val.Field(i).Set(field)
-				}
+			if newField, err := s.mapAllTo(fieldName, field, isStrict); err == nil {
+				field.Set(newField)
 				continue
+			} else {
+				return wrapStrictError(err, isStrict)
 			}
 		}
 
@@ -353,8 +342,34 @@ func (s *Section) mapTo(val reflect.Value, isStrict bool) error {
 	return nil
 }
 
-// MapTo maps section to given struct.
-func (s *Section) MapTo(v interface{}) error {
+// maps all sections with the same name and returns the new value.
+func (s *Section) mapAllTo(secName string, val reflect.Value, isStrict bool) (reflect.Value, error) {
+	typ := val.Type()
+	if typ.Kind() == reflect.Slice {
+		if secs, err := s.f.GetSections(secName); err == nil {
+			for _, sec := range secs {
+				sliceType := typ.Elem()
+
+				// create new element
+				newElement := reflect.New(sliceType)
+				if err = sec.mapTo(newElement, isStrict); err != nil {
+					return reflect.Value{}, fmt.Errorf("error mapping section(%s): %v", secName, err)
+				}
+
+				// add element to field
+				val = reflect.Append(val, newElement.Elem())
+			}
+			return val, nil
+		} else {
+			return reflect.Value{}, err
+		}
+	} else {
+		return reflect.Value{}, fmt.Errorf("error mapping section(%s): Val has to be of type Slice", secName)
+	}
+}
+
+// map a section to v
+func (s *Section) mapSectionTo(v interface{}, isStrict bool) error {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
 	if typ.Kind() == reflect.Ptr {
@@ -364,22 +379,32 @@ func (s *Section) MapTo(v interface{}) error {
 		return errors.New("cannot map to non-pointer struct")
 	}
 
-	return s.mapTo(val, false)
+	if typ.Kind() == reflect.Slice {
+		if newField, err := s.mapAllTo(s.name, val, isStrict); err == nil {
+			fmt.Println(newField)
+			fmt.Println(newField.Len())
+			val.Set(newField)
+
+			fmt.Println(newField.Len())
+			fmt.Println(val.Len())
+			return nil
+		} else {
+			return wrapStrictError(err, isStrict)
+		}
+	}
+
+	return s.mapTo(val, isStrict)
+}
+
+// MapTo maps section to given struct.
+func (s *Section) MapTo(v interface{}) error {
+	return s.mapSectionTo(v, false)
 }
 
 // StrictMapTo maps section to given struct in strict mode,
 // which returns all possible error including value parsing error.
 func (s *Section) StrictMapTo(v interface{}) error {
-	typ := reflect.TypeOf(v)
-	val := reflect.ValueOf(v)
-	if typ.Kind() == reflect.Ptr {
-		typ = typ.Elem()
-		val = val.Elem()
-	} else {
-		return errors.New("cannot map to non-pointer struct")
-	}
-
-	return s.mapTo(val, true)
+	return s.mapSectionTo(v, true)
 }
 
 // MapTo maps file to given struct.
@@ -396,7 +421,7 @@ func (f *File) StrictMapTo(v interface{}) error {
 // MapToWithMapper maps data sources to given struct with name mapper.
 func MapToWithMapper(v interface{}, mapper NameMapper, source interface{}, others ...interface{}) error {
 	// Option AllowNonUniqueSections needed. Otherwise non unique sections would not be possible
-	cfg, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, source, others...)
+	cfg, err := Load(source, others...)
 	if err != nil {
 		return err
 	}
@@ -408,7 +433,7 @@ func MapToWithMapper(v interface{}, mapper NameMapper, source interface{}, other
 // which returns all possible error including value parsing error.
 func StrictMapToWithMapper(v interface{}, mapper NameMapper, source interface{}, others ...interface{}) error {
 	// Option AllowNonUniqueSections needed. Otherwise non unique sections would not be possible
-	cfg, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, source, others...)
+	cfg, err := Load(source, others...)
 	if err != nil {
 		return err
 	}
@@ -467,7 +492,6 @@ func reflectSliceWithProperType(key *Key, field reflect.Value, delim string, all
 	}
 
 	var buf bytes.Buffer
-	sliceOf := field.Type().Elem().Kind()
 	for i := 0; i < field.Len(); i++ {
 		switch sliceOf {
 		case reflect.String:
@@ -556,7 +580,7 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 			continue
 		}
 
-		rawName, omitEmpty, allowShadow := parseTagOptions(tag)
+		rawName, omitEmpty, allowShadow, _ := parseTagOptions(tag)
 		if omitEmpty && isEmptyValue(field) {
 			continue
 		}

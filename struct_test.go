@@ -368,8 +368,11 @@ names=alice, bruce`))
 func Test_MapToStructNonUniqueSections(t *testing.T) {
 	Convey("Map to struct non unique", t, func() {
 		Convey("Map file to struct non unique", func() {
+			f, err := ini.LoadSources(ini.LoadOptions{AllowNonUniqueSections: true}, []byte(_CONF_NON_UNIQUE_SECTION_DATA_STRUCT))
+			So(err, ShouldBeNil)
 			ts := new(testNonUniqueSectionsStruct)
-			So(ini.MapTo(ts, []byte(_CONF_NON_UNIQUE_SECTION_DATA_STRUCT)), ShouldBeNil)
+
+			So(f.MapTo(ts), ShouldBeNil)
 
 			So(ts.Interface.Address, ShouldEqual, "10.2.0.1/24")
 			So(ts.Interface.ListenPort, ShouldEqual, 34777)
@@ -384,6 +387,33 @@ func Test_MapToStructNonUniqueSections(t *testing.T) {
 			So(ts.Peer[1].PresharedKey, ShouldEqual, "psKey2")
 			So(ts.Peer[1].AllowedIPs[0], ShouldEqual, "10.2.0.3/32")
 			So(ts.Peer[1].AllowedIPs[1], ShouldEqual, "fd00:2::3/128")
+		})
+
+		Convey("Map non unique section to struct", func() {
+			newPeer := new(testPeer)
+			newPeerSlice := make([]testPeer, 0)
+
+			f, err := ini.LoadSources(ini.LoadOptions{AllowNonUniqueSections: true}, []byte(_CONF_NON_UNIQUE_SECTION_DATA_STRUCT))
+			So(err, ShouldBeNil)
+
+			// try only first one
+			So(f.Section("Peer").MapTo(newPeer), ShouldBeNil)
+			So(newPeer.PublicKey, ShouldEqual, "pubClientKey")
+			So(newPeer.PresharedKey, ShouldEqual, "psKey")
+			So(newPeer.AllowedIPs[0], ShouldEqual, "10.2.0.2/32")
+			So(newPeer.AllowedIPs[1], ShouldEqual, "fd00:2::2/128")
+
+			// try all
+			So(f.Section("Peer").MapTo(&newPeerSlice), ShouldBeNil)
+			So(newPeerSlice[0].PublicKey, ShouldEqual, "pubClientKey")
+			So(newPeerSlice[0].PresharedKey, ShouldEqual, "psKey")
+			So(newPeerSlice[0].AllowedIPs[0], ShouldEqual, "10.2.0.2/32")
+			So(newPeerSlice[0].AllowedIPs[1], ShouldEqual, "fd00:2::2/128")
+
+			So(newPeerSlice[1].PublicKey, ShouldEqual, "pubClientKey2")
+			So(newPeerSlice[1].PresharedKey, ShouldEqual, "psKey2")
+			So(newPeerSlice[1].AllowedIPs[0], ShouldEqual, "10.2.0.3/32")
+			So(newPeerSlice[1].AllowedIPs[1], ShouldEqual, "fd00:2::3/128")
 		})
 	})
 }
