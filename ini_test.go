@@ -507,11 +507,16 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
   foobar
   barfoo
   -----END RSA PRIVATE KEY-----
+multiline_list =
+  first
+  second
+  third
 `))
 				So(err, ShouldBeNil)
 				So(f, ShouldNotBeNil)
 
 				So(f.Section("long").Key("long_rsa_private_key").String(), ShouldEqual, "-----BEGIN RSA PRIVATE KEY-----\nfoo\nbar\nfoobar\nbarfoo\n-----END RSA PRIVATE KEY-----")
+				So(f.Section("long").Key("multiline_list").String(), ShouldEqual, "\nfirst\nsecond\nthird")
 			})
 
 			Convey("Can parse big python-compatible INI files", func() {
