@@ -149,7 +149,7 @@ func wrapStrictError(err error, isStrict bool) error {
 
 // setWithProperType sets proper value to field based on its type,
 // but it does not return error for failing parsing,
-// because we want to use default value that is already assigned to strcut.
+// because we want to use default value that is already assigned to struct.
 func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim string, allowShadow, isStrict bool) error {
 	switch t.Kind() {
 	case reflect.String:
@@ -244,14 +244,21 @@ func (s *Section) mapTo(val reflect.Value, isStrict bool) error {
 			continue
 		}
 
-		isAnonymous := tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous
 		isStruct := tpField.Type.Kind() == reflect.Struct
+		isStructPtr := tpField.Type.Kind() == reflect.Ptr && tpField.Type.Elem().Kind() == reflect.Struct
+		isAnonymous := tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous
 		if isAnonymous {
 			field.Set(reflect.New(tpField.Type.Elem()))
 		}
 
-		if isAnonymous || isStruct {
+		if isAnonymous || isStruct || isStructPtr {
 			if sec, err := s.f.GetSection(fieldName); err == nil {
+				// Only set the field to non-nil struct value if we have
+				// a section for it. Otherwise, we end up with a non-nil
+				// struct ptr even though there is no data.
+				if isStructPtr && field.IsNil() {
+					field.Set(reflect.New(tpField.Type.Elem()))
+				}
 				if err = sec.mapTo(field, isStrict); err != nil {
 					return fmt.Errorf("error mapping field(%s): %v", fieldName, err)
 				}
