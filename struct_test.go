@@ -375,6 +375,40 @@ omitempty  = 9
 	})
 }
 
+// Inspired by https://github.com/go-ini/ini/issues/196
+func TestMapToAndReflectFromStructWithShadows(t *testing.T) {
+	Convey("Map to struct and then reflect with shadows should generate original config content", t, func() {
+		type include struct {
+			Paths []string `ini:"path,omitempty,allowshadow"`
+		}
+
+		cfg, err := ini.LoadSources(ini.LoadOptions{
+			AllowShadows: true,
+		}, []byte(`
+[include]
+path = /tmp/gpm-profiles/test5.profile
+path = /tmp/gpm-profiles/test1.profile`))
+		So(err, ShouldBeNil)
+
+		sec := cfg.Section("include")
+		inc := new(include)
+		err = sec.MapTo(inc)
+		So(err, ShouldBeNil)
+
+		err = sec.ReflectFrom(inc)
+		So(err, ShouldBeNil)
+
+		var buf bytes.Buffer
+		_, err = cfg.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		So(buf.String(), ShouldEqual, `[include]
+path = /tmp/gpm-profiles/test5.profile
+path = /tmp/gpm-profiles/test1.profile
+
+`)
+	})
+}
+
 type testMapper struct {
 	PackageName string
 }
