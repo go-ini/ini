@@ -285,26 +285,24 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 	parserBufferPeekResult, _ := p.buf.Peek(bufferSize)
 	peekBuffer := bytes.NewBuffer(parserBufferPeekResult)
 
-	val := line
-
 	for {
 		peekData, peekErr := peekBuffer.ReadBytes('\n')
 		if peekErr != nil {
 			if peekErr == io.EOF {
-				return val, nil
+				return line, nil
 			}
 			return "", peekErr
 		}
 
 		peekMatches := pythonMultiline.FindStringSubmatch(string(peekData))
 		if len(peekMatches) != 3 {
-			return val, nil
+			return line, nil
 		}
 
 		// NOTE: Return if not a python-ini multi-line value.
 		currentIdentSize := len(peekMatches[1])
 		if currentIdentSize <= 0 {
-			return val, nil
+			return line, nil
 		}
 
 		// NOTE: Just advance the parser reader (buffer) in-sync with the peek buffer.
@@ -313,7 +311,7 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 			return "", err
 		}
 
-		val += fmt.Sprintf("\n%s", peekMatches[2])
+		line += fmt.Sprintf("\n%s", peekMatches[2])
 	}
 }
 
