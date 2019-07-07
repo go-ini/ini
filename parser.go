@@ -204,6 +204,9 @@ func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 
 	line := strings.TrimLeftFunc(string(in), unicode.IsSpace)
 	if len(line) == 0 {
+		if p.options.AllowPythonMultilineValues && len(in) > 0 && in[len(in)-1] == '\n' {
+			return p.readPythonMultilines(line, bufferSize)
+		}
 		return "", nil
 	}
 
@@ -272,42 +275,46 @@ func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 			line = strings.Replace(line, `\#`, "#", -1)
 		}
 	} else if p.options.AllowPythonMultilineValues && lastChar == '\n' {
-		parserBufferPeekResult, _ := p.buf.Peek(bufferSize)
-		peekBuffer := bytes.NewBuffer(parserBufferPeekResult)
-
-		val := line
-
-		for {
-			peekData, peekErr := peekBuffer.ReadBytes('\n')
-			if peekErr != nil {
-				if peekErr == io.EOF {
-					return val, nil
-				}
-				return "", peekErr
-			}
-
-			peekMatches := pythonMultiline.FindStringSubmatch(string(peekData))
-			if len(peekMatches) != 3 {
-				return val, nil
-			}
-
-			// NOTE: Return if not a python-ini multi-line value.
-			currentIdentSize := len(peekMatches[1])
-			if currentIdentSize <= 0 {
-				return val, nil
-			}
-
-			// NOTE: Just advance the parser reader (buffer) in-sync with the peek buffer.
-			_, err := p.readUntil('\n')
-			if err != nil {
-				return "", err
-			}
-
-			val += fmt.Sprintf("\n%s", peekMatches[2])
-		}
+		return p.readPythonMultilines(line, bufferSize)
 	}
 
 	return line, nil
+}
+
+func (p *parser) readPythonMultilines(line string, bufferSize int) (string, error) {
+	parserBufferPeekResult, _ := p.buf.Peek(bufferSize)
+	peekBuffer := bytes.NewBuffer(parserBufferPeekResult)
+
+	val := line
+
+	for {
+		peekData, peekErr := peekBuffer.ReadBytes('\n')
+		if peekErr != nil {
+			if peekErr == io.EOF {
+				return val, nil
+			}
+			return "", peekErr
+		}
+
+		peekMatches := pythonMultiline.FindStringSubmatch(string(peekData))
+		if len(peekMatches) != 3 {
+			return val, nil
+		}
+
+		// NOTE: Return if not a python-ini multi-line value.
+		currentIdentSize := len(peekMatches[1])
+		if currentIdentSize <= 0 {
+			return val, nil
+		}
+
+		// NOTE: Just advance the parser reader (buffer) in-sync with the peek buffer.
+		_, err := p.readUntil('\n')
+		if err != nil {
+			return "", err
+		}
+
+		val += fmt.Sprintf("\n%s", peekMatches[2])
+	}
 }
 
 // parse parses data through an io.Reader.
