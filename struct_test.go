@@ -45,6 +45,7 @@ type testStruct struct {
 	Name         string `ini:"NAME"`
 	Age          int
 	Male         bool
+	Optional     *bool
 	Money        float64
 	Born         time.Time
 	Time         time.Duration `ini:"Duration"`
@@ -63,6 +64,7 @@ const _CONF_DATA_STRUCT = `
 NAME = Unknwon
 Age = 21
 Male = true
+Optional = true
 Money = 1.25
 Born = 1993-10-07T20:17:05Z
 Duration = 2h45m
@@ -118,12 +120,13 @@ type unsupport4 struct {
 }
 
 type defaultValue struct {
-	Name   string
-	Age    int
-	Male   bool
-	Money  float64
-	Born   time.Time
-	Cities []string
+	Name     string
+	Age      int
+	Male     bool
+	Optional *bool
+	Money    float64
+	Born     time.Time
+	Cities   []string
 }
 
 type fooBar struct {
@@ -148,6 +151,7 @@ func Test_MapToStruct(t *testing.T) {
 			So(ts.Name, ShouldEqual, "Unknwon")
 			So(ts.Age, ShouldEqual, 21)
 			So(ts.Male, ShouldBeTrue)
+			So(ts.Optional, shouldEqualPtr, true)
 			So(ts.Money, ShouldEqual, 1.25)
 			So(ts.Unsigned, ShouldEqual, 3)
 
@@ -242,7 +246,7 @@ func Test_MapToStruct(t *testing.T) {
 
 			t, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
 			So(err, ShouldBeNil)
-			dv := &defaultValue{"Joe", 10, true, 1.25, t, []string{"HangZhou", "Boston"}}
+			dv := &defaultValue{"Joe", 10, true, nil, 1.25, t, []string{"HangZhou", "Boston"}}
 			So(f.MapTo(dv), ShouldBeNil)
 			So(dv.Name, ShouldEqual, "Joe")
 			So(dv.Age, ShouldEqual, 10)
@@ -298,6 +302,7 @@ func Test_ReflectFromStruct(t *testing.T) {
 		type Author struct {
 			Name      string `ini:"NAME"`
 			Male      bool
+			Optional  *bool
 			Age       int `comment:"Author's age"`
 			Height    uint
 			GPA       float64
@@ -308,7 +313,7 @@ func Test_ReflectFromStruct(t *testing.T) {
 
 		t, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
 		So(err, ShouldBeNil)
-		a := &Author{"Unknwon", true, 21, 100, 2.8, t, "",
+		a := &Author{"Unknwon", true, nil, 21, 100, 2.8, t, "",
 			&Embeded{
 				[]time.Time{t, t},
 				[]string{"HangZhou", "Boston"},
@@ -325,13 +330,14 @@ func Test_ReflectFromStruct(t *testing.T) {
 		var buf bytes.Buffer
 		_, err = cfg.WriteTo(&buf)
 		So(err, ShouldBeNil)
-		So(buf.String(), ShouldEqual, `NAME   = Unknwon
-Male   = true
+		So(buf.String(), ShouldEqual, `NAME     = Unknwon
+Male     = true
+Optional = 
 ; Author's age
-Age    = 21
-Height = 100
-GPA    = 2.8
-Date   = 1993-10-07T20:17:05Z
+Age      = 21
+Height   = 100
+GPA      = 2.8
+Date     = 1993-10-07T20:17:05Z
 
 ; Embeded section
 [infos]
@@ -441,4 +447,21 @@ func Test_Duration(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(ds.Duration.Seconds(), ShouldEqual, dur.Seconds())
 	})
+}
+
+func shouldEqualPtr(actual interface{}, expected ...interface{}) string {
+	if len(expected) == 0 {
+		return "one expected value was expected"
+	}
+
+	a, ok := actual.(*bool)
+	if !ok {
+		return fmt.Sprintf("actual expected to be a *bool, got %t", actual)
+	}
+
+	if a == nil || *a != expected[0] {
+		return fmt.Sprintf("a *%v was expected, got *%#v", expected[0], *a)
+	}
+
+	return ""
 }
