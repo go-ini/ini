@@ -151,7 +151,7 @@ func Test_MapToStruct(t *testing.T) {
 			So(ts.Name, ShouldEqual, "Unknwon")
 			So(ts.Age, ShouldEqual, 21)
 			So(ts.Male, ShouldBeTrue)
-			So(ts.Optional, shouldEqualPtr, true)
+			So(*ts.Optional, ShouldBeTrue)
 			So(ts.Money, ShouldEqual, 1.25)
 			So(ts.Unsigned, ShouldEqual, 3)
 
@@ -447,21 +447,4 @@ func Test_Duration(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(ds.Duration.Seconds(), ShouldEqual, dur.Seconds())
 	})
-}
-
-func shouldEqualPtr(actual interface{}, expected ...interface{}) string {
-	if len(expected) == 0 {
-		return "one expected value was expected"
-	}
-
-	a, ok := actual.(*bool)
-	if !ok {
-		return fmt.Sprintf("actual expected to be a *bool, got %t", actual)
-	}
-
-	if a == nil || *a != expected[0] {
-		return fmt.Sprintf("a *%v was expected, got *%#v", expected[0], *a)
-	}
-
-	return ""
 }
