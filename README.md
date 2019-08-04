@@ -38,10 +38,10 @@ go: github.com/go-ini/ini@v0.0.0-00010101000000-000000000000: unknown revision 0
 go: error loading module requirements
 ```
 
-It is because one of your dependencies is using deprecated import path `github.com/go-ini/ini`, you can make a quick fix by adding the following line to your `go.mod` file (change `v.1.44.2` to any version you want):
+It is because one of your dependencies is using deprecated import path `github.com/go-ini/ini`, you can make a quick fix by adding the following line to your `go.mod` file (`v.1.44.0` was the latest version tagged on `master` branch):
 
 ```
-replace github.com/go-ini/ini => gopkg.in/ini.v1 v1.44.2
+replace github.com/go-ini/ini => gopkg.in/ini.v1 v1.44.0
 ```
 
 ## Getting Help
