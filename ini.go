@@ -15,7 +15,7 @@
 // under the License.
 
 // Package ini provides INI file read and write functionality in Go.
-package ini
+package ini // import "gopkg.in/ini.v1"
 
 import (
 	"bytes"
@@ -36,7 +36,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	depthValues = 99
-	version     = "1.44.1"
+	version     = "1.44.2"
 )
 
 // Version returns current package version literal.
