@@ -22,8 +22,6 @@ Package ini provides INI file read and write functionality in Go.
 
 The minimum requirement of Go is **1.6**.
 
-To use a tagged revision:
-
 ```sh
 $ go get gopkg.in/ini.v1
 ```
