@@ -205,6 +205,17 @@ func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim stri
 		field.Set(reflect.ValueOf(timeVal))
 	case reflect.Slice:
 		return setSliceWithProperType(key, field, delim, allowShadow, isStrict)
+	case reflect.Ptr:
+		switch t.Elem().Kind() {
+		case reflect.Bool:
+			boolVal, err := key.Bool()
+			if err != nil {
+				return wrapStrictError(err, isStrict)
+			}
+			field.Set(reflect.ValueOf(&boolVal))
+		default:
+			return fmt.Errorf("unsupported type '%s'", t)
+		}
 	default:
 		return fmt.Errorf("unsupported type '%s'", t)
 	}
@@ -424,6 +435,10 @@ func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim 
 		key.SetValue(fmt.Sprint(field.Interface().(time.Time).Format(time.RFC3339)))
 	case reflect.Slice:
 		return reflectSliceWithProperType(key, field, delim, allowShadow)
+	case reflect.Ptr:
+		if !field.IsNil() {
+			return reflectWithProperType(t.Elem(), key, field.Elem(), delim, allowShadow)
+		}
 	default:
 		return fmt.Errorf("unsupported type '%s'", t)
 	}
