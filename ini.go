@@ -15,7 +15,7 @@
 // under the License.
 
 // Package ini provides INI file read and write functionality in Go.
-package ini // import "gopkg.in/ini.v1"
+package ini
 
 import (
 	"bytes"
