@@ -29,8 +29,8 @@ type NameMapper func(string) string
 
 // Built-in name getters.
 var (
-	// AllCapsUnderscore converts to format ALL_CAPS_UNDERSCORE.
-	AllCapsUnderscore NameMapper = func(raw string) string {
+	// SnackCase converts to format SNACK_CASE.
+	SnackCase NameMapper = func(raw string) string {
 		newstr := make([]rune, 0, len(raw))
 		for i, chr := range raw {
 			if isUpper := 'A' <= chr && chr <= 'Z'; isUpper {
@@ -50,7 +50,7 @@ var (
 				if i > 0 {
 					newstr = append(newstr, '_')
 				}
-				chr -= ('A' - 'a')
+				chr -= 'A' - 'a'
 			}
 			newstr = append(newstr, chr)
 		}

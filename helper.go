@@ -1,4 +1,4 @@
-// Copyright 2017 Unknwon
+// Copyright 2019 Unknwon
 //
 // Licensed under the Apache License, Version 2.0 (the "License"): you may
 // not use this file except in compliance with the License. You may obtain
@@ -14,14 +14,11 @@
 
 package ini
 
-import (
-	"testing"
-
-	. "github.com/smartystreets/goconvey/convey"
-)
-
-func Test_Version(t *testing.T) {
-	Convey("Get version", t, func() {
-		So(Version(), ShouldEqual, version)
-	})
+func inSlice(str string, s []string) bool {
+	for _, v := range s {
+		if str == v {
+			return true
+		}
+	}
+	return false
 }
