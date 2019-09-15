@@ -33,6 +33,7 @@ type testNested struct {
 	Ages        []uint
 	Populations []uint64
 	Coordinates []float64
+	Flags       []bool
 	Note        string
 	Unused      int `ini:"-"`
 }
@@ -81,6 +82,7 @@ Numbers = 10010,10086
 Ages = 18,19
 Populations = 12345678,98765432
 Coordinates = 192.168,10.11
+Flags       = true,false
 Note = Hello world!
 
 [OthersPtr]
@@ -91,6 +93,7 @@ Numbers = 10010,10086
 Ages = 18,19
 Populations = 12345678,98765432
 Coordinates = 192.168,10.11
+Flags       = true,false
 Note = Hello world!
 
 [grade]
@@ -170,6 +173,7 @@ func Test_MapToStruct(t *testing.T) {
 			So(fmt.Sprint(ts.Others.Ages), ShouldEqual, "[18 19]")
 			So(fmt.Sprint(ts.Others.Populations), ShouldEqual, "[12345678 98765432]")
 			So(fmt.Sprint(ts.Others.Coordinates), ShouldEqual, "[192.168 10.11]")
+			So(fmt.Sprint(ts.Others.Flags), ShouldEqual, "[true false]")
 			So(ts.Others.Note, ShouldEqual, "Hello world!")
 			So(ts.TestEmbeded.GPA, ShouldEqual, 2.8)
 
@@ -180,6 +184,7 @@ func Test_MapToStruct(t *testing.T) {
 			So(fmt.Sprint(ts.OthersPtr.Ages), ShouldEqual, "[18 19]")
 			So(fmt.Sprint(ts.OthersPtr.Populations), ShouldEqual, "[12345678 98765432]")
 			So(fmt.Sprint(ts.OthersPtr.Coordinates), ShouldEqual, "[192.168 10.11]")
+			So(fmt.Sprint(ts.OthersPtr.Flags), ShouldEqual, "[true false]")
 			So(ts.OthersPtr.Note, ShouldEqual, "Hello world!")
 
 			So(ts.NilPtr, ShouldBeNil)
@@ -297,6 +302,7 @@ func Test_ReflectFromStruct(t *testing.T) {
 			Ages        []uint
 			Populations []uint64
 			Coordinates []float64
+			Flags       []bool
 			None        []int
 		}
 		type Author struct {
@@ -322,6 +328,7 @@ func Test_ReflectFromStruct(t *testing.T) {
 				[]uint{18, 19},
 				[]uint64{12345678, 98765432},
 				[]float64{192.168, 10.11},
+				[]bool{true, false},
 				[]int{},
 			}}
 		cfg := ini.Empty()
@@ -349,6 +356,7 @@ Numbers     = 10010,10086
 Ages        = 18,19
 Populations = 12345678,98765432
 Coordinates = 192.168,10.11
+Flags       = true,false
 None        = 
 
 `)
