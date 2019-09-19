@@ -46,6 +46,7 @@ FLOAT64S = 1.1, 2.2, 3.3
 INTS     = 1, 2, 3
 UINTS    = 1, 2, 3
 TIMES    = 2015-01-01T20:17:05Z,2015-01-01T20:17:05Z,2015-01-01T20:17:05Z
+BOOLS    = true, false, false
 
 [note]
 empty_lines = next line is empty

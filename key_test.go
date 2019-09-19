@@ -100,6 +100,13 @@ func uint64sEqual(values []uint64, expected ...uint64) {
 	}
 }
 
+func boolsEqual(values []bool, expected ...bool) {
+	So(values, ShouldHaveLength, len(expected))
+	for i, v := range expected {
+		So(values[i], ShouldEqual, v)
+	}
+}
+
 func timesEqual(values []time.Time, expected ...time.Time) {
 	So(values, ShouldHaveLength, len(expected))
 	for i, v := range expected {
@@ -337,10 +344,13 @@ func TestKey_Helpers(t *testing.T) {
 			vals5 := sec.Key("UINTS").Uint64s(",")
 			uint64sEqual(vals5, 1, 2, 3)
 
+			vals6 := sec.Key("BOOLS").Bools(",")
+			boolsEqual(vals6, true, false, false)
+
 			t, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
 			So(err, ShouldBeNil)
-			vals6 := sec.Key("TIMES").Times(",")
-			timesEqual(vals6, t, t, t)
+			vals7 := sec.Key("TIMES").Times(",")
+			timesEqual(vals7, t, t, t)
 		})
 
 		Convey("Test string slice escapes", func() {
@@ -370,10 +380,13 @@ func TestKey_Helpers(t *testing.T) {
 			vals5 := sec.Key("UINTS").ValidUint64s(",")
 			uint64sEqual(vals5, 1, 2, 3)
 
+			vals6 := sec.Key("BOOLS").ValidBools(",")
+			boolsEqual(vals6, true, false, false)
+
 			t, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
 			So(err, ShouldBeNil)
-			vals6 := sec.Key("TIMES").ValidTimes(",")
-			timesEqual(vals6, t, t, t)
+			vals7 := sec.Key("TIMES").ValidTimes(",")
+			timesEqual(vals7, t, t, t)
 		})
 
 		Convey("Get values one type into slice of another type", func() {
@@ -393,8 +406,11 @@ func TestKey_Helpers(t *testing.T) {
 			vals5 := sec.Key("STRINGS").ValidUint64s(",")
 			So(vals5, ShouldBeEmpty)
 
-			vals6 := sec.Key("STRINGS").ValidTimes(",")
+			vals6 := sec.Key("STRINGS").ValidBools(",")
 			So(vals6, ShouldBeEmpty)
+
+			vals7 := sec.Key("STRINGS").ValidTimes(",")
+			So(vals7, ShouldBeEmpty)
 		})
 
 		Convey("Get valid values into slice without errors", func() {
@@ -419,11 +435,15 @@ func TestKey_Helpers(t *testing.T) {
 			So(err, ShouldBeNil)
 			uint64sEqual(vals5, 1, 2, 3)
 
+			vals6, err := sec.Key("BOOLS").StrictBools(",")
+			So(err, ShouldBeNil)
+			boolsEqual(vals6, true, false, false)
+
 			t, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
 			So(err, ShouldBeNil)
-			vals6, err := sec.Key("TIMES").StrictTimes(",")
+			vals7, err := sec.Key("TIMES").StrictTimes(",")
 			So(err, ShouldBeNil)
-			timesEqual(vals6, t, t, t)
+			timesEqual(vals7, t, t, t)
 		})
 
 		Convey("Get invalid values into slice", func() {
@@ -448,8 +468,12 @@ func TestKey_Helpers(t *testing.T) {
 			So(vals5, ShouldBeEmpty)
 			So(err, ShouldNotBeNil)
 
-			vals6, err := sec.Key("STRINGS").StrictTimes(",")
+			vals6, err := sec.Key("STRINGS").StrictBools(",")
 			So(vals6, ShouldBeEmpty)
+			So(err, ShouldNotBeNil)
+
+			vals7, err := sec.Key("STRINGS").StrictTimes(",")
+			So(vals7, ShouldBeEmpty)
 			So(err, ShouldNotBeNil)
 		})
 	})
