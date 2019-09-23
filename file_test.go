@@ -305,3 +305,22 @@ func TestFile_SaveTo(t *testing.T) {
 		So(f.SaveToIndent("testdata/conf_out.ini", "\t"), ShouldBeNil)
 	})
 }
+
+// Inspired by https://github.com/go-ini/ini/issues/207
+func TestReloadAfterShadowLoad(t *testing.T) {
+	Convey("Reload file after ShadowLoad", t, func() {
+		f, err := ini.ShadowLoad([]byte(`
+[slice]
+v = 1
+v = 2
+v = 3
+`))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+
+		So(f.Section("slice").Key("v").ValueWithShadows(), ShouldResemble, []string{"1", "2", "3"})
+
+		So(f.Reload(), ShouldBeNil)
+		So(f.Section("slice").Key("v").ValueWithShadows(), ShouldResemble, []string{"1", "2", "3"})
+	})
+}

@@ -54,6 +54,16 @@ func (k *Key) addShadow(val string) error {
 		return errors.New("cannot add shadow to auto-increment or boolean key")
 	}
 
+	// Deduplicate shadows based on their values.
+	if k.value == val {
+		return nil
+	}
+	for i := range k.shadows {
+		if k.shadows[i].value == val {
+			return nil
+		}
+	}
+
 	shadow := newKey(k.s, k.name, val)
 	shadow.isShadow = true
 	k.shadows = append(k.shadows, shadow)
