@@ -25,7 +25,7 @@ import (
 	"unicode"
 )
 
-var pythonMultiline = regexp.MustCompile("^(\\s+)([^\n]*)")
+var pythonMultiline = regexp.MustCompile("^(\\s)([^\n]*)")
 
 type parserOptions struct {
 	IgnoreContinuation          bool
@@ -285,6 +285,7 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 	parserBufferPeekResult, _ := p.buf.Peek(bufferSize)
 	peekBuffer := bytes.NewBuffer(parserBufferPeekResult)
 
+	indentSize := 0
 	for {
 		peekData, peekErr := peekBuffer.ReadBytes('\n')
 		if peekErr != nil {
@@ -301,9 +302,16 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 			return line, nil
 		}
 
-		currentIdentSize := len(peekMatches[1])
-		if currentIdentSize <= 0 {
-			fmt.Println("currentIdentSize is ", currentIdentSize)
+		// determine indent size and line prefix
+		currentIndentSize := len(peekMatches[1])
+		if indentSize < 1 {
+			indentSize = currentIndentSize
+			fmt.Println("identSize is ", indentSize)
+		}
+
+		// make sure each line is indented at least as far as first line
+		if currentIndentSize < indentSize {
+			fmt.Println("currentIdentSize is ", currentIndentSize)
 			return line, nil
 		}
 
@@ -315,12 +323,13 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 		}
 
 		// handle indented empty line
+		prefix := peekMatches[1][indentSize:]
 		if len(peekMatches) < 3 {
 			fmt.Println("got empty line!")
-			line += "\n"
+			line += "\n" + prefix
 		} else {
 			fmt.Println("got line: ", peekMatches[2])
-			line += fmt.Sprintf("\n%s", peekMatches[2])
+			line += "\n" + prefix + peekMatches[2]
 		}
 	}
 }
