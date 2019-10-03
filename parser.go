@@ -25,7 +25,7 @@ import (
 	"unicode"
 )
 
-var pythonMultiline = regexp.MustCompile("^(\\s+)([^\n]+)")
+var pythonMultiline = regexp.MustCompile("^(\\s+)([^\n]*)")
 
 type parserOptions struct {
 	IgnoreContinuation          bool
