@@ -297,24 +297,29 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 		peekMatches := pythonMultiline.FindStringSubmatch(string(peekData))
 		// NOTE: Return if not a python-ini multi-line value.
 		if len(peekMatches) < 2 {
+			fmt.Println("peekMatches is only ", len(peekMatches))
 			return line, nil
 		}
 
 		currentIdentSize := len(peekMatches[1])
 		if currentIdentSize <= 0 {
+			fmt.Println("currentIdentSize is ", currentIdentSize)
 			return line, nil
 		}
 
 		// NOTE: Just advance the parser reader (buffer) in-sync with the peek buffer.
 		_, err := p.readUntil('\n')
 		if err != nil {
+			fmt.Println("readUntil() returned error: ", err)
 			return "", err
 		}
 
 		// handle indented empty line
 		if len(peekMatches) < 3 {
+			fmt.Println("got empty line!")
 			line += "\n"
 		} else {
+			fmt.Println("got line: ", peekMatches[2])
 			line += fmt.Sprintf("\n%s", peekMatches[2])
 		}
 	}
