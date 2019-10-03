@@ -29,7 +29,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	depthValues = 99
-	version     = "1.48.0"
+	version     = "1.48.0-1"
 )
 
 // Version returns current package version literal.
@@ -111,6 +111,10 @@ type LoadOptions struct {
 	KeyValueDelimiters string
 	// PreserveSurroundedQuote indicates whether to preserve surrounded quote (single and double quotes).
 	PreserveSurroundedQuote bool
+	// turn on debug output (currently only useful to debug parsing Python-style multiline values)
+	Debug bool
+	// increase reader buffer size
+	ReaderBufferSize int
 }
 
 // LoadSources allows caller to apply customized options for loading from data source(s).
