@@ -25,11 +25,7 @@ import (
 	"unicode"
 )
 
-<<<<<<< HEAD
 var pythonMultiline = regexp.MustCompile(`^([\t\f ]+)(.*)`)
-=======
-var pythonMultiline = regexp.MustCompile("^(\\s)([^\n]+)")
->>>>>>> 933ff1d53ca6980c4a07b5b8cdad0f4887a01a6a
 
 type parserOptions struct {
 	IgnoreContinuation          bool
