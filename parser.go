@@ -295,11 +295,11 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 		}
 
 		peekMatches := pythonMultiline.FindStringSubmatch(string(peekData))
-		if len(peekMatches) != 3 {
+		// NOTE: Return if not a python-ini multi-line value.
+		if len(peekMatches) < 2 {
 			return line, nil
 		}
 
-		// NOTE: Return if not a python-ini multi-line value.
 		currentIdentSize := len(peekMatches[1])
 		if currentIdentSize <= 0 {
 			return line, nil
@@ -311,7 +311,12 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 			return "", err
 		}
 
-		line += fmt.Sprintf("\n%s", peekMatches[2])
+		// handle indented empty line
+		if len(peekMatches) < 3 {
+			line += "\n"
+		} else {
+			line += fmt.Sprintf("\n%s", peekMatches[2])
+		}
 	}
 }
 
