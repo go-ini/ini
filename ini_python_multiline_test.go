@@ -40,8 +40,8 @@ func TestMultiline(t *testing.T) {
 
 		// Default section should map to test data struct
 		var testData testData
-		e = defaultSection.MapTo(&testData)
-		So(e, ShouldBeNil)
+		err = defaultSection.MapTo(&testData)
+		So(err, ShouldBeNil)
 
 		// Parsed values should match expected values
 		So(testData.Value1, ShouldEqual, "some text here\nsome more text here\n\nthere is an empty line above and below\n")
