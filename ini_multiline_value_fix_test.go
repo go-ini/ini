@@ -1,7 +1,7 @@
 package ini_test
 
 import (
-	"github.com/r3db34n/ini"
+	"gopkg.in/ini.v1"
 	. "github.com/smartystreets/goconvey/convey"
 	"path/filepath"
 	"testing"
