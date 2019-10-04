@@ -25,7 +25,7 @@ import (
 	"unicode"
 )
 
-const minReaderBufferSize = 64*1024
+const minReaderBufferSize = 4096
 var pythonMultiline = regexp.MustCompile(`^([\t\f ]+)(.*)`)
 
 type parserOptions struct {
@@ -323,7 +323,7 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 			}
 		}
 
-		// return if not a python-ini multi-line value.
+		// Return if not a Python multiline value.
 		if len(peekMatches) != 3 {
 			if p.options.Debug {
 				fmt.Println("readPythonMultilines: didn't match enough parts, meaning the value has ended")
@@ -332,7 +332,7 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 			return line, nil
 		}
 
-		// determine indent size and line prefix
+		// Determine indent size and line prefix.
 		currentIndentSize := len(peekMatches[1])
 		if indentSize < 1 {
 			indentSize = currentIndentSize
@@ -341,7 +341,7 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 			}
 		}
 
-		// make sure each line is indented at least as far as first line
+		// Make sure each line is indented at least as far as first line.
 		if currentIndentSize < indentSize {
 			if p.options.Debug {
 				fmt.Println("readPythonMultilines: expected indent size is ", indentSize)
@@ -352,7 +352,7 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 			return line, nil
 		}
 
-		// advance the parser reader (buffer) in-sync with the peek buffer.
+		// Advance the parser reader (buffer) in-sync with the peek buffer.
 		_, err := p.buf.Discard(len(peekData))
 		if err != nil {
 			if p.options.Debug {
@@ -361,7 +361,7 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 			return "", err
 		}
 
-		// handle indented empty line
+		// Handle indented empty line.
 		line += "\n" + peekMatches[1][indentSize:] + peekMatches[2]
 	}
 }
@@ -399,9 +399,9 @@ func (f *File) parse(reader io.Reader) (err error) {
 
 	// NOTE: Iterate and increase `currentPeekSize` until
 	// the size of the parser buffer is found.
-	// TODO(unknwon): When Golang 1.10 is the lowest version supported, replace with `parserBufferSize := p.buf.Size()`.
+	// TODO(unknown): When Golang 1.10 is the lowest version supported, replace with `parserBufferSize := p.buf.Size()`.
 	parserBufferSize := 0
-	// NOTE: Peek 40kb at a time.
+	// NOTE: Peek 4kb at a time.
 	currentPeekSize := minReaderBufferSize
 
 	if f.options.AllowPythonMultilineValues {

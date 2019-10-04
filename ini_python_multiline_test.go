@@ -4,7 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gopkg.in/ini.v1"
+	"github.com/r3db34n/ini"
+//	"gopkg.in/ini.v1"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -16,12 +17,8 @@ type testData struct {
 
 func TestMultiline(t *testing.T) {
 	Convey("Parse Python-style multiline values", t, func() {
-		opts := ini.LoadOptions{
-			AllowPythonMultilineValues: true,
-		}
-
 		path := filepath.Join("testdata", "multiline.ini")
-		f, err := ini.LoadSources(opts, path)
+		f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true, ReaderBufferSize: 64*1024}, path)
 		So(err, ShouldBeNil)
 		So(f, ShouldNotBeNil)
 		So(len(f.Sections()), ShouldEqual, 1)
