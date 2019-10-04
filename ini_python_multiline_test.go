@@ -1,10 +1,11 @@
 package ini_test
 
 import (
-	"gopkg.in/ini.v1"
-	. "github.com/smartystreets/goconvey/convey"
 	"path/filepath"
 	"testing"
+
+	"gopkg.in/ini.v1"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 type testData struct {
@@ -13,15 +14,6 @@ type testData struct {
 }
 
 func TestMultiline(t *testing.T) {
-	Value1 := "some text here\n"+
-		"some more text here\n"+
-		"\n"+
-		"there is an empty line above and below\n"
-
-	Value2 := "there is an empty line above\n"+
-		"that is not indented so it should not be part\n"+
-		"of the value"
-
 	Convey("Parse Python-style multiline values", t, func() {
 
 		// enable Python-style multiline values
@@ -31,30 +23,28 @@ func TestMultiline(t *testing.T) {
 
 		// load test data
 		path := filepath.Join("testdata", "multiline.ini")
-		data, e := ini.LoadSources(opts, path)
+		f, err := ini.LoadSources(opts, path)
 
 		// Should have no error
-		So(e, ShouldBeNil)
+		So(err, ShouldBeNil)
 
 		// Should have parsed data
-		So(data, ShouldNotBeNil)
+		So(f, ShouldNotBeNil)
 
 		// Should have only the default section
-		So(len(data.Sections()), ShouldEqual, 1)
+		So(len(f.Sections()), ShouldEqual, 1)
 
 		// Should have default section
-		defaultSection := data.Section("")
-		So(defaultSection, ShouldNotBeNil)
+		defaultSection := f.Section("")
+		So(f.Section(""), ShouldNotBeNil)
 
 		// Default section should map to test data struct
 		var testData testData
 		e = defaultSection.MapTo(&testData)
 		So(e, ShouldBeNil)
 
-		// 'value1' should match expected value
-		So(testData.Value1, ShouldEqual, Value1)
-
-		// 'value2' should match expected value
-		So(testData.Value2, ShouldEqual, Value2)
+		// Parsed values should match expected values
+		So(testData.Value1, ShouldEqual, "some text here\nsome more text here\n\nthere is an empty line above and below\n")
+		So(testData.Value2, ShouldEqual, "there is an empty line above\nthat is not indented so it should not be part\nof the value")
 	})
 }
