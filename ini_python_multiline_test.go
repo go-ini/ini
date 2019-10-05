@@ -4,8 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/r3db34n/ini"
-//	"gopkg.in/ini.v1"
+	"gopkg.in/ini.v1"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
