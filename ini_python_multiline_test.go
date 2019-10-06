@@ -1,7 +1,6 @@
 package ini_test
 
 import (
-	"github.com/r3db34n/ini.tmp"
 	"path/filepath"
 	"testing"
 
