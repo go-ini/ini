@@ -1,6 +1,7 @@
 package ini_test
 
 import (
+	"github.com/r3db34n/ini.tmp"
 	"path/filepath"
 	"testing"
 
@@ -17,7 +18,10 @@ type testData struct {
 func TestMultiline(t *testing.T) {
 	Convey("Parse Python-style multiline values", t, func() {
 		path := filepath.Join("testdata", "multiline.ini")
-		f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true, ReaderBufferSize: 64*1024}, path)
+		f, err := ini.LoadSources(ini.LoadOptions{
+			AllowPythonMultilineValues: true,
+			ReaderBufferSize: 64*1024,
+		}, path)
 		So(err, ShouldBeNil)
 		So(f, ShouldNotBeNil)
 		So(len(f.Sections()), ShouldEqual, 1)

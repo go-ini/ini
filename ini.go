@@ -111,11 +111,14 @@ type LoadOptions struct {
 	KeyValueDelimiters string
 	// PreserveSurroundedQuote indicates whether to preserve surrounded quote (single and double quotes).
 	PreserveSurroundedQuote bool
-	// turn on debug output (currently only useful to debug parsing Python-style multiline values)
-	Debug bool
-	// increase reader buffer size
+	// Debug indicates whether to collect debug information (currently only useful to debug parsing Python-style multiline values).
+	Debug DebugFunc
+	// ReaderBufferSize is the buffer size of the reader in bytes.
 	ReaderBufferSize int
 }
+
+// DebugFunc is the type of function called to log parse events
+type DebugFunc func(args ...interface{})
 
 // LoadSources allows caller to apply customized options for loading from data source(s).
 func LoadSources(opts LoadOptions, source interface{}, others ...interface{}) (_ *File, err error) {

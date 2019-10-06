@@ -36,7 +36,7 @@ type parserOptions struct {
 	UnescapeValueDoubleQuotes   bool
 	UnescapeValueCommentSymbols bool
 	PreserveSurroundedQuote     bool
-	Debug 						bool
+	Debug 						DebugFunc
 	ReaderBufferSize			int
 }
 
@@ -298,36 +298,36 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 		peekData, peekErr := peekBuffer.ReadBytes('\n')
 		if peekErr != nil {
 			if peekErr == io.EOF {
-				if p.options.Debug {
-					fmt.Println("readPythonMultilines: failed to peek")
-					fmt.Println("readPythonMultilines: peekData is: '"+string(peekData)+"'")
-					fmt.Println("readPythonMultilines: value is: '"+line+"'")
+				if p.options.Debug != nil {
+					p.options.Debug("readPythonMultilines: failed to peek")
+					p.options.Debug("readPythonMultilines: peekData is: '"+string(peekData)+"'")
+					p.options.Debug("readPythonMultilines: value is: '"+line+"'")
 				}
 				return line, nil
 			}
-			if p.options.Debug {
-				fmt.Println("readPythonMultilines: failed to peek, returning error")
+			if p.options.Debug != nil {
+				p.options.Debug("readPythonMultilines: failed to peek, returning error")
 			}
 			return "", peekErr
 		}
 
-		if p.options.Debug {
-			fmt.Println("readPythonMultilines: parsing '"+string(peekData)+"'")
+		if p.options.Debug != nil {
+			p.options.Debug("readPythonMultilines: parsing '"+string(peekData)+"'")
 		}
 
 		peekMatches := pythonMultiline.FindStringSubmatch(string(peekData))
-		if p.options.Debug {
-			fmt.Println("readPythonMultilines: matched ", len(peekMatches), " parts:")
+		if p.options.Debug != nil {
+			p.options.Debug("readPythonMultilines: matched ", len(peekMatches), " parts:")
 			for n, v := range peekMatches {
-				fmt.Println("   ", n, ": '", v, "'")
+				p.options.Debug("   ", n, ": '", v, "'")
 			}
 		}
 
 		// Return if not a Python multiline value.
 		if len(peekMatches) != 3 {
-			if p.options.Debug {
-				fmt.Println("readPythonMultilines: didn't match enough parts, meaning the value has ended")
-				fmt.Println("readPythonMultilines: value is: '"+line+"'")
+			if p.options.Debug != nil {
+				p.options.Debug("readPythonMultilines: didn't match enough parts, meaning the value has ended")
+				p.options.Debug("readPythonMultilines: value is: '"+line+"'")
 			}
 			return line, nil
 		}
@@ -336,18 +336,18 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 		currentIndentSize := len(peekMatches[1])
 		if indentSize < 1 {
 			indentSize = currentIndentSize
-			if p.options.Debug {
-				fmt.Println("readPythonMultilines: new indent size is ", indentSize)
+			if p.options.Debug != nil {
+				p.options.Debug("readPythonMultilines: new indent size is ", indentSize)
 			}
 		}
 
 		// Make sure each line is indented at least as far as first line.
 		if currentIndentSize < indentSize {
-			if p.options.Debug {
-				fmt.Println("readPythonMultilines: expected indent size is ", indentSize)
-				fmt.Println("readPythonMultilines: current indent size is ", currentIndentSize)
-				fmt.Println("readPythonMultilines: current line is not indented enough to be part of this value")
-				fmt.Println("readPythonMultilines: value is: '"+line+"'")
+			if p.options.Debug != nil {
+				p.options.Debug("readPythonMultilines: expected indent size is ", indentSize)
+				p.options.Debug("readPythonMultilines: current indent size is ", currentIndentSize)
+				p.options.Debug("readPythonMultilines: current line is not indented enough to be part of this value")
+				p.options.Debug("readPythonMultilines: value is: '"+line+"'")
 			}
 			return line, nil
 		}
@@ -355,8 +355,8 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 		// Advance the parser reader (buffer) in-sync with the peek buffer.
 		_, err := p.buf.Discard(len(peekData))
 		if err != nil {
-			if p.options.Debug {
-				fmt.Println("readPythonMultilines: failed to skip to the end, returning error")
+			if p.options.Debug != nil {
+				p.options.Debug("readPythonMultilines: failed to skip to the end, returning error")
 			}
 			return "", err
 		}
@@ -399,7 +399,7 @@ func (f *File) parse(reader io.Reader) (err error) {
 
 	// NOTE: Iterate and increase `currentPeekSize` until
 	// the size of the parser buffer is found.
-	// TODO(unknown): When Golang 1.10 is the lowest version supported, replace with `parserBufferSize := p.buf.Size()`.
+	// TODO(unknwon): When Golang 1.10 is the lowest version supported, replace with `parserBufferSize := p.buf.Size()`.
 	parserBufferSize := 0
 	// NOTE: Peek 4kb at a time.
 	currentPeekSize := minReaderBufferSize
