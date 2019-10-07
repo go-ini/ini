@@ -20,6 +20,11 @@ func TestMultiline(t *testing.T) {
 		f, err := ini.LoadSources(ini.LoadOptions{
 			AllowPythonMultilineValues: true,
 			ReaderBufferSize: 64*1024,
+			/*
+			Debug: func(m string) {
+				fmt.Println(m)
+			},
+			 */
 		}, path)
 		So(err, ShouldBeNil)
 		So(f, ShouldNotBeNil)

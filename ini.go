@@ -117,8 +117,8 @@ type LoadOptions struct {
 	ReaderBufferSize int
 }
 
-// DebugFunc is the type of function called to log parse events
-type DebugFunc func(args ...interface{})
+// DebugFunc is the type of function called to log parse events.
+type DebugFunc func(message string)
 
 // LoadSources allows caller to apply customized options for loading from data source(s).
 func LoadSources(opts LoadOptions, source interface{}, others ...interface{}) (_ *File, err error) {
