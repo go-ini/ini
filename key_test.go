@@ -551,7 +551,19 @@ NAME = %(NAME)s
 expires = %(expires)s`))
 		So(err, ShouldBeNil)
 		So(f, ShouldNotBeNil)
+
 		So(f.Section("package").Key("NAME").String(), ShouldEqual, "ini")
 		So(f.Section("package").Key("expires").String(), ShouldEqual, "yes")
+	})
+
+	Convey("Recursive value with no target found", t, func() {
+		f, err := ini.Load([]byte(`
+[foo]
+bar = %(missing)s
+`))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+
+		So(f.Section("foo").Key("bar").String(), ShouldEqual, "%(missing)s")
 	})
 }
