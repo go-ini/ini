@@ -36,7 +36,7 @@ type parserOptions struct {
 	UnescapeValueDoubleQuotes   bool
 	UnescapeValueCommentSymbols bool
 	PreserveSurroundedQuote     bool
-	Debug 						DebugFunc
+	DebugFunc 					DebugFunc
 	ReaderBufferSize			int
 }
 
@@ -49,9 +49,9 @@ type parser struct {
 	comment *bytes.Buffer
 }
 
-func (p *parser) debug(args ...interface{}) {
-	if p.options.Debug != nil {
-		p.options.Debug(fmt.Sprint(args...))
+func (p *parser) debug(format string, args ...interface{}) {
+	if p.options.DebugFunc != nil {
+		p.options.DebugFunc(fmt.Sprintf(format, args...))
 	}
 }
 
@@ -304,27 +304,25 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 		peekData, peekErr := peekBuffer.ReadBytes('\n')
 		if peekErr != nil {
 			if peekErr == io.EOF {
-				p.debug("readPythonMultilines: failed to peek")
-				p.debug("readPythonMultilines: peekData is: '"+string(peekData)+"'")
-				p.debug("readPythonMultilines: value is: '"+line+"'")
+				p.debug("readPythonMultilines: io.EOF, peekData: %q, line: %q", string(peekData), line)
 				return line, nil
 			}
+
 			p.debug("readPythonMultilines: failed to peek, returning error")
 			return "", peekErr
 		}
 
-		p.debug("readPythonMultilines: parsing '"+string(peekData)+"'")
+		p.debug("readPythonMultilines: parsing %q", string(peekData))
 
 		peekMatches := pythonMultiline.FindStringSubmatch(string(peekData))
-		p.debug("readPythonMultilines: matched ", len(peekMatches), " parts:")
+		p.debug("readPythonMultilines: matched %d parts", len(peekMatches))
 		for n, v := range peekMatches {
 			p.debug("   ", n, ": '", v, "'")
 		}
 
 		// Return if not a Python multiline value.
 		if len(peekMatches) != 3 {
-			p.debug("readPythonMultilines: didn't match enough parts, meaning the value has ended")
-			p.debug("readPythonMultilines: value is: '"+line+"'")
+			p.debug("readPythonMultilines: end of value, got: %q", line)
 			return line, nil
 		}
 
@@ -332,15 +330,12 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 		currentIndentSize := len(peekMatches[1])
 		if indentSize < 1 {
 			indentSize = currentIndentSize
-			p.debug("readPythonMultilines: new indent size is ", indentSize)
+			p.debug("readPythonMultilines: indent size is %d", indentSize)
 		}
 
 		// Make sure each line is indented at least as far as first line.
 		if currentIndentSize < indentSize {
-			p.debug("readPythonMultilines: expected indent size is ", indentSize)
-			p.debug("readPythonMultilines: current indent size is ", currentIndentSize)
-			p.debug("readPythonMultilines: current line is not indented enough to be part of this value")
-			p.debug("readPythonMultilines: value is: '"+line+"'")
+			p.debug("readPythonMultilines: end of value, current indent: %d, expected indent: %d, line: %q", currentIndentSize, indentSize, line)
 			return line, nil
 		}
 
@@ -366,7 +361,7 @@ func (f *File) parse(reader io.Reader) (err error) {
 		UnescapeValueDoubleQuotes:   f.options.UnescapeValueDoubleQuotes,
 		UnescapeValueCommentSymbols: f.options.UnescapeValueCommentSymbols,
 		PreserveSurroundedQuote:     f.options.PreserveSurroundedQuote,
-		Debug:     					 f.options.Debug,
+		DebugFunc:     				 f.options.DebugFunc,
 		ReaderBufferSize:			 f.options.ReaderBufferSize,
 	})
 	if err = p.BOM(); err != nil {

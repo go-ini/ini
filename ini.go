@@ -111,8 +111,8 @@ type LoadOptions struct {
 	KeyValueDelimiters string
 	// PreserveSurroundedQuote indicates whether to preserve surrounded quote (single and double quotes).
 	PreserveSurroundedQuote bool
-	// Debug indicates whether to collect debug information (currently only useful to debug parsing Python-style multiline values).
-	Debug DebugFunc
+	// DebugFunc is called to collect debug information (currently only useful to debug parsing Python-style multiline values).
+	DebugFunc DebugFunc
 	// ReaderBufferSize is the buffer size of the reader in bytes.
 	ReaderBufferSize int
 }
