@@ -317,7 +317,7 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 		peekMatches := pythonMultiline.FindStringSubmatch(string(peekData))
 		p.debug("readPythonMultilines: matched %d parts", len(peekMatches))
 		for n, v := range peekMatches {
-			p.debug("   ", n, ": '", v, "'")
+			p.debug("   %d: %q", n, v)
 		}
 
 		// Return if not a Python multiline value.
