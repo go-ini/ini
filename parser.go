@@ -308,7 +308,7 @@ func (p *parser) readPythonMultilines(line string, bufferSize int) (string, erro
 				return line, nil
 			}
 
-			p.debug("readPythonMultilines: failed to peek, returning error")
+			p.debug("readPythonMultilines: failed to peek with error: %v", peekErr)
 			return "", peekErr
 		}
 
