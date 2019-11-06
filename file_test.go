@@ -19,8 +19,9 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/go-ini/ini"
+
 	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/ini.v1"
 )
 
 func TestEmpty(t *testing.T) {
