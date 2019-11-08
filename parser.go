@@ -26,6 +26,7 @@ import (
 )
 
 const minReaderBufferSize = 4096
+
 var pythonMultiline = regexp.MustCompile(`^([\t\f ]+)(.*)`)
 
 type parserOptions struct {
@@ -36,8 +37,8 @@ type parserOptions struct {
 	UnescapeValueDoubleQuotes   bool
 	UnescapeValueCommentSymbols bool
 	PreserveSurroundedQuote     bool
-	DebugFunc 					DebugFunc
-	ReaderBufferSize			int
+	DebugFunc                   DebugFunc
+	ReaderBufferSize            int
 }
 
 type parser struct {
@@ -361,8 +362,8 @@ func (f *File) parse(reader io.Reader) (err error) {
 		UnescapeValueDoubleQuotes:   f.options.UnescapeValueDoubleQuotes,
 		UnescapeValueCommentSymbols: f.options.UnescapeValueCommentSymbols,
 		PreserveSurroundedQuote:     f.options.PreserveSurroundedQuote,
-		DebugFunc:     				 f.options.DebugFunc,
-		ReaderBufferSize:			 f.options.ReaderBufferSize,
+		DebugFunc:                   f.options.DebugFunc,
+		ReaderBufferSize:            f.options.ReaderBufferSize,
 	})
 	if err = p.BOM(); err != nil {
 		return fmt.Errorf("BOM: %v", err)
