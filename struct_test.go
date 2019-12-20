@@ -49,6 +49,7 @@ type testStruct struct {
 	Money          float64
 	Born           time.Time
 	Time           time.Duration `ini:"Duration"`
+	OldVersionTime time.Duration
 	Others         testNested
 	OthersPtr      *testNested
 	NilPtr         *testNested
@@ -81,6 +82,7 @@ Male = true
 Money = 1.25
 Born = 1993-10-07T20:17:05Z
 Duration = 2h45m
+OldVersionTime = 30
 Unsigned = 3
 omitthis = true
 Shadows = 1, 2
@@ -183,6 +185,8 @@ func Test_MapToStruct(t *testing.T) {
 			dur, err := time.ParseDuration("2h45m")
 			So(err, ShouldBeNil)
 			So(ts.Time.Seconds(), ShouldEqual, dur.Seconds())
+			
+			So(ts.OldVersionTime * time.Second, ShouldEqual, 30 * time.Second)
 
 			So(strings.Join(ts.Others.Cities, ","), ShouldEqual, "HangZhou,Boston")
 			So(ts.Others.Visits[0].String(), ShouldEqual, t.String())
