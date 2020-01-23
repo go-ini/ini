@@ -142,6 +142,12 @@ func LoadSources(opts LoadOptions, source interface{}, others ...interface{}) (_
 	return f, nil
 }
 
+func LoadCustomEmpty(opts LoadOptions) *File {
+	// Ignore error here, we sure our data is good.
+	f, _ := LoadSources(opts, []byte(""))
+	return f
+}
+
 // Load loads and parses from INI data sources.
 // Arguments can be mixed of file name with string type, or raw data in []byte.
 // It will return error if list contains nonexistent files.

@@ -142,21 +142,20 @@ Here = there
 When = then
 `
 
-const _CONF_NON_UNIQUE_SECTION_DATA_STRUCT = `
-[Interface]
-Address = 10.2.0.1/24
+const _CONF_NON_UNIQUE_SECTION_DATA_STRUCT = `[Interface]
+Address    = 10.2.0.1/24
 ListenPort = 34777
 PrivateKey = privServerKey
 
 [Peer]
-PublicKey = pubClientKey
+PublicKey    = pubClientKey
 PresharedKey = psKey
-AllowedIPs = 10.2.0.2/32,fd00:2::2/128
+AllowedIPs   = 10.2.0.2/32,fd00:2::2/128
 
 [Peer]
-PublicKey = pubClientKey2
+PublicKey    = pubClientKey2
 PresharedKey = psKey2
-AllowedIPs = 10.2.0.3/32,fd00:2::3/128
+AllowedIPs   = 10.2.0.3/32,fd00:2::3/128
 
 `
 
@@ -220,8 +219,8 @@ func Test_MapToStruct(t *testing.T) {
 			dur, err := time.ParseDuration("2h45m")
 			So(err, ShouldBeNil)
 			So(ts.Time.Seconds(), ShouldEqual, dur.Seconds())
-			
-			So(ts.OldVersionTime * time.Second, ShouldEqual, 30 * time.Second)
+
+			So(ts.OldVersionTime*time.Second, ShouldEqual, 30*time.Second)
 
 			So(strings.Join(ts.Others.Cities, ","), ShouldEqual, "HangZhou,Boston")
 			So(ts.Others.Visits[0].String(), ShouldEqual, t.String())
@@ -512,6 +511,41 @@ omitempty  = 9
 
 `)
 		})
+	})
+}
+
+func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
+	Convey("Reflect from struct with non unique sections", t, func() {
+		nonUnique := &testNonUniqueSectionsStruct{
+			Interface: testInterface{
+				Address:    "10.2.0.1/24",
+				ListenPort: 34777,
+				PrivateKey: "privServerKey",
+			},
+			Peer: []testPeer{
+				{
+					PublicKey:    "pubClientKey",
+					PresharedKey: "psKey",
+					AllowedIPs:   []string{"10.2.0.2/32,fd00:2::2/128"},
+				},
+				{
+					PublicKey:    "pubClientKey2",
+					PresharedKey: "psKey2",
+					AllowedIPs:   []string{"10.2.0.3/32,fd00:2::3/128"},
+				},
+			},
+		}
+
+		cfg := ini.LoadCustomEmpty(ini.LoadOptions{
+			AllowNonUniqueSections: true,
+		})
+
+		So(ini.ReflectFrom(cfg, nonUnique), ShouldBeNil)
+
+		var buf bytes.Buffer
+		_, err := cfg.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		So(buf.String(), ShouldEqual, _CONF_NON_UNIQUE_SECTION_DATA_STRUCT)
 	})
 }
 

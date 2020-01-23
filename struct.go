@@ -580,7 +580,7 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 			continue
 		}
 
-		rawName, omitEmpty, allowShadow, _ := parseTagOptions(tag)
+		rawName, omitEmpty, allowShadow, allowNonUnique := parseTagOptions(tag)
 		if omitEmpty && isEmptyValue(field) {
 			continue
 		}
@@ -610,7 +610,36 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 			continue
 		}
 
-		// Note: Same reason as secion.
+		if allowNonUnique && tpField.Type.Kind() == reflect.Slice {
+			slice := field.Slice(0, field.Len())
+			if field.Len() == 0 {
+				return nil
+			}
+			sliceOf := field.Type().Elem().Kind()
+
+			for i := 0; i < field.Len(); i++ {
+				if sliceOf != reflect.Struct && sliceOf != reflect.Ptr {
+					return fmt.Errorf("error reflecting field (%s): The field is marked as "+
+						"nonUniqueSection but it is no slice of pointer or struct", fieldName)
+				}
+
+				// add a new section (the function handles nonUnique sections
+				// Note: fieldName can never be empty here, ignore error.
+				sec, _ := s.f.NewSection(fieldName)
+
+				// Add comment from comment tag
+				if len(sec.Comment) == 0 {
+					sec.Comment = tpField.Tag.Get("comment")
+				}
+
+				if err := sec.reflectFrom(slice.Index(i)); err != nil {
+					return fmt.Errorf("error reflecting field (%s): %v", fieldName, err)
+				}
+			}
+			continue
+		}
+
+		// Note: Same reason as section.
 		key, err := s.GetKey(fieldName)
 		if err != nil {
 			key, _ = s.NewKey(fieldName, "")
@@ -629,7 +658,7 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 	return nil
 }
 
-// ReflectFrom reflects secion from given struct.
+// ReflectFrom reflects section from given struct.
 func (s *Section) ReflectFrom(v interface{}) error {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
