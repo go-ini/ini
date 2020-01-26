@@ -381,12 +381,7 @@ func (s *Section) mapSectionTo(v interface{}, isStrict bool) error {
 
 	if typ.Kind() == reflect.Slice {
 		if newField, err := s.mapAllTo(s.name, val, isStrict); err == nil {
-			fmt.Println(newField)
-			fmt.Println(newField.Len())
 			val.Set(newField)
-
-			fmt.Println(newField.Len())
-			fmt.Println(val.Len())
 			return nil
 		} else {
 			return wrapStrictError(err, isStrict)
@@ -658,17 +653,52 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 	return nil
 }
 
-// ReflectFrom reflects section from given struct.
+// ReflectFrom reflects section from given struct. It overwrites existing ones.
 func (s *Section) ReflectFrom(v interface{}) error {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
-	if typ.Kind() == reflect.Ptr {
+
+	if s.name != "DEFAULT" && s.f.options.AllowNonUniqueSections && (typ.Kind() == reflect.Slice || typ.Kind() == reflect.Ptr) {
+		// clear sections to make sure none exists before adding the new ones
+		s.f.DeleteSection(s.name)
+
+		if typ.Kind() == reflect.Slice {
+			// call reflect from for each element
+			slice := val.Slice(0, val.Len())
+			sliceOf := val.Type().Elem().Kind()
+
+			if sliceOf != reflect.Ptr {
+				return fmt.Errorf("error section.reflectFrom: if val is a slice it has to be a slice of pointers")
+			}
+
+			// sec.reflectFrom will add new sections of the same name automatically
+			for i := 0; i < slice.Len(); i++ {
+				// create a new section (or add to an existing one with the same name)
+				// section name cannot be empty -> ignore error
+				sec, _ := s.f.NewSection(s.name)
+
+				err := sec.reflectFrom(slice.Index(i))
+				if err != nil {
+					return fmt.Errorf("error section.reflectFrom: %v", err)
+				}
+			}
+		} else {
+			typ = typ.Elem()
+			val = val.Elem()
+
+			sec, _ := s.f.NewSection(s.name)
+			return sec.reflectFrom(val)
+		}
+
+		return nil
+	} else if typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
 		val = val.Elem()
 	} else {
-		return errors.New("cannot reflect from non-pointer struct")
+		return errors.New("cannot reflect from non-pointer struct or slice of pointers if AlloWNonUniqueSections is enabled")
 	}
 
+	// if non Unique sections are disabled we can just reuse the old one
 	return s.reflectFrom(val)
 }
 

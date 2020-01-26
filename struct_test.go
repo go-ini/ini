@@ -546,6 +546,66 @@ func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
 		_, err := cfg.WriteTo(&buf)
 		So(err, ShouldBeNil)
 		So(buf.String(), ShouldEqual, _CONF_NON_UNIQUE_SECTION_DATA_STRUCT)
+
+		// note: using ReflectFrom from should overwrite the existing sections
+		err = cfg.Section("Peer").ReflectFrom([]*testPeer{
+			{
+				PublicKey:    "pubClientKey3",
+				PresharedKey: "psKey3",
+				AllowedIPs:   []string{"10.2.0.4/32,fd00:2::4/128"},
+			},
+			{
+				PublicKey:    "pubClientKey4",
+				PresharedKey: "psKey4",
+				AllowedIPs:   []string{"10.2.0.5/32,fd00:2::5/128"},
+			},
+		})
+
+		So(err, ShouldBeNil)
+
+		buf = bytes.Buffer{}
+		_, err = cfg.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		So(buf.String(), ShouldEqual, `[Interface]
+Address    = 10.2.0.1/24
+ListenPort = 34777
+PrivateKey = privServerKey
+
+[Peer]
+PublicKey    = pubClientKey3
+PresharedKey = psKey3
+AllowedIPs   = 10.2.0.4/32,fd00:2::4/128
+
+[Peer]
+PublicKey    = pubClientKey4
+PresharedKey = psKey4
+AllowedIPs   = 10.2.0.5/32,fd00:2::5/128
+
+`)
+
+		// note: using ReflectFrom from should overwrite the existing sections
+		err = cfg.Section("Peer").ReflectFrom(&testPeer{
+			PublicKey:    "pubClientKey5",
+			PresharedKey: "psKey5",
+			AllowedIPs:   []string{"10.2.0.6/32,fd00:2::6/128"},
+		})
+
+		So(err, ShouldBeNil)
+
+		buf = bytes.Buffer{}
+		_, err = cfg.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		So(buf.String(), ShouldEqual, `[Interface]
+Address    = 10.2.0.1/24
+ListenPort = 34777
+PrivateKey = privServerKey
+
+[Peer]
+PublicKey    = pubClientKey5
+PresharedKey = psKey5
+AllowedIPs   = 10.2.0.6/32,fd00:2::6/128
+
+`)
 	})
 }
 
