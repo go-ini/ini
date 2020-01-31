@@ -75,7 +75,7 @@ type testStruct struct {
 	DurationPtrNil *time.Duration
 }
 
-const _CONF_DATA_STRUCT = `
+const confDataStruct = `
 NAME = Unknwon
 Age = 21
 Male = true
@@ -157,7 +157,7 @@ type fooBar struct {
 	Here, When string
 }
 
-const _INVALID_DATA_CONF_STRUCT = `
+const invalidDataConfStruct = `
 Name = 
 Age = age
 Male = 123
@@ -170,7 +170,7 @@ func Test_MapToStruct(t *testing.T) {
 	Convey("Map to struct", t, func() {
 		Convey("Map file to struct", func() {
 			ts := new(testStruct)
-			So(ini.MapTo(ts, []byte(_CONF_DATA_STRUCT)), ShouldBeNil)
+			So(ini.MapTo(ts, []byte(confDataStruct)), ShouldBeNil)
 
 			So(ts.Name, ShouldEqual, "Unknwon")
 			So(ts.Age, ShouldEqual, 21)
@@ -230,7 +230,7 @@ func Test_MapToStruct(t *testing.T) {
 
 		Convey("Map section to struct", func() {
 			foobar := new(fooBar)
-			f, err := ini.Load([]byte(_CONF_DATA_STRUCT))
+			f, err := ini.Load([]byte(confDataStruct))
 			So(err, ShouldBeNil)
 
 			So(f.Section("foo.bar").MapTo(foobar), ShouldBeNil)
@@ -239,7 +239,7 @@ func Test_MapToStruct(t *testing.T) {
 		})
 
 		Convey("Map to non-pointer struct", func() {
-			f, err := ini.Load([]byte(_CONF_DATA_STRUCT))
+			f, err := ini.Load([]byte(confDataStruct))
 			So(err, ShouldBeNil)
 			So(f, ShouldNotBeNil)
 
@@ -247,7 +247,7 @@ func Test_MapToStruct(t *testing.T) {
 		})
 
 		Convey("Map to unsupported type", func() {
-			f, err := ini.Load([]byte(_CONF_DATA_STRUCT))
+			f, err := ini.Load([]byte(confDataStruct))
 			So(err, ShouldBeNil)
 			So(f, ShouldNotBeNil)
 
@@ -264,13 +264,13 @@ func Test_MapToStruct(t *testing.T) {
 
 		Convey("Map to omitempty field", func() {
 			ts := new(testStruct)
-			So(ini.MapTo(ts, []byte(_CONF_DATA_STRUCT)), ShouldBeNil)
+			So(ini.MapTo(ts, []byte(confDataStruct)), ShouldBeNil)
 
 			So(ts.Omitted, ShouldEqual, true)
 		})
 
 		Convey("Map with shadows", func() {
-			f, err := ini.LoadSources(ini.LoadOptions{AllowShadows: true}, []byte(_CONF_DATA_STRUCT))
+			f, err := ini.LoadSources(ini.LoadOptions{AllowShadows: true}, []byte(confDataStruct))
 			So(err, ShouldBeNil)
 			ts := new(testStruct)
 			So(f.MapTo(ts), ShouldBeNil)
@@ -284,7 +284,7 @@ func Test_MapToStruct(t *testing.T) {
 		})
 
 		Convey("Map to wrong types and gain default values", func() {
-			f, err := ini.Load([]byte(_INVALID_DATA_CONF_STRUCT))
+			f, err := ini.Load([]byte(invalidDataConfStruct))
 			So(err, ShouldBeNil)
 
 			t, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
@@ -473,7 +473,7 @@ func Test_NameGetter(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(cfg, ShouldNotBeNil)
 
-		cfg.NameMapper = ini.AllCapsUnderscore
+		cfg.NameMapper = ini.SnackCase
 		tg := new(testMapper)
 		So(cfg.MapTo(tg), ShouldBeNil)
 		So(tg.PackageName, ShouldEqual, "ini")
@@ -492,5 +492,58 @@ func Test_Duration(t *testing.T) {
 		dur, err := time.ParseDuration("16m49s")
 		So(err, ShouldBeNil)
 		So(ds.Duration.Seconds(), ShouldEqual, dur.Seconds())
+	})
+}
+
+type Employer struct {
+	Name  string
+	Title string
+}
+
+type Employers []*Employer
+
+func (es Employers) ReflectINIStruct(f *ini.File) error {
+	for _, e := range es {
+		f.Section(e.Name).Key("Title").SetValue(e.Title)
+	}
+	return nil
+}
+
+// Inspired by https://github.com/go-ini/ini/issues/199
+func Test_StructReflector(t *testing.T) {
+	Convey("Reflect with StructReflector interface", t, func() {
+		p := &struct {
+			FirstName string
+			Employer  Employers
+		}{
+			FirstName: "Andrew",
+			Employer: []*Employer{
+				{
+					Name:  `Employer "VMware"`,
+					Title: "Staff II Engineer",
+				},
+				{
+					Name:  `Employer "EMC"`,
+					Title: "Consultant Engineer",
+				},
+			},
+		}
+
+		f := ini.Empty()
+		So(f.ReflectFrom(p), ShouldBeNil)
+
+		var buf bytes.Buffer
+		_, err := f.WriteTo(&buf)
+		So(err, ShouldBeNil)
+
+		So(buf.String(), ShouldEqual, `FirstName = Andrew
+
+[Employer "VMware"]
+Title = Staff II Engineer
+
+[Employer "EMC"]
+Title = Consultant Engineer
+
+`)
 	})
 }
