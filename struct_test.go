@@ -450,14 +450,15 @@ func Test_Duration(t *testing.T) {
 }
 
 type Employer struct {
+	Name  string
 	Title string
 }
 
-type Employers map[string]*Employer
+type Employers []*Employer
 
 func (es Employers) ReflectINIStruct(f *ini.File) error {
-	for e, t := range es {
-		f.Section(e).Key("Title").SetValue(t.Title)
+	for _, e := range es {
+		f.Section(e.Name).Key("Title").SetValue(e.Title)
 	}
 	return nil
 }
@@ -470,9 +471,15 @@ func Test_StructReflector(t *testing.T) {
 			Employer  Employers
 		}{
 			FirstName: "Andrew",
-			Employer: map[string]*Employer{
-				`Employer "VMware"`: {Title: "Staff II Engineer"},
-				`Employer "EMC"`:    {Title: "Consultant Engineer"},
+			Employer: []*Employer{
+				{
+					Name:  `Employer "VMware"`,
+					Title: "Staff II Engineer",
+				},
+				{
+					Name:  `Employer "EMC"`,
+					Title: "Consultant Engineer",
+				},
 			},
 		}
 
