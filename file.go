@@ -49,7 +49,7 @@ func newFile(dataSources []dataSource, opts LoadOptions) *File {
 		opts.KeyValueDelimiters = "=:"
 	}
 	if len(opts.KeyValueDelimiterOnWrite) == 0 {
-		opts.KeyValueDelimiterOnWrite = ""
+		opts.KeyValueDelimiterOnWrite = "="
 	}
 	return &File{
 		BlockMode:   true,
