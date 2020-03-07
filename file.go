@@ -52,14 +52,19 @@ func newFile(dataSources []dataSource, opts LoadOptions) *File {
 	if len(opts.KeyValueDelimiters) == 0 {
 		opts.KeyValueDelimiters = "=:"
 	}
-	return &File{
-		BlockMode:      true,
-		dataSources:    dataSources,
-		sections:       make(map[string][]*Section),
-		sectionList:    make([]string, 0, 10),
-		sectionIndexes: make([]int, 0, 10),
-		options:        opts,
+	f := File{
+		BlockMode:   true,
+		dataSources: dataSources,
+		sections:    make(map[string][]*Section),
+		sectionList: make([]string, 0, 10),
+		options:     opts,
 	}
+
+	if opts.AllowNonUniqueSections {
+		f.sectionIndexes = make([]int, 0, 10)
+	}
+
+	return &f
 }
 
 // Empty returns an empty file object.
@@ -189,7 +194,13 @@ func (f *File) Sections() []*Section {
 
 	sections := make([]*Section, len(f.sectionList))
 	for i, name := range f.sectionList {
-		sections[i] = f.sections[name][f.sectionIndexes[i]]
+		index := 0
+
+		if f.options.AllowNonUniqueSections {
+			index = f.sectionIndexes[i]
+		}
+
+		sections[i] = f.sections[name][index]
 	}
 	return sections
 }
@@ -215,12 +226,21 @@ func (f *File) DeleteSection(name string) {
 	}
 
 	for i := 0; i < len(secs); i++ {
-		f.DeleteSectionWithIndex(name, 0)
+		// for non unique sections, always the first one is removed,
+		// so in the next iteration the following section has again index 0
+		// --> just deleting index 0 is enough
+
+		// ignore error as index 0 returns never an error
+		_ = f.DeleteSectionWithIndex(name, 0)
 	}
 }
 
 // DeleteSection deletes a section.
-func (f *File) DeleteSectionWithIndex(name string, index int) {
+func (f *File) DeleteSectionWithIndex(name string, index int) error {
+	if !f.options.AllowNonUniqueSections && index != 0 {
+		return fmt.Errorf("error removing section '%s' at index %d. Index greater 0 is only allowed with non unique sections enabled", name, index)
+	}
+
 	if f.BlockMode {
 		f.lock.Lock()
 		defer f.lock.Unlock()
@@ -246,8 +266,11 @@ func (f *File) DeleteSectionWithIndex(name string, index int) {
 				}
 				// fix section lists
 				f.sectionList = append(f.sectionList[:i], f.sectionList[i+1:]...)
-				f.sectionIndexes = append(f.sectionIndexes[:i], f.sectionIndexes[i+1:]...)
-			} else if sectionCounter > index {
+				if f.options.AllowNonUniqueSections {
+					f.sectionIndexes = append(f.sectionIndexes[:i], f.sectionIndexes[i+1:]...)
+				}
+
+			} else if sectionCounter > index && f.options.AllowNonUniqueSections {
 				// fix numbers of all following sections with this name
 				f.sectionIndexes[i-1]--
 			}
@@ -255,6 +278,8 @@ func (f *File) DeleteSectionWithIndex(name string, index int) {
 			sectionCounter++
 		}
 	}
+
+	return nil
 }
 
 func (f *File) reload(s dataSource) error {
@@ -310,7 +335,12 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 	// Use buffer to make sure target is safe until finish encoding.
 	buf := bytes.NewBuffer(nil)
 	for i, sname := range f.sectionList {
-		sec := f.GetSectionWithIndex(sname, f.sectionIndexes[i])
+		index := 0
+		if f.options.AllowNonUniqueSections {
+			index = f.sectionIndexes[i]
+		}
+
+		sec := f.GetSectionWithIndex(sname, index)
 		if len(sec.Comment) > 0 {
 			// Support multiline comments
 			lines := strings.Split(sec.Comment, LineBreak)
