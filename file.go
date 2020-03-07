@@ -52,6 +52,10 @@ func newFile(dataSources []dataSource, opts LoadOptions) *File {
 	if len(opts.KeyValueDelimiters) == 0 {
 		opts.KeyValueDelimiters = "=:"
 	}
+	if len(opts.KeyValueDelimiterOnWrite) == 0 {
+		opts.KeyValueDelimiterOnWrite = "="
+	}
+
 	f := File{
 		BlockMode:   true,
 		dataSources: dataSources,
@@ -326,10 +330,10 @@ func (f *File) Append(source interface{}, others ...interface{}) error {
 }
 
 func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
-	equalSign := DefaultFormatLeft + "=" + DefaultFormatRight
+	equalSign := DefaultFormatLeft + f.options.KeyValueDelimiterOnWrite + DefaultFormatRight
 
 	if PrettyFormat || PrettyEqual {
-		equalSign = " = "
+		equalSign = fmt.Sprintf(" %s ", f.options.KeyValueDelimiterOnWrite)
 	}
 
 	// Use buffer to make sure target is safe until finish encoding.

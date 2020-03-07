@@ -420,6 +420,43 @@ func TestFile_SaveTo(t *testing.T) {
 	})
 }
 
+func TestFile_WriteToWithOutputDelimiter(t *testing.T) {
+	Convey("Write content to somewhere using a custom output delimiter", t, func() {
+		f, err := ini.LoadSources(ini.LoadOptions{
+			KeyValueDelimiterOnWrite: "->",
+		}, []byte(`[Others]
+Cities = HangZhou|Boston
+Visits = 1993-10-07T20:17:05Z, 1993-10-07T20:17:05Z
+Years = 1993,1994
+Numbers = 10010,10086
+Ages = 18,19
+Populations = 12345678,98765432
+Coordinates = 192.168,10.11
+Flags       = true,false
+Note = Hello world!`))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+
+		var actual bytes.Buffer
+		var expected = []byte(`[Others]
+Cities      -> HangZhou|Boston
+Visits      -> 1993-10-07T20:17:05Z, 1993-10-07T20:17:05Z
+Years       -> 1993,1994
+Numbers     -> 10010,10086
+Ages        -> 18,19
+Populations -> 12345678,98765432
+Coordinates -> 192.168,10.11
+Flags       -> true,false
+Note        -> Hello world!
+
+`)
+		_, err = f.WriteTo(&actual)
+		So(err, ShouldBeNil)
+
+		So(bytes.Equal(expected, actual.Bytes()), ShouldBeTrue)
+	})
+}
+
 // Inspired by https://github.com/go-ini/ini/issues/207
 func TestReloadAfterShadowLoad(t *testing.T) {
 	Convey("Reload file after ShadowLoad", t, func() {
