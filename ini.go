@@ -29,13 +29,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	depthValues = 99
-	version     = "1.51.1"
 )
-
-// Version returns current package version literal.
-func Version() string {
-	return version
-}
 
 var (
 	// LineBreak is the delimiter to determine or compose a new line.

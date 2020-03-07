@@ -52,15 +52,11 @@ var update = flag.Bool("update", false, "Update .golden files")
 
 func TestLoad(t *testing.T) {
 	Convey("Load from good data sources", t, func() {
-		f, err := ini.Load([]byte(`
-NAME = ini
-VERSION = v1
-IMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s`),
+		f, err := ini.Load(
 			"testdata/minimal.ini",
-			ioutil.NopCloser(bytes.NewReader([]byte(`
-[author]
-NAME = Unknwon
-`))),
+			[]byte("NAME = ini\nIMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s"),
+			bytes.NewReader([]byte(`VERSION = v1`)),
+			ioutil.NopCloser(bytes.NewReader([]byte("[author]\nNAME = Unknwon"))),
 		)
 		So(err, ShouldBeNil)
 		So(f, ShouldNotBeNil)
