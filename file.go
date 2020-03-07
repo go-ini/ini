@@ -172,7 +172,7 @@ func (f *File) Section(name string) *Section {
 	return sec
 }
 
-// Section assumes named section exists and returns a zero-value when not.
+// GetSectionWithIndex assumes named section exists and returns a new section when not.
 func (f *File) GetSectionWithIndex(name string, index int) *Section {
 	sec, err := f.GetSections(name)
 	if err != nil || len(sec) <= index {
@@ -235,7 +235,7 @@ func (f *File) DeleteSection(name string) {
 	}
 }
 
-// DeleteSection deletes a section.
+// DeleteSectionWithIndex deletes a section.
 func (f *File) DeleteSectionWithIndex(name string, index int) error {
 	if !f.options.AllowNonUniqueSections && index != 0 {
 		return fmt.Errorf("error removing section '%s' at index %d. Index greater 0 is only allowed with non unique sections enabled", name, index)
@@ -250,7 +250,7 @@ func (f *File) DeleteSectionWithIndex(name string, index int) error {
 		name = DefaultSection
 	}
 
-	// count occureces of the sections
+	// count occurrences of the sections
 	sectionCounter := 0
 
 	sectionListCopy := make([]string, len(f.sectionList))
