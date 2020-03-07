@@ -104,7 +104,7 @@ type LoadOptions struct {
 	// KeyValueDelimiters is the sequence of delimiters that are used to separate key and value. By default, it is "=:".
 	KeyValueDelimiters string
 	// KeyValueDelimiters is the delimiter that are used to separate key and value output. By default, it is "=".
-	KeyValueDelimitersOutput string
+	KeyValueDelimiterOnWrite string
 	// PreserveSurroundedQuote indicates whether to preserve surrounded quote (single and double quotes).
 	PreserveSurroundedQuote bool
 	// DebugFunc is called to collect debug information (currently only useful to debug parsing Python-style multiline values).
