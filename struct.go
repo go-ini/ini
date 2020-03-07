@@ -344,27 +344,28 @@ func (s *Section) mapTo(val reflect.Value, isStrict bool) error {
 // maps all sections with the same name and returns the new value.
 func (s *Section) mapAllTo(secName string, val reflect.Value, isStrict bool) (reflect.Value, error) {
 	typ := val.Type()
-	if typ.Kind() == reflect.Slice {
-		if secs, err := s.f.GetSections(secName); err == nil {
-			for _, sec := range secs {
-				sliceType := typ.Elem()
-
-				// create new element
-				newElement := reflect.New(sliceType)
-				if err = sec.mapTo(newElement, isStrict); err != nil {
-					return reflect.Value{}, fmt.Errorf("error mapping section(%s): %v", secName, err)
-				}
-
-				// add element to field
-				val = reflect.Append(val, newElement.Elem())
-			}
-			return val, nil
-		} else {
-			return reflect.Value{}, err
-		}
-	} else {
+	if typ.Kind() != reflect.Slice {
 		return reflect.Value{}, fmt.Errorf("error mapping section(%s): Val has to be of type Slice", secName)
 	}
+
+	secs, err := s.f.GetSections(secName)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	for _, sec := range secs {
+		sliceType := typ.Elem()
+
+		// create new element
+		newElement := reflect.New(sliceType)
+		if err = sec.mapTo(newElement, isStrict); err != nil {
+			return reflect.Value{}, fmt.Errorf("error mapping section(%s): %v", secName, err)
+		}
+
+		// add element to field
+		val = reflect.Append(val, newElement.Elem())
+	}
+	return val, nil
 }
 
 // map a section to v
@@ -704,7 +705,7 @@ func (s *Section) ReflectFrom(v interface{}) error {
 		typ = typ.Elem()
 		val = val.Elem()
 	} else {
-		return errors.New("cannot reflect from non-pointer struct or slice of pointers if AlloWNonUniqueSections is enabled")
+		return errors.New("cannot reflect from non-pointer struct or slice of pointers if AllowNonUniqueSections is enabled")
 	}
 
 	// if non Unique sections are disabled we can just reuse the old one
