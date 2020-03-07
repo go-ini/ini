@@ -140,7 +140,7 @@ AllowedIPs = 192.168.2.4/32
 		So(err, ShouldBeNil)
 		So(f, ShouldNotBeNil)
 
-		f.DeleteSpecificSection("Peer", 1)
+		f.DeleteSectionWithIndex("Peer", 1)
 
 		var buf bytes.Buffer
 		_, err = f.WriteTo(&buf)

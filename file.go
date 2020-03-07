@@ -36,8 +36,10 @@ type File struct {
 
 	// To keep data in order.
 	sectionList []string
-	// To keep track of the number of a section, if non unique section-names are allowed
-	sectionNumList []int
+	// To keep track of the index of a section with same name.
+	// This meta list is only used with non-unique section names are allowed.
+	sectionIndexes []int
+
 	// Actual data is stored here.
 	sections map[string][]*Section
 
@@ -55,22 +57,23 @@ func newFile(dataSources []dataSource, opts LoadOptions) *File {
 		dataSources:    dataSources,
 		sections:       make(map[string][]*Section),
 		sectionList:    make([]string, 0, 10),
-		sectionNumList: make([]int, 0, 10),
+		sectionIndexes: make([]int, 0, 10),
 		options:        opts,
 	}
 }
 
 // Empty returns an empty file object.
-func Empty() *File {
-	// Ignore error here, we sure our data is good.
-	f, _ := Load([]byte(""))
-	return f
-}
+func Empty(opts ...LoadOptions) *File {
+	var opt LoadOptions
+	if len(opts) > 0 {
+		opt = opts[0]
+	} else {
+		opt = LoadOptions{}
+	}
 
-func (f *File) reset(name string) {
-	f.sections = make(map[string][]*Section)
-	f.sectionList = make([]string, 0, 10)
-	f.sectionNumList = make([]int, 0, 10)
+	// Ignore error here, we are sure our data is good.
+	f, _ := LoadSources(opt, []byte(""))
+	return f
 }
 
 // NewSection creates a new section.
@@ -91,7 +94,7 @@ func (f *File) NewSection(name string) (*Section, error) {
 	}
 
 	f.sectionList = append(f.sectionList, name)
-	f.sectionNumList = append(f.sectionNumList, len(f.sections[name]))
+	f.sectionIndexes = append(f.sectionIndexes, len(f.sections[name]))
 	f.sections[name] = append(f.sections[name], newSection(f, name))
 
 	return f.sections[name][len(f.sections[name])-1], nil
@@ -121,13 +124,13 @@ func (f *File) NewSections(names ...string) (err error) {
 
 // GetSection returns section by given name.
 func (f *File) GetSection(name string) (*Section, error) {
-	sec, err := f.GetSections(name)
+	secs, err := f.GetSections(name)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return sec[0], err
+	return secs[0], err
 }
 
 // GetSections returns all sections by given name.
@@ -176,16 +179,16 @@ func (f *File) Section(name string) *Section {
 }
 
 // Section assumes named section exists and returns a zero-value when not.
-func (f *File) SpecificSection(name string, pos int) *Section {
+func (f *File) GetSectionWithIndex(name string, index int) *Section {
 	sec, err := f.GetSections(name)
-	if err != nil || len(sec) <= pos {
+	if err != nil || len(sec) <= index {
 		// Note: It's OK here because the only possible error is empty section name,
 		// but if it's empty, this piece of code won't be executed.
 		newSec, _ := f.NewSection(name)
 		return newSec
 	}
 
-	return sec[pos]
+	return sec[index]
 }
 
 // Sections returns a list of Section stored in the current instance.
@@ -197,7 +200,7 @@ func (f *File) Sections() []*Section {
 
 	sections := make([]*Section, len(f.sectionList))
 	for i, name := range f.sectionList {
-		sections[i] = f.sections[name][f.sectionNumList[i]]
+		sections[i] = f.sections[name][f.sectionIndexes[i]]
 	}
 	return sections
 }
@@ -220,12 +223,12 @@ func (f *File) DeleteSection(name string) {
 	count := f.GetSectionCount(name)
 
 	for i := 0; i < count; i++ {
-		f.DeleteSpecificSection(name, 0)
+		f.DeleteSectionWithIndex(name, 0)
 	}
 }
 
 // DeleteSection deletes a section.
-func (f *File) DeleteSpecificSection(name string, num int) {
+func (f *File) DeleteSectionWithIndex(name string, index int) {
 	if f.BlockMode {
 		f.lock.Lock()
 		defer f.lock.Unlock()
@@ -243,7 +246,7 @@ func (f *File) DeleteSpecificSection(name string, num int) {
 
 	for i, s := range sectionListCopy {
 		if s == name {
-			if sectionCounter == num {
+			if sectionCounter == index {
 				if len(f.sections[name]) <= 1 {
 					delete(f.sections, name)
 				} else {
@@ -251,10 +254,10 @@ func (f *File) DeleteSpecificSection(name string, num int) {
 				}
 				// fix section lists
 				f.sectionList = append(f.sectionList[:i], f.sectionList[i+1:]...)
-				f.sectionNumList = append(f.sectionNumList[:i], f.sectionNumList[i+1:]...)
-			} else if sectionCounter > num {
+				f.sectionIndexes = append(f.sectionIndexes[:i], f.sectionIndexes[i+1:]...)
+			} else if sectionCounter > index {
 				// fix numbers of all following sections with this name
-				f.sectionNumList[i-1]--
+				f.sectionIndexes[i-1]--
 			}
 
 			sectionCounter++
@@ -315,7 +318,7 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 	// Use buffer to make sure target is safe until finish encoding.
 	buf := bytes.NewBuffer(nil)
 	for i, sname := range f.sectionList {
-		sec := f.SpecificSection(sname, f.sectionNumList[i])
+		sec := f.GetSectionWithIndex(sname, f.sectionIndexes[i])
 		if len(sec.Comment) > 0 {
 			// Support multiline comments
 			lines := strings.Split(sec.Comment, LineBreak)

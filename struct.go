@@ -273,7 +273,7 @@ func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bo
 		allowShadow = opts[2] == "allowshadow"
 	}
 	if len(opts) > 3 {
-		allowNonUnique = opts[3] == "allowNonUnique"
+		allowNonUnique = opts[3] == "nonunique"
 	}
 	return rawName, omitEmpty, allowShadow, allowNonUnique
 }

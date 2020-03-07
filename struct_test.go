@@ -89,7 +89,7 @@ type testPeer struct {
 
 type testNonUniqueSectionsStruct struct {
 	Interface testInterface
-	Peer      []testPeer `ini:",,,allowNonUnique"`
+	Peer      []testPeer `ini:",,,nonunique"`
 }
 
 const confDataStruct = `
@@ -536,7 +536,7 @@ func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
 			},
 		}
 
-		cfg := ini.LoadCustomEmpty(ini.LoadOptions{
+		cfg := ini.Empty(ini.LoadOptions{
 			AllowNonUniqueSections: true,
 		})
 
