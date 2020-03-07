@@ -672,32 +672,32 @@ func (s *Section) ReflectFrom(v interface{}) error {
 		// clear sections to make sure none exists before adding the new ones
 		s.f.DeleteSection(s.name)
 
-		if typ.Kind() == reflect.Slice {
-			// call reflect from for each element
-			slice := val.Slice(0, val.Len())
-			sliceOf := val.Type().Elem().Kind()
-
-			if sliceOf != reflect.Ptr {
-				return fmt.Errorf("error section.reflectFrom: if val is a slice it has to be a slice of pointers")
-			}
-
-			// sec.reflectFrom will add new sections of the same name automatically
-			for i := 0; i < slice.Len(); i++ {
-				// create a new section (or add to an existing one with the same name)
-				// section name cannot be empty -> ignore error
-				sec, _ := s.f.NewSection(s.name)
-
-				err := sec.reflectFrom(slice.Index(i))
-				if err != nil {
-					return fmt.Errorf("error section.reflectFrom: %v", err)
-				}
-			}
-		} else {
+		if typ.Kind() != reflect.Slice {
 			typ = typ.Elem()
 			val = val.Elem()
 
 			sec, _ := s.f.NewSection(s.name)
 			return sec.reflectFrom(val)
+		}
+
+		// call reflect from for each element
+		slice := val.Slice(0, val.Len())
+		sliceOf := val.Type().Elem().Kind()
+
+		if sliceOf != reflect.Ptr {
+			return fmt.Errorf("error section.reflectFrom: if val is a slice it has to be a slice of pointers")
+		}
+
+		// sec.reflectFrom will add new sections of the same name automatically
+		for i := 0; i < slice.Len(); i++ {
+			// create a new section (or add to an existing one with the same name)
+			// section name cannot be empty -> ignore error
+			sec, _ := s.f.NewSection(s.name)
+
+			err := sec.reflectFrom(slice.Index(i))
+			if err != nil {
+				return fmt.Errorf("error section.reflectFrom: %v", err)
+			}
 		}
 
 		return nil
