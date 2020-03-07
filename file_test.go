@@ -164,6 +164,20 @@ AllowedIPs = 192.168.2.4/32
 	})
 }
 
+func TestFile_DeleteAllNonUniqueSectionsOfAName(t *testing.T) {
+	Convey("Delete all sections", t, func() {
+		f := ini.Empty(ini.LoadOptions{
+			AllowNonUniqueSections: true,
+		})
+		So(f, ShouldNotBeNil)
+
+		f.NewSections("Interface", "Peer", "Peer")
+		So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "Interface", "Peer", "Peer"})
+		f.DeleteSection("Peer")
+		So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "Interface"})
+	})
+}
+
 func TestFile_NewRawSection(t *testing.T) {
 	Convey("Create a new raw section", t, func() {
 		f := ini.Empty()
