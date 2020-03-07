@@ -155,17 +155,6 @@ func (f *File) GetSections(name string) ([]*Section, error) {
 	return sec, nil
 }
 
-// GetSectionCount gives you the count of sections with the same name.
-func (f *File) GetSectionCount(name string) int {
-	secs, err := f.GetSections(name)
-
-	if err != nil {
-		return 0
-	}
-
-	return len(secs)
-}
-
 // Section assumes named section exists and returns a zero-value when not.
 func (f *File) Section(name string) *Section {
 	sec, err := f.GetSection(name)
@@ -220,9 +209,12 @@ func (f *File) SectionStrings() []string {
 // DeleteSection deletes a section.
 // If AllowNonUniqueSections is enabled, all sections with the given name are removed.
 func (f *File) DeleteSection(name string) {
-	count := f.GetSectionCount(name)
+	secs, err := f.GetSections(name)
+	if err != nil {
+		return
+	}
 
-	for i := 0; i < count; i++ {
+	for i := 0; i < len(secs); i++ {
 		f.DeleteSectionWithIndex(name, 0)
 	}
 }
