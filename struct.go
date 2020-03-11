@@ -258,7 +258,7 @@ func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim stri
 	case reflect.Slice:
 		return setSliceWithProperType(key, field, delim, allowShadow, isStrict)
 	default:
-		return fmt.Errorf("unsupported type '%s'", t)
+		return fmt.Errorf("unsupported type %q", t)
 	}
 	return nil
 }
@@ -532,7 +532,7 @@ func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim 
 			return reflectWithProperType(t.Elem(), key, field.Elem(), delim, allowShadow)
 		}
 	default:
-		return fmt.Errorf("unsupported type '%s'", t)
+		return fmt.Errorf("unsupported type %q", t)
 	}
 	return nil
 }
@@ -627,7 +627,7 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 						"nonUniqueSection but it is no slice of pointer or struct", fieldName)
 				}
 
-				// add a new section (the function handles nonUnique sections
+				// Add a new section (the function handles nonUnique sections
 				// Note: fieldName can never be empty here, ignore error.
 				sec, _ := s.f.NewSection(fieldName)
 
@@ -669,7 +669,7 @@ func (s *Section) ReflectFrom(v interface{}) error {
 	val := reflect.ValueOf(v)
 
 	if s.name != "DEFAULT" && s.f.options.AllowNonUniqueSections && (typ.Kind() == reflect.Slice || typ.Kind() == reflect.Ptr) {
-		// clear sections to make sure none exists before adding the new ones
+		// Clear sections to make sure none exists before adding the new ones
 		s.f.DeleteSection(s.name)
 
 		if typ.Kind() != reflect.Slice {
@@ -680,7 +680,7 @@ func (s *Section) ReflectFrom(v interface{}) error {
 			return sec.reflectFrom(val)
 		}
 
-		// call reflect from for each element
+		// Call reflect from for each element
 		slice := val.Slice(0, val.Len())
 		sliceOf := val.Type().Elem().Kind()
 
@@ -690,8 +690,8 @@ func (s *Section) ReflectFrom(v interface{}) error {
 
 		// sec.reflectFrom will add new sections of the same name automatically
 		for i := 0; i < slice.Len(); i++ {
-			// create a new section (or add to an existing one with the same name)
-			// section name cannot be empty -> ignore error
+			// Create a new section (or add to an existing one with the same name)
+			// Section name cannot be empty -> ignore error
 			sec, _ := s.f.NewSection(s.name)
 
 			err := sec.reflectFrom(slice.Index(i))

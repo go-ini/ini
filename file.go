@@ -76,10 +76,7 @@ func Empty(opts ...LoadOptions) *File {
 	var opt LoadOptions
 	if len(opts) > 0 {
 		opt = opts[0]
-	} else {
-		opt = LoadOptions{}
 	}
-
 	// Ignore error here, we are sure our data is good.
 	f, _ := LoadSources(opt, []byte(""))
 	return f
@@ -134,7 +131,6 @@ func (f *File) NewSections(names ...string) (err error) {
 // GetSection returns section by given name.
 func (f *File) GetSection(name string) (*Section, error) {
 	secs, err := f.GetSections(name)
-
 	if err != nil {
 		return nil, err
 	}
@@ -156,12 +152,12 @@ func (f *File) GetSections(name string) ([]*Section, error) {
 		defer f.lock.RUnlock()
 	}
 
-	sec := f.sections[name]
-	if sec == nil || len(sec) == 0 {
-		return nil, fmt.Errorf("section '%s' does not exist", name)
+	secs := f.sections[name]
+	if len(secs) == 0 {
+		return nil, fmt.Errorf("section %q does not exist", name)
 	}
 
-	return sec, nil
+	return secs, nil
 }
 
 // Section assumes named section exists and returns a zero-value when not.
@@ -178,15 +174,15 @@ func (f *File) Section(name string) *Section {
 
 // GetSectionWithIndex assumes named section exists and returns a new section when not.
 func (f *File) GetSectionWithIndex(name string, index int) *Section {
-	sec, err := f.GetSections(name)
-	if err != nil || len(sec) <= index {
+	secs, err := f.GetSections(name)
+	if err != nil || len(secs) <= index {
 		// Note: It's OK here because the only possible error is empty section name,
 		// but if it's empty, this piece of code won't be executed.
 		newSec, _ := f.NewSection(name)
 		return newSec
 	}
 
-	return sec[index]
+	return secs[index]
 }
 
 // Sections returns a list of Section stored in the current instance.
@@ -230,19 +226,17 @@ func (f *File) DeleteSection(name string) {
 	}
 
 	for i := 0; i < len(secs); i++ {
-		// for non unique sections, always the first one is removed,
-		// so in the next iteration the following section has again index 0
-		// --> just deleting index 0 is enough
-
-		// ignore error as index 0 returns never an error
+		// For non unique sections, it is always needed to remove the first one so in the next
+		// iteration, the subsequent section continue having index 0. Ignoring the
+		// error as index 0 never returns an error.
 		_ = f.DeleteSectionWithIndex(name, 0)
 	}
 }
 
-// DeleteSectionWithIndex deletes a section.
+// DeleteSectionWithIndex deletes a section with given name and index.
 func (f *File) DeleteSectionWithIndex(name string, index int) error {
 	if !f.options.AllowNonUniqueSections && index != 0 {
-		return fmt.Errorf("error removing section '%s' at index %d. Index greater 0 is only allowed with non unique sections enabled", name, index)
+		return fmt.Errorf("error removing section %q at index %d. Index greater 0 is only allowed with non unique sections enabled", name, index)
 	}
 
 	if f.BlockMode {
@@ -254,7 +248,7 @@ func (f *File) DeleteSectionWithIndex(name string, index int) error {
 		name = DefaultSection
 	}
 
-	// count occurrences of the sections
+	// Count occurrences of the sections
 	sectionCounter := 0
 
 	sectionListCopy := make([]string, len(f.sectionList))
@@ -275,7 +269,7 @@ func (f *File) DeleteSectionWithIndex(name string, index int) error {
 				}
 
 			} else if sectionCounter > index && f.options.AllowNonUniqueSections {
-				// fix numbers of all following sections with this name
+				// Fix the indices of all following sections with this name.
 				f.sectionIndexes[i-1]--
 			}
 
@@ -387,7 +381,7 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 		}
 
 		// Count and generate alignment length and buffer spaces using the
-		// longest key. Keys may be modifed if they contain certain characters so
+		// longest key. Keys may be modified if they contain certain characters so
 		// we need to take that into account in our calculation.
 		alignLength := 0
 		if PrettyFormat {
