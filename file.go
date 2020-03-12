@@ -236,7 +236,7 @@ func (f *File) DeleteSection(name string) {
 // DeleteSectionWithIndex deletes a section with given name and index.
 func (f *File) DeleteSectionWithIndex(name string, index int) error {
 	if !f.options.AllowNonUniqueSections && index != 0 {
-		return fmt.Errorf("error removing section %q at index %d. Index greater 0 is only allowed with non unique sections enabled", name, index)
+		return fmt.Errorf("delete section with non-zero index is only allowed when non-unique sections is enabled")
 	}
 
 	if f.BlockMode {
