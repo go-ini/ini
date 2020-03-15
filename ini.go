@@ -111,6 +111,8 @@ type LoadOptions struct {
 	DebugFunc DebugFunc
 	// ReaderBufferSize is the buffer size of the reader in bytes.
 	ReaderBufferSize int
+	// AllowNonUniqueSections indicates whether to allow sections with the same name multiple times.
+	AllowNonUniqueSections bool
 }
 
 // DebugFunc is the type of function called to log parse events.

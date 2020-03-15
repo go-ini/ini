@@ -181,7 +181,7 @@ func (p *parser) readMultilines(line, val, valQuote string) (string, error) {
 		}
 		val += next
 		if p.isEOF {
-			return "", fmt.Errorf("missing closing key quote from '%s' to '%s'", line, next)
+			return "", fmt.Errorf("missing closing key quote from %q to %q", line, next)
 		}
 	}
 	return val, nil

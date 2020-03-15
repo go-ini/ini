@@ -75,6 +75,23 @@ type testStruct struct {
 	DurationPtrNil *time.Duration
 }
 
+type testInterface struct {
+	Address    string
+	ListenPort int
+	PrivateKey string
+}
+
+type testPeer struct {
+	PublicKey    string
+	PresharedKey string
+	AllowedIPs   []string `delim:","`
+}
+
+type testNonUniqueSectionsStruct struct {
+	Interface testInterface
+	Peer      []testPeer `ini:",,,nonunique"`
+}
+
 const confDataStruct = `
 NAME = Unknwon
 Age = 21
@@ -123,6 +140,23 @@ GPA = 2.8
 [foo.bar]
 Here = there
 When = then
+`
+
+const confNonUniqueSectionDataStruct = `[Interface]
+Address    = 10.2.0.1/24
+ListenPort = 34777
+PrivateKey = privServerKey
+
+[Peer]
+PublicKey    = pubClientKey
+PresharedKey = psKey
+AllowedIPs   = 10.2.0.2/32,fd00:2::2/128
+
+[Peer]
+PublicKey    = pubClientKey2
+PresharedKey = psKey2
+AllowedIPs   = 10.2.0.3/32,fd00:2::3/128
+
 `
 
 type unsupport struct {
@@ -185,8 +219,8 @@ func Test_MapToStruct(t *testing.T) {
 			dur, err := time.ParseDuration("2h45m")
 			So(err, ShouldBeNil)
 			So(ts.Time.Seconds(), ShouldEqual, dur.Seconds())
-			
-			So(ts.OldVersionTime * time.Second, ShouldEqual, 30 * time.Second)
+
+			So(ts.OldVersionTime*time.Second, ShouldEqual, 30*time.Second)
 
 			So(strings.Join(ts.Others.Cities, ","), ShouldEqual, "HangZhou,Boston")
 			So(ts.Others.Visits[0].String(), ShouldEqual, t.String())
@@ -330,6 +364,59 @@ names=alice, bruce`))
 	})
 }
 
+func Test_MapToStructNonUniqueSections(t *testing.T) {
+	Convey("Map to struct non unique", t, func() {
+		Convey("Map file to struct non unique", func() {
+			f, err := ini.LoadSources(ini.LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
+			So(err, ShouldBeNil)
+			ts := new(testNonUniqueSectionsStruct)
+
+			So(f.MapTo(ts), ShouldBeNil)
+
+			So(ts.Interface.Address, ShouldEqual, "10.2.0.1/24")
+			So(ts.Interface.ListenPort, ShouldEqual, 34777)
+			So(ts.Interface.PrivateKey, ShouldEqual, "privServerKey")
+
+			So(ts.Peer[0].PublicKey, ShouldEqual, "pubClientKey")
+			So(ts.Peer[0].PresharedKey, ShouldEqual, "psKey")
+			So(ts.Peer[0].AllowedIPs[0], ShouldEqual, "10.2.0.2/32")
+			So(ts.Peer[0].AllowedIPs[1], ShouldEqual, "fd00:2::2/128")
+
+			So(ts.Peer[1].PublicKey, ShouldEqual, "pubClientKey2")
+			So(ts.Peer[1].PresharedKey, ShouldEqual, "psKey2")
+			So(ts.Peer[1].AllowedIPs[0], ShouldEqual, "10.2.0.3/32")
+			So(ts.Peer[1].AllowedIPs[1], ShouldEqual, "fd00:2::3/128")
+		})
+
+		Convey("Map non unique section to struct", func() {
+			newPeer := new(testPeer)
+			newPeerSlice := make([]testPeer, 0)
+
+			f, err := ini.LoadSources(ini.LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
+			So(err, ShouldBeNil)
+
+			// try only first one
+			So(f.Section("Peer").MapTo(newPeer), ShouldBeNil)
+			So(newPeer.PublicKey, ShouldEqual, "pubClientKey")
+			So(newPeer.PresharedKey, ShouldEqual, "psKey")
+			So(newPeer.AllowedIPs[0], ShouldEqual, "10.2.0.2/32")
+			So(newPeer.AllowedIPs[1], ShouldEqual, "fd00:2::2/128")
+
+			// try all
+			So(f.Section("Peer").MapTo(&newPeerSlice), ShouldBeNil)
+			So(newPeerSlice[0].PublicKey, ShouldEqual, "pubClientKey")
+			So(newPeerSlice[0].PresharedKey, ShouldEqual, "psKey")
+			So(newPeerSlice[0].AllowedIPs[0], ShouldEqual, "10.2.0.2/32")
+			So(newPeerSlice[0].AllowedIPs[1], ShouldEqual, "fd00:2::2/128")
+
+			So(newPeerSlice[1].PublicKey, ShouldEqual, "pubClientKey2")
+			So(newPeerSlice[1].PresharedKey, ShouldEqual, "psKey2")
+			So(newPeerSlice[1].AllowedIPs[0], ShouldEqual, "10.2.0.3/32")
+			So(newPeerSlice[1].AllowedIPs[1], ShouldEqual, "fd00:2::3/128")
+		})
+	})
+}
+
 func Test_ReflectFromStruct(t *testing.T) {
 	Convey("Reflect from struct", t, func() {
 		type Embeded struct {
@@ -424,6 +511,101 @@ omitempty  = 9
 
 `)
 		})
+	})
+}
+
+func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
+	Convey("Reflect from struct with non unique sections", t, func() {
+		nonUnique := &testNonUniqueSectionsStruct{
+			Interface: testInterface{
+				Address:    "10.2.0.1/24",
+				ListenPort: 34777,
+				PrivateKey: "privServerKey",
+			},
+			Peer: []testPeer{
+				{
+					PublicKey:    "pubClientKey",
+					PresharedKey: "psKey",
+					AllowedIPs:   []string{"10.2.0.2/32,fd00:2::2/128"},
+				},
+				{
+					PublicKey:    "pubClientKey2",
+					PresharedKey: "psKey2",
+					AllowedIPs:   []string{"10.2.0.3/32,fd00:2::3/128"},
+				},
+			},
+		}
+
+		cfg := ini.Empty(ini.LoadOptions{
+			AllowNonUniqueSections: true,
+		})
+
+		So(ini.ReflectFrom(cfg, nonUnique), ShouldBeNil)
+
+		var buf bytes.Buffer
+		_, err := cfg.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		So(buf.String(), ShouldEqual, confNonUniqueSectionDataStruct)
+
+		// note: using ReflectFrom from should overwrite the existing sections
+		err = cfg.Section("Peer").ReflectFrom([]*testPeer{
+			{
+				PublicKey:    "pubClientKey3",
+				PresharedKey: "psKey3",
+				AllowedIPs:   []string{"10.2.0.4/32,fd00:2::4/128"},
+			},
+			{
+				PublicKey:    "pubClientKey4",
+				PresharedKey: "psKey4",
+				AllowedIPs:   []string{"10.2.0.5/32,fd00:2::5/128"},
+			},
+		})
+
+		So(err, ShouldBeNil)
+
+		buf = bytes.Buffer{}
+		_, err = cfg.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		So(buf.String(), ShouldEqual, `[Interface]
+Address    = 10.2.0.1/24
+ListenPort = 34777
+PrivateKey = privServerKey
+
+[Peer]
+PublicKey    = pubClientKey3
+PresharedKey = psKey3
+AllowedIPs   = 10.2.0.4/32,fd00:2::4/128
+
+[Peer]
+PublicKey    = pubClientKey4
+PresharedKey = psKey4
+AllowedIPs   = 10.2.0.5/32,fd00:2::5/128
+
+`)
+
+		// note: using ReflectFrom from should overwrite the existing sections
+		err = cfg.Section("Peer").ReflectFrom(&testPeer{
+			PublicKey:    "pubClientKey5",
+			PresharedKey: "psKey5",
+			AllowedIPs:   []string{"10.2.0.6/32,fd00:2::6/128"},
+		})
+
+		So(err, ShouldBeNil)
+
+		buf = bytes.Buffer{}
+		_, err = cfg.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		So(buf.String(), ShouldEqual, `[Interface]
+Address    = 10.2.0.1/24
+ListenPort = 34777
+PrivateKey = privServerKey
+
+[Peer]
+PublicKey    = pubClientKey5
+PresharedKey = psKey5
+AllowedIPs   = 10.2.0.6/32,fd00:2::6/128
+
+`)
 	})
 }
 
