@@ -64,8 +64,8 @@ func TestFile_NewSection(t *testing.T) {
 	})
 }
 
-func TestFile_NewNonUniqueSection(t *testing.T) {
-	Convey("Read and write non unique sections", t, func() {
+func TestFile_NonUniqueSection(t *testing.T) {
+	Convey("Read and write non-unique sections", t, func() {
 		f, err := ini.LoadSources(ini.LoadOptions{
 			AllowNonUniqueSections: true,
 		}, []byte(`[Interface]
@@ -113,10 +113,8 @@ AllowedIPs = 192.168.2.4/32
 
 `)
 	})
-}
 
-func TestFile_DeleteNonUniqueSection(t *testing.T) {
-	Convey("Delete non unique section", t, func() {
+	Convey("Delete non-unique section", t, func() {
 		f, err := ini.LoadSources(ini.LoadOptions{
 			AllowNonUniqueSections: true,
 		}, []byte(`[Interface]
@@ -162,9 +160,7 @@ AllowedIPs = 192.168.2.4/32
 
 `)
 	})
-}
 
-func TestFile_DeleteAllNonUniqueSectionsOfAName(t *testing.T) {
 	Convey("Delete all sections", t, func() {
 		f := ini.Empty(ini.LoadOptions{
 			AllowNonUniqueSections: true,

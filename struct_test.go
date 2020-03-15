@@ -22,6 +22,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+
 	"gopkg.in/ini.v1"
 )
 
