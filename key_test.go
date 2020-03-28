@@ -17,6 +17,7 @@ package ini_test
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -184,6 +185,10 @@ func TestKey_Helpers(t *testing.T) {
 		})
 
 		Convey("Get multiple line value", func() {
+			if runtime.GOOS == "windows" {
+				t.Skip("Skipping testing on Windows")
+			}
+
 			So(f.Section("author").Key("BIO").String(), ShouldEqual, "Gopher.\nCoding addict.\nGood man.\n")
 		})
 

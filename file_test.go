@@ -17,6 +17,7 @@ package ini_test
 import (
 	"bytes"
 	"io/ioutil"
+	"runtime"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -350,6 +351,10 @@ NAME = Unknwon`)), ShouldBeNil)
 }
 
 func TestFile_WriteTo(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping testing on Windows")
+	}
+
 	Convey("Write content to somewhere", t, func() {
 		f, err := ini.Load(fullConf)
 		So(err, ShouldBeNil)
