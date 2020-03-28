@@ -5,7 +5,7 @@ on:
   pull_request:
 env:
   GOPROXY: "https://proxy.golang.org"
-  GOPATH: "/home/runner/work/ini/go"
+  GOPATH: "/home/runner/work/ini/ini/go"
 
 jobs:
   lint:
@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          path: /home/runner/work/ini/go/src/gopkg.in/ini.v1
+          path: go/src/gopkg.in/ini.v1
       - name: Download dependencies
         run: go get github.com/smartystreets/goconvey
       - name: Run golangci-lint
@@ -35,7 +35,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
-          path: /home/runner/work/ini/go/src/gopkg.in/ini.v1
+          path: go/src/gopkg.in/ini.v1
       - name: Run unit tests
         run: |
           go get github.com/smartystreets/goconvey
