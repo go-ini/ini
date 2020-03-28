@@ -87,8 +87,8 @@ AllowedIPs = 192.168.2.3/32`))
 		So(err, ShouldBeNil)
 		So(f, ShouldNotBeNil)
 
-		sec.NewKey("PublicKey", "<client3's publickey>")
-		sec.NewKey("AllowedIPs", "192.168.2.4/32")
+		_, _ = sec.NewKey("PublicKey", "<client3's publickey>")
+		_, _ = sec.NewKey("AllowedIPs", "192.168.2.4/32")
 
 		var buf bytes.Buffer
 		_, err = f.WriteTo(&buf)
@@ -167,7 +167,7 @@ AllowedIPs = 192.168.2.4/32
 		})
 		So(f, ShouldNotBeNil)
 
-		f.NewSections("Interface", "Peer", "Peer")
+		_ = f.NewSections("Interface", "Peer", "Peer")
 		So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "Interface", "Peer", "Peer"})
 		f.DeleteSection("Peer")
 		So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "Interface"})
@@ -326,7 +326,7 @@ func TestFile_DeleteSection(t *testing.T) {
 		f := ini.Empty()
 		So(f, ShouldNotBeNil)
 
-		f.NewSections("author", "package", "features")
+		_ = f.NewSections("author", "package", "features")
 		f.DeleteSection("features")
 		f.DeleteSection("")
 		So(f.SectionStrings(), ShouldResemble, []string{"author", "package"})
@@ -358,8 +358,8 @@ func TestFile_WriteTo(t *testing.T) {
 		f.Section("author").Comment = `Information about package author
 # Bio can be written in multiple lines.`
 		f.Section("author").Key("NAME").Comment = "This is author name"
-		f.Section("note").NewBooleanKey("boolean_key")
-		f.Section("note").NewKey("more", "notes")
+		_, _ = f.Section("note").NewBooleanKey("boolean_key")
+		_, _ = f.Section("note").NewKey("more", "notes")
 
 		var buf bytes.Buffer
 		_, err = f.WriteTo(&buf)
@@ -367,7 +367,7 @@ func TestFile_WriteTo(t *testing.T) {
 
 		golden := "testdata/TestFile_WriteTo.golden"
 		if *update {
-			ioutil.WriteFile(golden, buf.Bytes(), 0644)
+			So(ioutil.WriteFile(golden, buf.Bytes(), 0644), ShouldBeNil)
 		}
 
 		expected, err := ioutil.ReadFile(golden)
