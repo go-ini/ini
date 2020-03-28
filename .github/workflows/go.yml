@@ -17,8 +17,7 @@ jobs:
           path: go/src/gopkg.in/ini.v1
       - name: Download dependencies
         run: |
-          go get golang.org/x/tools/cmd/cover
-          go get github.com/smartystreets/goconvey
+          go get -v github.com/smartystreets/goconvey
       - name: Run golangci-lint
         uses: actions-contrib/golangci-lint@v1
 
