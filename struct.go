@@ -695,7 +695,6 @@ func (s *Section) ReflectFrom(v interface{}) error {
 	}
 
 	if typ.Kind() == reflect.Ptr {
-		typ = typ.Elem()
 		val = val.Elem()
 	} else {
 		return errors.New("not a pointer to a struct")

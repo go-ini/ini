@@ -2,6 +2,7 @@ package ini_test
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -15,16 +16,15 @@ type testData struct {
 }
 
 func TestMultiline(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping testing on Windows")
+	}
+
 	Convey("Parse Python-style multiline values", t, func() {
 		path := filepath.Join("testdata", "multiline.ini")
 		f, err := ini.LoadSources(ini.LoadOptions{
 			AllowPythonMultilineValues: true,
 			ReaderBufferSize:           64 * 1024,
-			/*
-				Debug: func(m string) {
-					fmt.Println(m)
-				},
-			*/
 		}, path)
 		So(err, ShouldBeNil)
 		So(f, ShouldNotBeNil)
