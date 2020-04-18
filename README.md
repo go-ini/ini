@@ -36,6 +36,7 @@ Please add `-u` flag to update in the future.
 
 - [Getting Started](https://ini.unknwon.io/docs/intro/getting_started)
 - [API Documentation](https://gowalker.org/gopkg.in/ini.v1)
+- 中国大陆镜像：https://ini.unknwon.cn
 
 ## License
 
