@@ -260,7 +260,6 @@ func Test_MapToStruct(t *testing.T) {
 			So(ts.TimePtrNil, ShouldEqual, nil)
 			So(*ts.DurationPtr, ShouldEqual, 0)
 			So(ts.DurationPtrNil, ShouldEqual, nil)
-
 		})
 
 		Convey("Map section to struct", func() {
@@ -440,12 +439,13 @@ func Test_ReflectFromStruct(t *testing.T) {
 			GPA       float64
 			Date      time.Time
 			NeverMind string `ini:"-"`
+			ignored   string
 			*Embeded  `ini:"infos" comment:"Embeded section"`
 		}
 
 		t, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
 		So(err, ShouldBeNil)
-		a := &Author{"Unknwon", true, nil, 21, 100, 2.8, t, "",
+		a := &Author{"Unknwon", true, nil, 21, 100, 2.8, t, "", "ignored",
 			&Embeded{
 				[]time.Time{t, t},
 				[]string{"HangZhou", "Boston"},
