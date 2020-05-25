@@ -414,6 +414,50 @@ func Test_MapToStructNonUniqueSections(t *testing.T) {
 			So(newPeerSlice[1].AllowedIPs[0], ShouldEqual, "10.2.0.3/32")
 			So(newPeerSlice[1].AllowedIPs[1], ShouldEqual, "fd00:2::3/128")
 		})
+
+		Convey("Map non unique sections with subsections to struct", func() {
+			iniFile, err := ini.LoadSources(ini.LoadOptions{AllowNonUniqueSections: true}, strings.NewReader(`
+[Section]
+FieldInSubSection = 1
+FieldInSubSection2 = 2
+FieldInSection = 3
+
+[Section]
+FieldInSubSection = 4
+FieldInSubSection2 = 5
+FieldInSection = 6
+`))
+			So(err, ShouldBeNil)
+
+			type SubSection struct {
+				FieldInSubSection string `ini:"FieldInSubSection"`
+			}
+			type SubSection2 struct {
+				FieldInSubSection2 string `ini:"FieldInSubSection2"`
+			}
+
+			type Section struct {
+				SubSection     `ini:"Section"`
+				SubSection2    `ini:"Section"`
+				FieldInSection string `ini:"FieldInSection"`
+			}
+
+			type File struct {
+				Sections []Section `ini:"Section,,,nonunique"`
+			}
+
+			f := new(File)
+			err = iniFile.MapTo(f)
+			So(err, ShouldBeNil)
+
+			So(f.Sections[0].FieldInSubSection, ShouldEqual, "1")
+			So(f.Sections[0].FieldInSubSection2, ShouldEqual, "2")
+			So(f.Sections[0].FieldInSection, ShouldEqual, "3")
+
+			So(f.Sections[1].FieldInSubSection, ShouldEqual, "4")
+			So(f.Sections[1].FieldInSubSection2, ShouldEqual, "5")
+			So(f.Sections[1].FieldInSection, ShouldEqual, "6")
+		})
 	})
 }
 
