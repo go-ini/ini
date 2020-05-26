@@ -279,7 +279,7 @@ func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bo
 }
 
 // mapToField maps the given value to the matching field of the given section.
-// The sectionNumber is the index (if non unique sections are used) to which the value should be added.
+// The sectionIndex is the index (if non unique sections are enabled) to which the value should be added.
 func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int) error {
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -310,8 +310,8 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int)
 
 		if isAnonymous || isStruct || isStructPtr {
 			if secs, err := s.f.SectionsByName(fieldName); err == nil {
-				if len(secs) < sectionIndex {
-					return fmt.Errorf("there are not enough sections with the name %s", fieldName)
+				if len(secs) <= sectionIndex {
+					return fmt.Errorf("there are not enough sections (%d <= %d) for the field %q", len(secs), sectionIndex, fieldName)
 				}
 				// Only set the field to non-nil struct value if we have a section for it.
 				// Otherwise, we end up with a non-nil struct ptr even though there is no data.
