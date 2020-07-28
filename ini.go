@@ -71,6 +71,10 @@ type LoadOptions struct {
 	Loose bool
 	// Insensitive indicates whether the parser forces all section and key names to lowercase.
 	Insensitive bool
+	// InsensitiveSections indicates whether the parser forces all section to lowercase.
+	InsensitiveSections bool
+	// InsensitiveKeys indicates whether the parser forces all key names to lowercase.
+	InsensitiveKeys bool
 	// IgnoreContinuation indicates whether to ignore continuation lines while parsing.
 	IgnoreContinuation bool
 	// IgnoreInlineComment indicates whether to ignore comments at the end of value and treat it as part of value.

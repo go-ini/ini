@@ -332,6 +332,15 @@ func TestFile_DeleteSection(t *testing.T) {
 		f.DeleteSection("")
 		So(f.SectionStrings(), ShouldResemble, []string{"author", "package"})
 	})
+	Convey("Delete a section with InsensitiveSections", t, func() {
+		f := ini.Empty(ini.LoadOptions{InsensitiveSections: true})
+		So(f, ShouldNotBeNil)
+
+		_ = f.NewSections("author", "package", "features")
+		f.DeleteSection("FEATURES")
+		f.DeleteSection("")
+		So(f.SectionStrings(), ShouldResemble, []string{"author", "package"})
+	})
 }
 
 func TestFile_Append(t *testing.T) {
