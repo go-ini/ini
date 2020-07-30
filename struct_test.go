@@ -685,6 +685,27 @@ path = /tmp/gpm-profiles/test5.profile
 path = /tmp/gpm-profiles/test1.profile
 
 `)
+		Convey("Reflect from struct with shadows", func() {
+			cfg := ini.Empty(ini.LoadOptions{
+				AllowShadows: true,
+			})
+			type ShadowStruct struct {
+				StringArray      []string `ini:"sa,,allowshadow"`
+				EmptyStringArrat []string `ini:"empty,omitempty,allowshadow"`
+				Allowshadow      []string `ini:"allowshadow,,allowshadow"`
+			}
+
+			So(ini.ReflectFrom(cfg, &ShadowStruct{StringArray: []string{"s1", "s2"}, Allowshadow: []string{"s3", "s4"}}), ShouldBeNil)
+
+			var buf bytes.Buffer
+			cfg.WriteTo(&buf)
+			So(buf.String(), ShouldEqual, `sa          = s1
+sa          = s2
+allowshadow = s3
+allowshadow = s4
+
+`)
+		})
 	})
 }
 
