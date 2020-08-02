@@ -23,7 +23,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"gopkg.in/ini.v1"
+	"ini"
 )
 
 type testNested struct {
@@ -698,7 +698,7 @@ path = /tmp/gpm-profiles/test1.profile
 			So(ini.ReflectFrom(cfg, &ShadowStruct{StringArray: []string{"s1", "s2"}, Allowshadow: []string{"s3", "s4"}}), ShouldBeNil)
 
 			var buf bytes.Buffer
-			cfg.WriteTo(&buf)
+			_, err = cfg.WriteTo(&buf)
 			So(buf.String(), ShouldEqual, `sa          = s1
 sa          = s2
 allowshadow = s3
@@ -707,6 +707,42 @@ allowshadow = s4
 `)
 		})
 	})
+}
+
+func TestReflectFromStructWithBoolKey(t *testing.T) {
+	Convey("Reflect from struct with boolkey", t, func() {
+		type BoolkeyStruct struct {
+			BoolKey            string   `ini:",,,,boolkey"`
+			BoolKeyStringSlice []string `ini:",omitempty,,,boolkey"`
+		}
+		cfg := ini.Empty()
+		So(ini.ReflectFrom(cfg, &BoolkeyStruct{
+			BoolKey:            "value",
+			BoolKeyStringSlice: []string{"value1", "value2"}}), ShouldBeNil)
+
+		var buf bytes.Buffer
+		_, err := cfg.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		So(buf.String(), ShouldEqual, `value
+value1
+value2
+`)
+	})
+
+	Convey("Reflect from struct with error boolkey", t, func() {
+		type ErrorBoolKeyStruct struct {
+			BoolKeyInt      int   `ini:",omitempty,,,boolkey"`
+			BoolKeyIntArray []int `ini:",omitempty,,,boolkey"`
+		}
+
+		cfg := ini.Empty()
+		So(ini.ReflectFrom(cfg, &ErrorBoolKeyStruct{
+			BoolKeyInt: 999}), ShouldNotBeNil)
+		So(ini.ReflectFrom(cfg, &ErrorBoolKeyStruct{
+			BoolKeyIntArray: []int{999, 888}}), ShouldNotBeNil)
+		So(ini.ReflectFrom(cfg, &ErrorBoolKeyStruct{}), ShouldBeNil)
+	})
+
 }
 
 type testMapper struct {

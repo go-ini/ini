@@ -263,8 +263,8 @@ func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim stri
 	return nil
 }
 
-func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bool, allowNonUnique bool) {
-	opts := strings.SplitN(tag, ",", 4)
+func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bool, allowNonUnique bool, isBoolKey bool) {
+	opts := strings.SplitN(tag, ",", 5)
 	rawName = opts[0]
 	if len(opts) > 1 {
 		omitEmpty = opts[1] == "omitempty"
@@ -275,7 +275,10 @@ func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bo
 	if len(opts) > 3 {
 		allowNonUnique = opts[3] == "nonunique"
 	}
-	return rawName, omitEmpty, allowShadow, allowNonUnique
+	if len(opts) > 4 {
+		isBoolKey = opts[4] == "boolkey"
+	}
+	return rawName, omitEmpty, allowShadow, allowNonUnique, isBoolKey
 }
 
 // mapToField maps the given value to the matching field of the given section.
@@ -295,7 +298,7 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int)
 			continue
 		}
 
-		rawName, _, allowShadow, allowNonUnique := parseTagOptions(tag)
+		rawName, _, allowShadow, allowNonUnique, _ := parseTagOptions(tag)
 		fieldName := s.parseFieldName(tpField.Name, rawName)
 		if len(fieldName) == 0 || !field.CanSet() {
 			continue
@@ -581,7 +584,8 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 			continue
 		}
 
-		rawName, omitEmpty, allowShadow, allowNonUnique := parseTagOptions(tag)
+		rawName, omitEmpty, allowShadow, allowNonUnique, isBoolKey := parseTagOptions(tag)
+
 		if omitEmpty && isEmptyValue(field) {
 			continue
 		}
@@ -644,6 +648,30 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 			continue
 		}
 
+		if isBoolKey {
+			switch tpField.Type.Kind() {
+			case reflect.Slice:
+				for i := 0; i < field.Len(); i++ {
+					bv := field.Index(i)
+					if bv.Type().Kind() != reflect.String {
+						return fmt.Errorf("relfect type %s not supported", bv.Type().String())
+					}
+					_, err := s.NewBooleanKey(bv.String())
+					if err != nil {
+						return err
+					}
+				}
+			case reflect.String:
+				_, err := s.NewBooleanKey(field.String())
+				if err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unsupported type %q", tpField.Type)
+			}
+			continue
+		}
+
 		// Note: Same reason as section.
 		key, err := s.GetKey(fieldName)
 		if err != nil {
@@ -659,7 +687,6 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 		if err = reflectWithProperType(tpField.Type, key, field, delim, allowShadow); err != nil {
 			return fmt.Errorf("reflect field %q: %v", fieldName, err)
 		}
-
 	}
 	return nil
 }
