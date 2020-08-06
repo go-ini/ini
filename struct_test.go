@@ -193,12 +193,12 @@ type fooBar struct {
 }
 
 const invalidDataConfStruct = `
-Name = 
+Name =
 Age = age
 Male = 123
 Money = money
 Born = nil
-Cities = 
+Cities =
 `
 
 func Test_MapToStruct(t *testing.T) {
@@ -509,7 +509,7 @@ func Test_ReflectFromStruct(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(buf.String(), ShouldEqual, `NAME     = Unknwon
 Male     = true
-Optional = 
+Optional =
 ; Author's age
 Age      = 21
 Height   = 100
@@ -527,7 +527,7 @@ Ages        = 18,19
 Populations = 12345678,98765432
 Coordinates = 192.168,10.11
 Flags       = true,false
-None        = 
+None        =
 
 `)
 
@@ -698,7 +698,8 @@ path = /tmp/gpm-profiles/test1.profile
 			So(ini.ReflectFrom(cfg, &ShadowStruct{StringArray: []string{"s1", "s2"}, Allowshadow: []string{"s3", "s4"}}), ShouldBeNil)
 
 			var buf bytes.Buffer
-			cfg.WriteTo(&buf)
+			_, err := cfg.WriteTo(&buf)
+			So(err, ShouldBeNil)
 			So(buf.String(), ShouldEqual, `sa          = s1
 sa          = s2
 allowshadow = s3
