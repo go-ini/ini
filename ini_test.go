@@ -1253,6 +1253,68 @@ GITHUB = U;n;k;n;w;o;n
 				})
 			})
 		})
+
+		Convey("with `ChildSectionDelimiter` ':'", func() {
+			Convey("Get all keys of parent sections", func() {
+				f := ini.Empty(ini.LoadOptions{ChildSectionDelimiter: ":"})
+				So(f, ShouldNotBeNil)
+
+				k, err := f.Section("package").NewKey("NAME", "ini")
+				So(err, ShouldBeNil)
+				So(k, ShouldNotBeNil)
+				k, err = f.Section("package").NewKey("VERSION", "v1")
+				So(err, ShouldBeNil)
+				So(k, ShouldNotBeNil)
+				k, err = f.Section("package").NewKey("IMPORT_PATH", "gopkg.in/ini.v1")
+				So(err, ShouldBeNil)
+				So(k, ShouldNotBeNil)
+
+				keys := f.Section("package:sub:sub2").ParentKeys()
+				names := []string{"NAME", "VERSION", "IMPORT_PATH"}
+				So(len(keys), ShouldEqual, len(names))
+				for i, name := range names {
+					So(keys[i].Name(), ShouldEqual, name)
+				}
+			})
+
+			Convey("Getting and setting values", func() {
+				f, err := ini.LoadSources(ini.LoadOptions{ChildSectionDelimiter: ":"}, fullConf)
+				So(err, ShouldBeNil)
+				So(f, ShouldNotBeNil)
+
+				Convey("Get parent-keys that are available to the child section", func() {
+					parentKeys := f.Section("package:sub").ParentKeys()
+					So(parentKeys, ShouldNotBeNil)
+					for _, k := range parentKeys {
+						So(k.Name(), ShouldEqual, "CLONE_URL")
+					}
+				})
+
+				Convey("Get parent section value", func() {
+					So(f.Section("package:sub").Key("CLONE_URL").String(), ShouldEqual, "https://gopkg.in/ini.v1")
+					So(f.Section("package:fake:sub").Key("CLONE_URL").String(), ShouldEqual, "https://gopkg.in/ini.v1")
+				})
+			})
+
+			Convey("Get child sections by parent name", func() {
+				f, err := ini.LoadSources(ini.LoadOptions{ChildSectionDelimiter: ":"}, []byte(`
+[node]
+[node:biz1]
+[node:biz2]
+[node.biz3]
+[node.bizN]
+`))
+				So(err, ShouldBeNil)
+				So(f, ShouldNotBeNil)
+
+				children := f.ChildSections("node")
+				names := []string{"node:biz1", "node:biz2"}
+				So(len(children), ShouldEqual, len(names))
+				for i, name := range names {
+					So(children[i].Name(), ShouldEqual, name)
+				}
+			})
+		})
 	})
 }
 

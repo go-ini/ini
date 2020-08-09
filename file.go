@@ -55,6 +55,9 @@ func newFile(dataSources []dataSource, opts LoadOptions) *File {
 	if len(opts.KeyValueDelimiterOnWrite) == 0 {
 		opts.KeyValueDelimiterOnWrite = "="
 	}
+	if len(opts.ChildSectionDelimiter) == 0 {
+		opts.ChildSectionDelimiter = "."
+	}
 
 	return &File{
 		BlockMode:   true,
