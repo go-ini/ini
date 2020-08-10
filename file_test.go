@@ -332,6 +332,25 @@ func TestFile_DeleteSection(t *testing.T) {
 		f.DeleteSection("")
 		So(f.SectionStrings(), ShouldResemble, []string{"author", "package"})
 	})
+
+	Convey("Delete default section", t, func() {
+		f := ini.Empty()
+		So(f, ShouldNotBeNil)
+
+		f.Section("").Key("foo").SetValue("bar")
+		f.Section("section1").Key("key1").SetValue("value1")
+		f.DeleteSection("")
+		So(f.SectionStrings(), ShouldResemble, []string{"section1"})
+
+		var buf bytes.Buffer
+		_, err := f.WriteTo(&buf)
+		So(err, ShouldBeNil)
+
+		So(buf.String(), ShouldEqual, `[section1]
+key1 = value1
+
+`)
+	})
 }
 
 func TestFile_Append(t *testing.T) {
