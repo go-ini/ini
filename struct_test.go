@@ -685,6 +685,7 @@ path = /tmp/gpm-profiles/test5.profile
 path = /tmp/gpm-profiles/test1.profile
 
 `)
+
 		Convey("Reflect from struct with shadows", func() {
 			cfg := ini.Empty(ini.LoadOptions{
 				AllowShadows: true,
