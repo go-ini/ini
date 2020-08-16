@@ -351,6 +351,7 @@ key1 = value1
 
 `)
 	})
+
 	Convey("Delete a section with InsensitiveSections", t, func() {
 		f := ini.Empty(ini.LoadOptions{InsensitiveSections: true})
 		So(f, ShouldNotBeNil)
