@@ -121,7 +121,7 @@ func (s *Section) GetKey(name string) (*Key, error) {
 		// Check if it is a child-section.
 		sname := s.name
 		for {
-			if i := strings.LastIndex(sname, "."); i > -1 {
+			if i := strings.LastIndex(sname, s.f.options.ChildSectionDelimiter); i > -1 {
 				sname = sname[:i]
 				sec, err := s.f.GetSection(sname)
 				if err != nil {
@@ -188,7 +188,7 @@ func (s *Section) ParentKeys() []*Key {
 	var parentKeys []*Key
 	sname := s.name
 	for {
-		if i := strings.LastIndex(sname, "."); i > -1 {
+		if i := strings.LastIndex(sname, s.f.options.ChildSectionDelimiter); i > -1 {
 			sname = sname[:i]
 			sec, err := s.f.GetSection(sname)
 			if err != nil {
@@ -245,7 +245,7 @@ func (s *Section) DeleteKey(name string) {
 // For example, "[parent.child1]" and "[parent.child12]" are child sections
 // of section "[parent]".
 func (s *Section) ChildSections() []*Section {
-	prefix := s.name + "."
+	prefix := s.name + s.f.options.ChildSectionDelimiter
 	children := make([]*Section, 0, 3)
 	for _, name := range s.f.sectionList {
 		if strings.HasPrefix(name, prefix) {
