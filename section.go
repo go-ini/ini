@@ -66,7 +66,7 @@ func (s *Section) SetBody(body string) {
 func (s *Section) NewKey(name, val string) (*Key, error) {
 	if len(name) == 0 {
 		return nil, errors.New("error creating new key: empty key name")
-	} else if s.f.options.Insensitive {
+	} else if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
 		name = strings.ToLower(name)
 	}
 
@@ -109,7 +109,7 @@ func (s *Section) GetKey(name string) (*Key, error) {
 	if s.f.BlockMode {
 		s.f.lock.RLock()
 	}
-	if s.f.options.Insensitive {
+	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
 		name = strings.ToLower(name)
 	}
 	key := s.keys[name]

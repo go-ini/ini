@@ -82,7 +82,7 @@ func (f *File) NewSection(name string) (*Section, error) {
 		return nil, errors.New("empty section name")
 	}
 
-	if f.options.Insensitive && name != DefaultSection {
+	if (f.options.Insensitive || f.options.InsensitiveSections) && name != DefaultSection {
 		name = strings.ToLower(name)
 	}
 
@@ -144,7 +144,7 @@ func (f *File) SectionsByName(name string) ([]*Section, error) {
 	if len(name) == 0 {
 		name = DefaultSection
 	}
-	if f.options.Insensitive {
+	if f.options.Insensitive || f.options.InsensitiveSections {
 		name = strings.ToLower(name)
 	}
 
@@ -236,7 +236,7 @@ func (f *File) DeleteSectionWithIndex(name string, index int) error {
 	if len(name) == 0 {
 		name = DefaultSection
 	}
-	if f.options.Insensitive {
+	if f.options.Insensitive || f.options.InsensitiveSections {
 		name = strings.ToLower(name)
 	}
 
