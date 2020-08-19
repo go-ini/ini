@@ -437,6 +437,25 @@ test   =
 `)
 
 	})
+
+	Convey("Keep leading and trailing spaces in value", t, func() {
+		f, _ := ini.Load([]byte(`[foo]
+bar1 = '  val ue1 '
+bar2 = """  val ue2 """
+bar3 = "  val ue3 "
+`))
+		So(f, ShouldNotBeNil)
+
+		var buf bytes.Buffer
+		_, err := f.WriteTo(&buf)
+		So(err, ShouldBeNil)
+		So(buf.String(),ShouldEqual,`[foo]
+bar1 = "  val ue1 "
+bar2 = "  val ue2 "
+bar3 = "  val ue3 "
+
+`)
+	})
 }
 
 func TestFile_SaveTo(t *testing.T) {
