@@ -556,6 +556,39 @@ omitempty  = 9
 
 `)
 		})
+
+		Convey("Reflect from struct with non-anonymous structure pointer", func() {
+			cfg := ini.Empty()
+			type Rpc struct {
+				Enable  bool   `ini:"enable"`
+				Type    string `ini:"type"`
+				Address string `ini:"addr"`
+				Name    string `ini:"name"`
+			}
+			type Cfg struct {
+				Rpc *Rpc `ini:"rpc"`
+			}
+
+			config := &Cfg{
+				Rpc: &Rpc{
+					Enable:  true,
+					Type:    "type",
+					Address: "address",
+					Name:    "name",
+				},
+			}
+			So(cfg.ReflectFrom(config), ShouldBeNil)
+
+			var buf bytes.Buffer
+			_, err = cfg.WriteTo(&buf)
+			So(buf.String(), ShouldEqual, `[rpc]
+enable = true
+type   = type
+addr   = address
+name   = name
+
+`)
+		})
 	})
 }
 
