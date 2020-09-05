@@ -1367,6 +1367,55 @@ GITHUB = U;n;k;n;w;o;n
 				}
 			})
 		})
+
+		Convey("ShortCircuit", func() {
+			Convey("Load the first available configuration, ignore other configuration", func() {
+				f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true}, minimalConf, []byte(`key1 = value1`))
+				So(f, ShouldNotBeNil)
+				So(err, ShouldBeNil)
+				var buf bytes.Buffer
+				_, err = f.WriteTo(&buf)
+				So(err, ShouldBeNil)
+				So(buf.String(), ShouldEqual, `[author]
+E-MAIL = u@gogs.io
+
+`)
+			})
+
+			Convey("Return an error when fail to load", func() {
+				f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true}, notFoundConf, minimalConf)
+				So(f, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Used with Loose to ignore errors that the file does not exist", func() {
+				f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true, Loose: true}, notFoundConf, minimalConf)
+				So(f, ShouldNotBeNil)
+				So(err, ShouldBeNil)
+				var buf bytes.Buffer
+				_, err = f.WriteTo(&buf)
+				So(err, ShouldBeNil)
+				So(buf.String(), ShouldEqual, `[author]
+E-MAIL = u@gogs.io
+
+`)
+			})
+
+			Convey("Ensure all sources are loaded without ShortCircuit", func() {
+				f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: false}, minimalConf, []byte(`key1 = value1`))
+				So(f, ShouldNotBeNil)
+				So(err, ShouldBeNil)
+				var buf bytes.Buffer
+				_, err = f.WriteTo(&buf)
+				So(err, ShouldBeNil)
+				So(buf.String(), ShouldEqual, `key1 = value1
+
+[author]
+E-MAIL = u@gogs.io
+
+`)
+			})
+		})
 	})
 }
 

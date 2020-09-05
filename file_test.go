@@ -449,7 +449,7 @@ bar3 = "  val ue3 "
 		var buf bytes.Buffer
 		_, err := f.WriteTo(&buf)
 		So(err, ShouldBeNil)
-		So(buf.String(),ShouldEqual,`[foo]
+		So(buf.String(), ShouldEqual, `[foo]
 bar1 = "  val ue1 "
 bar2 = "  val ue2 "
 bar3 = "  val ue3 "
