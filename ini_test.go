@@ -1368,7 +1368,7 @@ GITHUB = U;n;k;n;w;o;n
 			})
 		})
 
-		Convey("with `ShortCircuit` 'ture'", func() {
+		Convey("ShortCircuit", func() {
 			Convey("Load the first available configuration, ignore other configuration", func() {
 				f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true}, minimalConf, []byte(`key1 = value1`))
 				So(f, ShouldNotBeNil)
@@ -1401,7 +1401,7 @@ E-MAIL = u@gogs.io
 `)
 			})
 
-			Convey("Inverse case", func() {
+			Convey("Ensure all sources are loaded without ShortCircuit", func() {
 				f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: false}, minimalConf, []byte(`key1 = value1`))
 				So(f, ShouldNotBeNil)
 				So(err, ShouldBeNil)
