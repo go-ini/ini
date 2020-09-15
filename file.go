@@ -44,6 +44,7 @@ type File struct {
 	sections map[string][]*Section
 
 	NameMapper
+	AliasMapper
 	ValueMapper
 }
 
@@ -156,6 +157,16 @@ func (f *File) SectionsByName(name string) ([]*Section, error) {
 		defer f.lock.RUnlock()
 	}
 
+	if f.AliasMapper != nil {
+		// Search if an alias is available instead and return as soon as possible.
+		possibleNames := f.AliasMapper(name)
+		for _, name := range possibleNames {
+			if secs := f.sections[name]; len(secs) > 0 {
+				return secs, nil
+			}
+		}
+	}
+	// Continue with the original name.
 	secs := f.sections[name]
 	if len(secs) == 0 {
 		return nil, fmt.Errorf("section %q does not exist", name)

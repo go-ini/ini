@@ -15,6 +15,7 @@
 package ini_test
 
 import (
+	"fmt"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -311,5 +312,38 @@ func TestSection_DeleteKey(t *testing.T) {
 		So(f.Section("").HasKey("NAME"), ShouldBeTrue)
 		f.Section("").DeleteKey("NAME")
 		So(f.Section("").HasKey("NAME"), ShouldBeFalse)
+	})
+}
+
+func TestSection_Alias(t *testing.T) {
+	Convey("Map to section alias", t, func() {
+
+		var sectionValueTests = map[string]string{
+			"section":        "a value",
+			"custom.section": "a value",
+		}
+
+		for section, value := range sectionValueTests {
+			source := fmt.Sprintf("[%s]\nvalue=%s", section, value)
+
+			f, err := ini.LoadSources(
+				ini.LoadOptions{Insensitive: true},
+				[]byte(source))
+			So(err, ShouldBeNil)
+
+			f.AliasMapper = func(s string) []string {
+				return []string{"custom." + s}
+			}
+
+			var cfg = struct {
+				Section struct {
+					Value string
+				}
+			}{}
+			err = f.MapTo(&cfg)
+			So(err, ShouldBeNil)
+			So(cfg.Section.Value, ShouldEqual, value)
+		}
+
 	})
 }
