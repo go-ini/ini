@@ -36,10 +36,11 @@ jobs:
           go mod init gopkg.in/ini.v1
           go test -v -race -coverprofile=coverage -covermode=atomic ./...
       - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v1.0.6
+        uses: codecov/codecov-action@v1
         with:
           file: ./coverage
           flags: unittests
+        if: matrix.platform == 'ubuntu-latest' && matrix.go-version == '1.15.x'
       - name: Cache downloaded modules
         uses: actions/cache@v1
         with:
