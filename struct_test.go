@@ -539,14 +539,25 @@ None        =
 			cfg := ini.Empty()
 			type SpecialStruct struct {
 				FirstName  string    `ini:"first_name"`
-				LastName   string    `ini:"last_name"`
+				LastName   string    `ini:"last_name,omitempty"`
 				JustOmitMe string    `ini:"omitempty"`
 				LastLogin  time.Time `ini:"last_login,omitempty"`
 				LastLogin2 time.Time `ini:",omitempty"`
 				NotEmpty   int       `ini:"omitempty"`
+				Number     int64     `ini:",omitempty"`
+				Ages       uint      `ini:",omitempty"`
+				Population uint64    `ini:",omitempty"`
+				Coordinate float64   `ini:",omitempty"`
+				Flag       bool      `ini:",omitempty"`
+				Note       *string   `ini:",omitempty"`
+			}
+			special := &SpecialStruct{
+				FirstName: "John",
+				LastName:  "Doe",
+				NotEmpty:  9,
 			}
 
-			So(ini.ReflectFrom(cfg, &SpecialStruct{FirstName: "John", LastName: "Doe", NotEmpty: 9}), ShouldBeNil)
+			So(ini.ReflectFrom(cfg, special), ShouldBeNil)
 
 			var buf bytes.Buffer
 			_, err = cfg.WriteTo(&buf)
@@ -724,12 +735,36 @@ path = /tmp/gpm-profiles/test1.profile
 				AllowShadows: true,
 			})
 			type ShadowStruct struct {
-				StringArray      []string `ini:"sa,,allowshadow"`
-				EmptyStringArrat []string `ini:"empty,omitempty,allowshadow"`
-				Allowshadow      []string `ini:"allowshadow,,allowshadow"`
+				StringArray      []string    `ini:"sa,,allowshadow"`
+				EmptyStringArrat []string    `ini:"empty,omitempty,allowshadow"`
+				Allowshadow      []string    `ini:"allowshadow,,allowshadow"`
+				Dates            []time.Time `ini:",,allowshadow"`
+				Places           []string    `ini:",,allowshadow"`
+				Years            []int       `ini:",,allowshadow"`
+				Numbers          []int64     `ini:",,allowshadow"`
+				Ages             []uint      `ini:",,allowshadow"`
+				Populations      []uint64    `ini:",,allowshadow"`
+				Coordinates      []float64   `ini:",,allowshadow"`
+				Flags            []bool      `ini:",,allowshadow"`
+				None             []int       `ini:",,allowshadow"`
 			}
 
-			So(ini.ReflectFrom(cfg, &ShadowStruct{StringArray: []string{"s1", "s2"}, Allowshadow: []string{"s3", "s4"}}), ShouldBeNil)
+			shadow := &ShadowStruct{
+				StringArray: []string{"s1", "s2"},
+				Allowshadow: []string{"s3", "s4"},
+				Dates: []time.Time{time.Date(2020, 9, 12, 00, 00, 00, 651387237, time.UTC),
+					time.Date(2020, 9, 12, 00, 00, 00, 651387237, time.UTC)},
+				Places:      []string{"HangZhou", "Boston"},
+				Years:       []int{1993, 1994},
+				Numbers:     []int64{10010, 10086},
+				Ages:        []uint{18, 19},
+				Populations: []uint64{12345678, 98765432},
+				Coordinates: []float64{192.168, 10.11},
+				Flags:       []bool{true, false},
+				None:        []int{},
+			}
+
+			So(ini.ReflectFrom(cfg, shadow), ShouldBeNil)
 
 			var buf bytes.Buffer
 			_, err := cfg.WriteTo(&buf)
@@ -738,6 +773,22 @@ path = /tmp/gpm-profiles/test1.profile
 sa          = s2
 allowshadow = s3
 allowshadow = s4
+Dates       = 2020-09-12T00:00:00Z
+Places      = HangZhou
+Places      = Boston
+Years       = 1993
+Years       = 1994
+Numbers     = 10010
+Numbers     = 10086
+Ages        = 18
+Ages        = 19
+Populations = 12345678
+Populations = 98765432
+Coordinates = 192.168
+Coordinates = 10.11
+Flags       = true
+Flags       = false
+None        = 
 
 `)
 		})
