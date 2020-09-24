@@ -93,6 +93,15 @@ type testNonUniqueSectionsStruct struct {
 	Peer      []testPeer `ini:",,,nonunique"`
 }
 
+type BaseStruct struct {
+	Base bool
+}
+
+type testExtend struct {
+	BaseStruct `ini:",,,,extends"`
+	Extend     bool
+}
+
 const confDataStruct = `
 NAME = Unknwon
 Age = 21
@@ -141,6 +150,10 @@ GPA = 2.8
 [foo.bar]
 Here = there
 When = then
+
+[extended]
+Base = true
+Extend = true
 `
 
 const confNonUniqueSectionDataStruct = `[Interface]
@@ -332,6 +345,16 @@ func Test_MapToStruct(t *testing.T) {
 			So(dv.Born.String(), ShouldEqual, t.String())
 			So(strings.Join(dv.Cities, ","), ShouldEqual, "HangZhou,Boston")
 		})
+
+		Convey("Map to extended base", func() {
+			f, err := ini.Load([]byte(confDataStruct))
+			So(err, ShouldBeNil)
+			So(f, ShouldNotBeNil)
+			te := testExtend{}
+			So(f.Section("extended").MapTo(&te), ShouldBeNil)
+			So(te.Base, ShouldBeTrue)
+			So(te.Extend, ShouldBeTrue)
+		})
 	})
 
 	Convey("Map to struct in strict mode", t, func() {
@@ -361,6 +384,18 @@ names=alice, bruce`))
 
 		So(f.Section("").StrictMapTo(s), ShouldBeNil)
 		So(fmt.Sprint(s.Names), ShouldEqual, "[alice bruce]")
+	})
+}
+
+func Test_MapToExtended(t *testing.T) {
+	Convey("Map to extended base", t, func() {
+		f, err := ini.Load([]byte(confDataStruct))
+		So(err, ShouldBeNil)
+		So(f, ShouldNotBeNil)
+		te := testExtend{}
+		So(f.Section("extended").MapTo(&te), ShouldBeNil)
+		So(te.Base, ShouldBeTrue)
+		So(te.Extend, ShouldBeTrue)
 	})
 }
 

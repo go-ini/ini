@@ -263,8 +263,8 @@ func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim stri
 	return nil
 }
 
-func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bool, allowNonUnique bool) {
-	opts := strings.SplitN(tag, ",", 4)
+func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bool, allowNonUnique bool, extends bool) {
+	opts := strings.SplitN(tag, ",", 5)
 	rawName = opts[0]
 	if len(opts) > 1 {
 		omitEmpty = opts[1] == "omitempty"
@@ -275,7 +275,10 @@ func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bo
 	if len(opts) > 3 {
 		allowNonUnique = opts[3] == "nonunique"
 	}
-	return rawName, omitEmpty, allowShadow, allowNonUnique
+	if len(opts) > 4 {
+		extends = opts[4] == "extends"
+	}
+	return rawName, omitEmpty, allowShadow, allowNonUnique, extends
 }
 
 // mapToField maps the given value to the matching field of the given section.
@@ -295,7 +298,7 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int)
 			continue
 		}
 
-		rawName, _, allowShadow, allowNonUnique := parseTagOptions(tag)
+		rawName, _, allowShadow, allowNonUnique, extends := parseTagOptions(tag)
 		fieldName := s.parseFieldName(tpField.Name, rawName)
 		if len(fieldName) == 0 || !field.CanSet() {
 			continue
@@ -303,12 +306,19 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int)
 
 		isStruct := tpField.Type.Kind() == reflect.Struct
 		isStructPtr := tpField.Type.Kind() == reflect.Ptr && tpField.Type.Elem().Kind() == reflect.Struct
-		isAnonymous := tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous
-		if isAnonymous {
+		isAnonymousPtr := tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous
+		if isAnonymousPtr {
 			field.Set(reflect.New(tpField.Type.Elem()))
 		}
 
-		if isAnonymous || isStruct || isStructPtr {
+		if extends && (isAnonymousPtr || (isStruct && tpField.Anonymous)) {
+			if isStructPtr && field.IsNil() {
+				field.Set(reflect.New(tpField.Type.Elem()))
+			}
+			if err := s.mapToField(field, isStrict, sectionIndex); err != nil {
+				return fmt.Errorf("map to field %q: %v", fieldName, err)
+			}
+		} else if isAnonymousPtr || isStruct || isStructPtr {
 			if secs, err := s.f.SectionsByName(fieldName); err == nil {
 				if len(secs) <= sectionIndex {
 					return fmt.Errorf("there are not enough sections (%d <= %d) for the field %q", len(secs), sectionIndex, fieldName)
@@ -581,7 +591,7 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 			continue
 		}
 
-		rawName, omitEmpty, allowShadow, allowNonUnique := parseTagOptions(tag)
+		rawName, omitEmpty, allowShadow, allowNonUnique, extends := parseTagOptions(tag)
 		if omitEmpty && isEmptyValue(field) {
 			continue
 		}
@@ -592,6 +602,13 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 
 		fieldName := s.parseFieldName(tpField.Name, rawName)
 		if len(fieldName) == 0 || !field.CanSet() {
+			continue
+		}
+
+		if extends && tpField.Anonymous && (tpField.Type.Kind() == reflect.Ptr || tpField.Type.Kind() == reflect.Struct) {
+			if err := s.reflectFrom(field); err != nil {
+				return fmt.Errorf("reflect from field %q: %v", fieldName, err)
+			}
 			continue
 		}
 
