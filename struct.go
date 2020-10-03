@@ -266,24 +266,18 @@ func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim stri
 func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bool, allowNonUnique bool, extends bool) {
 	opts := strings.SplitN(tag, ",", 5)
 	rawName = opts[0]
-	if len(opts) > 1 {
-		omitEmpty = opts[1] == "omitempty"
-	}
-	if len(opts) > 2 {
-		allowShadow = opts[2] == "allowshadow"
-	}
-	if len(opts) > 3 {
-		allowNonUnique = opts[3] == "nonunique"
-	}
-	if len(opts) > 4 {
-		extends = opts[4] == "extends"
+	for _, opt := range opts[1:] {
+		omitEmpty = omitEmpty || (opt == "omitempty")
+		allowShadow = allowShadow || (opt == "allowshadow")
+		allowNonUnique = allowNonUnique || (opt == "nonunique")
+		extends = extends || (opt == "extends")
 	}
 	return rawName, omitEmpty, allowShadow, allowNonUnique, extends
 }
 
 // mapToField maps the given value to the matching field of the given section.
 // The sectionIndex is the index (if non unique sections are enabled) to which the value should be added.
-func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int) error {
+func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int, sectionName string) error {
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
 	}
@@ -315,7 +309,14 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int)
 			if isStructPtr && field.IsNil() {
 				field.Set(reflect.New(tpField.Type.Elem()))
 			}
-			if err := s.mapToField(field, isStrict, sectionIndex); err != nil {
+			fieldSection := s
+			if rawName != "" {
+				sectionName = s.name + s.f.options.ChildSectionDelimiter + rawName
+				if secs, err := s.f.SectionsByName(s.name + s.f.options.ChildSectionDelimiter + rawName); err == nil && len(secs) > 0 && sectionIndex < len(secs) {
+					fieldSection = secs[sectionIndex]
+				}
+			}
+			if err := fieldSection.mapToField(field, isStrict, sectionIndex, sectionName); err != nil {
 				return fmt.Errorf("map to field %q: %v", fieldName, err)
 			}
 		} else if isAnonymousPtr || isStruct || isStructPtr {
@@ -328,7 +329,7 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int)
 				if isStructPtr && field.IsNil() {
 					field.Set(reflect.New(tpField.Type.Elem()))
 				}
-				if err = secs[sectionIndex].mapToField(field, isStrict, sectionIndex); err != nil {
+				if err = secs[sectionIndex].mapToField(field, isStrict, sectionIndex, fieldName); err != nil {
 					return fmt.Errorf("map to field %q: %v", fieldName, err)
 				}
 				continue
@@ -367,7 +368,7 @@ func (s *Section) mapToSlice(secName string, val reflect.Value, isStrict bool) (
 	typ := val.Type().Elem()
 	for i, sec := range secs {
 		elem := reflect.New(typ)
-		if err = sec.mapToField(elem, isStrict, i); err != nil {
+		if err = sec.mapToField(elem, isStrict, i, sec.name); err != nil {
 			return reflect.Value{}, fmt.Errorf("map to field from section %q: %v", secName, err)
 		}
 
@@ -397,7 +398,7 @@ func (s *Section) mapTo(v interface{}, isStrict bool) error {
 		return nil
 	}
 
-	return s.mapToField(val, isStrict, 0)
+	return s.mapToField(val, isStrict, 0, s.name)
 }
 
 // MapTo maps section to given struct.
