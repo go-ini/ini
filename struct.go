@@ -312,7 +312,7 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 			fieldSection := s
 			if rawName != "" {
 				sectionName = s.name + s.f.options.ChildSectionDelimiter + rawName
-				if secs, err := s.f.SectionsByName(s.name + s.f.options.ChildSectionDelimiter + rawName); err == nil && len(secs) > 0 && sectionIndex < len(secs) {
+				if secs, err := s.f.SectionsByName(sectionName); err == nil && sectionIndex < len(secs) {
 					fieldSection = secs[sectionIndex]
 				}
 			}
