@@ -58,8 +58,8 @@ type testStruct struct {
 	Unused         int `ini:"-"`
 	Unsigned       uint
 	Omitted        bool     `ini:"omitthis,omitempty"`
-	Shadows        []string `ini:",,allowshadow"`
-	ShadowInts     []int    `ini:"Shadows,,allowshadow"`
+	Shadows        []string `ini:",allowshadow"`
+	ShadowInts     []int    `ini:"Shadows,allowshadow"`
 	BoolPtr        *bool
 	BoolPtrNil     *bool
 	FloatPtr       *float64
@@ -90,7 +90,16 @@ type testPeer struct {
 
 type testNonUniqueSectionsStruct struct {
 	Interface testInterface
-	Peer      []testPeer `ini:",,,nonunique"`
+	Peer      []testPeer `ini:",nonunique"`
+}
+
+type BaseStruct struct {
+	Base bool
+}
+
+type testExtend struct {
+	BaseStruct `ini:",extends"`
+	Extend     bool
 }
 
 const confDataStruct = `
@@ -141,6 +150,10 @@ GPA = 2.8
 [foo.bar]
 Here = there
 When = then
+
+[extended]
+Base = true
+Extend = true
 `
 
 const confNonUniqueSectionDataStruct = `[Interface]
@@ -332,6 +345,16 @@ func Test_MapToStruct(t *testing.T) {
 			So(dv.Born.String(), ShouldEqual, t.String())
 			So(strings.Join(dv.Cities, ","), ShouldEqual, "HangZhou,Boston")
 		})
+
+		Convey("Map to extended base", func() {
+			f, err := ini.Load([]byte(confDataStruct))
+			So(err, ShouldBeNil)
+			So(f, ShouldNotBeNil)
+			te := testExtend{}
+			So(f.Section("extended").MapTo(&te), ShouldBeNil)
+			So(te.Base, ShouldBeTrue)
+			So(te.Extend, ShouldBeTrue)
+		})
 	})
 
 	Convey("Map to struct in strict mode", t, func() {
@@ -443,7 +466,7 @@ FieldInSection = 6
 			}
 
 			type File struct {
-				Sections []Section `ini:"Section,,,nonunique"`
+				Sections []Section `ini:"Section,nonunique"`
 			}
 
 			f := new(File)
@@ -735,18 +758,18 @@ path = /tmp/gpm-profiles/test1.profile
 				AllowShadows: true,
 			})
 			type ShadowStruct struct {
-				StringArray      []string    `ini:"sa,,allowshadow"`
+				StringArray      []string    `ini:"sa,allowshadow"`
 				EmptyStringArrat []string    `ini:"empty,omitempty,allowshadow"`
-				Allowshadow      []string    `ini:"allowshadow,,allowshadow"`
-				Dates            []time.Time `ini:",,allowshadow"`
-				Places           []string    `ini:",,allowshadow"`
-				Years            []int       `ini:",,allowshadow"`
-				Numbers          []int64     `ini:",,allowshadow"`
-				Ages             []uint      `ini:",,allowshadow"`
-				Populations      []uint64    `ini:",,allowshadow"`
-				Coordinates      []float64   `ini:",,allowshadow"`
-				Flags            []bool      `ini:",,allowshadow"`
-				None             []int       `ini:",,allowshadow"`
+				Allowshadow      []string    `ini:"allowshadow,allowshadow"`
+				Dates            []time.Time `ini:",allowshadow"`
+				Places           []string    `ini:",allowshadow"`
+				Years            []int       `ini:",allowshadow"`
+				Numbers          []int64     `ini:",allowshadow"`
+				Ages             []uint      `ini:",allowshadow"`
+				Populations      []uint64    `ini:",allowshadow"`
+				Coordinates      []float64   `ini:",allowshadow"`
+				Flags            []bool      `ini:",allowshadow"`
+				None             []int       `ini:",allowshadow"`
 			}
 
 			shadow := &ShadowStruct{
