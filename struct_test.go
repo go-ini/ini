@@ -387,18 +387,6 @@ names=alice, bruce`))
 	})
 }
 
-func Test_MapToExtended(t *testing.T) {
-	Convey("Map to extended base", t, func() {
-		f, err := ini.Load([]byte(confDataStruct))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
-		te := testExtend{}
-		So(f.Section("extended").MapTo(&te), ShouldBeNil)
-		So(te.Base, ShouldBeTrue)
-		So(te.Extend, ShouldBeTrue)
-	})
-}
-
 func Test_MapToStructNonUniqueSections(t *testing.T) {
 	Convey("Map to struct non unique", t, func() {
 		Convey("Map file to struct non unique", func() {
