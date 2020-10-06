@@ -58,6 +58,24 @@ var (
 	}
 )
 
+// AliasMapper represents a ini tag section alias mapper.
+//
+// Sets one or more aliases to the `GetSectionsByName`.
+// It's extremely useful when used with the `StrictMapTo/MapTo` methods.
+// It allows the structure to have one tagged section but
+// the source file can contain one of the provided aliases.
+//
+// Example Code:
+//    var SectionAlias = func(section string) AliasMapper {
+// 	    return func(original string) []string {
+// 		  return []string{section + "." + original}
+// 	    }
+//    }
+//   f.AliasMapper = SectionAlias("custom")
+//
+// Look `section_test.go#TestSection_Alias` for more.
+type AliasMapper func(section string) []string
+
 func (s *Section) parseFieldName(raw, actual string) string {
 	if len(actual) > 0 {
 		return actual
