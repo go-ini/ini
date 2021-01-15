@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-ini/ini"
 	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/ini.v1"
 )
 
 func TestKey_AddShadow(t *testing.T) {

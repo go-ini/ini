@@ -5,8 +5,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/go-ini/ini"
 	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/ini.v1"
 )
 
 type testData struct {

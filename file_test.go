@@ -18,10 +18,11 @@ import (
 	"bytes"
 	"io/ioutil"
 	"runtime"
+	"sort"
 	"testing"
 
+	"github.com/go-ini/ini"
 	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/ini.v1"
 )
 
 func TestEmpty(t *testing.T) {
@@ -274,6 +275,33 @@ VERSION = v1`))
 		So(f.Section("").Key("name").String(), ShouldEqual, "ini")
 		So(f.Section("").Key("version").String(), ShouldEqual, "v1")
 	})
+
+	Convey("Get section after deletion", t, func() {
+		f, err := ini.Load([]byte(`
+[RANDOM]
+`))
+		So(f, ShouldNotBeNil)
+		So(err, ShouldBeNil)
+		sectionNames := f.SectionStrings()
+		sort.Strings(sectionNames)
+		So(sectionNames, ShouldResemble, []string{ini.DefaultSection, "RANDOM"})
+
+		for _, currentSection := range sectionNames {
+			f.DeleteSection(currentSection)
+		}
+		Convey("Section recreated", func() {
+			for sectionParam, expectedSectionName := range map[string]string{
+				"":       ini.DefaultSection,
+				"RANDOM": "RANDOM",
+			} {
+				sec := f.Section(sectionParam)
+				So(sec, ShouldNotBeNil)
+				So(sec.Name(), ShouldEqual, expectedSectionName)
+			}
+		})
+
+	})
+
 }
 
 func TestFile_Sections(t *testing.T) {

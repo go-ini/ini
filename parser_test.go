@@ -17,8 +17,8 @@ package ini_test
 import (
 	"testing"
 
+	"github.com/go-ini/ini"
 	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/ini.v1"
 )
 
 func TestBOM(t *testing.T) {
