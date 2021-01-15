@@ -17,7 +17,7 @@ package ini_test
 import (
 	"testing"
 
-	"github.com/go-ini/ini"
+	"gopkg.in/ini.v1"
 )
 
 func newTestFile(block bool) *ini.File {
