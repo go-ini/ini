@@ -125,6 +125,8 @@ type LoadOptions struct {
 	ReaderBufferSize int
 	// AllowNonUniqueSections indicates whether to allow sections with the same name multiple times.
 	AllowNonUniqueSections bool
+	// AllowDuplicateShadowValues indicates whether values for shadowed keys should be deduplicated.
+	AllowDuplicateShadowValues bool
 }
 
 // DebugFunc is the type of function called to log parse events.

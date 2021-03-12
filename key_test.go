@@ -51,6 +51,29 @@ func TestKey_AddShadow(t *testing.T) {
 		Convey("Add shadow to auto-increment key", func() {
 			So(f.Section("notes").Key("#1").AddShadow("beta"), ShouldNotBeNil)
 		})
+
+		Convey("Deduplicate an existing value", func() {
+			k := f.Section("").Key("NAME")
+			So(k.AddShadow("ini"), ShouldBeNil)
+			So(k.ValueWithShadows(), ShouldResemble, []string{"ini", "ini.v1"})
+		})
+	})
+
+	Convey("Allow duplicate shadowed values", t, func() {
+		f := ini.Empty(ini.LoadOptions{
+			AllowShadows:               true,
+			AllowDuplicateShadowValues: true,
+		})
+		So(f, ShouldNotBeNil)
+
+		k, err := f.Section("").NewKey("NAME", "ini")
+		So(err, ShouldBeNil)
+		So(k, ShouldNotBeNil)
+
+		So(k.AddShadow("ini.v1"), ShouldBeNil)
+		So(k.AddShadow("ini"), ShouldBeNil)
+		So(k.AddShadow("ini"), ShouldBeNil)
+		So(k.ValueWithShadows(), ShouldResemble, []string{"ini", "ini.v1", "ini", "ini"})
 	})
 
 	Convey("Shadow is not allowed", t, func() {
