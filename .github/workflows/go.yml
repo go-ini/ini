@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Init Go Modules
+        run: go mod init gopkg.in/ini.v1
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
@@ -44,7 +46,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Run tests with coverage
-        run: go test -v -race -coverprofile=coverage -covermode=atomic ./...
+        run: |
+          go mod init gopkg.in/ini.v1
+          go test -v -race -coverprofile=coverage -covermode=atomic ./...
       - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@v1.5.0
         with:
