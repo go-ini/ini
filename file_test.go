@@ -20,53 +20,51 @@ import (
 	"runtime"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"gopkg.in/ini.v1"
 )
 
 func TestEmpty(t *testing.T) {
-	Convey("Create an empty object", t, func() {
-		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+	f := ini.Empty()
+	require.NotNil(t, f)
 
-		// Should only have the default section
-		So(len(f.Sections()), ShouldEqual, 1)
+	// Should only have the default section
+	assert.Len(t, f.Sections(), 1)
 
-		// Default section should not contain any key
-		So(len(f.Section("").Keys()), ShouldBeZeroValue)
-	})
+	// Default section should not contain any key
+	assert.Len(t, f.Section("").Keys(), 0)
 }
 
 func TestFile_NewSection(t *testing.T) {
-	Convey("Create a new section", t, func() {
-		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+	f := ini.Empty()
+	require.NotNil(t, f)
 
+	sec, err := f.NewSection("author")
+	require.NoError(t, err)
+	require.NotNil(t, sec)
+	assert.Equal(t, "author", sec.Name())
+
+	assert.Equal(t, []string{ini.DefaultSection, "author"}, f.SectionStrings())
+
+	t.Run("with duplicated name", func(t *testing.T) {
 		sec, err := f.NewSection("author")
-		So(err, ShouldBeNil)
-		So(sec, ShouldNotBeNil)
-		So(sec.Name(), ShouldEqual, "author")
+		require.NoError(t, err)
+		require.NotNil(t, sec)
 
-		So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "author"})
+		// Does nothing if section already exists
+		assert.Equal(t, []string{ini.DefaultSection, "author"}, f.SectionStrings())
+	})
 
-		Convey("With duplicated name", func() {
-			sec, err := f.NewSection("author")
-			So(err, ShouldBeNil)
-			So(sec, ShouldNotBeNil)
-
-			// Does nothing if section already exists
-			So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "author"})
-		})
-
-		Convey("With empty string", func() {
-			_, err := f.NewSection("")
-			So(err, ShouldNotBeNil)
-		})
+	t.Run("with empty string", func(t *testing.T) {
+		_, err := f.NewSection("")
+		require.Error(t, err)
 	})
 }
 
 func TestFile_NonUniqueSection(t *testing.T) {
-	Convey("Read and write non-unique sections", t, func() {
+	t.Run("read and write non-unique sections", func(t *testing.T) {
 		f, err := ini.LoadSources(ini.LoadOptions{
 			AllowNonUniqueSections: true,
 		}, []byte(`[Interface]
@@ -81,21 +79,21 @@ AllowedIPs = 192.168.2.2/32
 [Peer]
 PublicKey = <client2's publickey>
 AllowedIPs = 192.168.2.3/32`))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
 		sec, err := f.NewSection("Peer")
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
 		_, _ = sec.NewKey("PublicKey", "<client3's publickey>")
 		_, _ = sec.NewKey("AllowedIPs", "192.168.2.4/32")
 
 		var buf bytes.Buffer
 		_, err = f.WriteTo(&buf)
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 		str := buf.String()
-		So(str, ShouldEqual, `[Interface]
+		assert.Equal(t, `[Interface]
 Address    = 192.168.2.1
 PrivateKey = <server's privatekey>
 ListenPort = 51820
@@ -112,10 +110,10 @@ AllowedIPs = 192.168.2.3/32
 PublicKey  = <client3's publickey>
 AllowedIPs = 192.168.2.4/32
 
-`)
+`, str)
 	})
 
-	Convey("Delete non-unique section", t, func() {
+	t.Run("delete non-unique section", func(t *testing.T) {
 		f, err := ini.LoadSources(ini.LoadOptions{
 			AllowNonUniqueSections: true,
 		}, []byte(`[Interface]
@@ -136,17 +134,17 @@ PublicKey  = <client3's publickey>
 AllowedIPs = 192.168.2.4/32
 
 `))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
 		err = f.DeleteSectionWithIndex("Peer", 1)
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		var buf bytes.Buffer
 		_, err = f.WriteTo(&buf)
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 		str := buf.String()
-		So(str, ShouldEqual, `[Interface]
+		assert.Equal(t, `[Interface]
 Address    = 192.168.2.1
 PrivateKey = <server's privatekey>
 ListenPort = 51820
@@ -159,223 +157,209 @@ AllowedIPs = 192.168.2.2/32
 PublicKey  = <client3's publickey>
 AllowedIPs = 192.168.2.4/32
 
-`)
+`, str)
 	})
 
-	Convey("Delete all sections", t, func() {
+	t.Run("delete all sections", func(t *testing.T) {
 		f := ini.Empty(ini.LoadOptions{
 			AllowNonUniqueSections: true,
 		})
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		_ = f.NewSections("Interface", "Peer", "Peer")
-		So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "Interface", "Peer", "Peer"})
+		assert.Equal(t, []string{ini.DefaultSection, "Interface", "Peer", "Peer"}, f.SectionStrings())
 		f.DeleteSection("Peer")
-		So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "Interface"})
+		assert.Equal(t, []string{ini.DefaultSection, "Interface"}, f.SectionStrings())
 	})
 }
 
 func TestFile_NewRawSection(t *testing.T) {
-	Convey("Create a new raw section", t, func() {
-		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+	f := ini.Empty()
+	require.NotNil(t, f)
 
-		sec, err := f.NewRawSection("comments", `1111111111111111111000000000000000001110000
+	sec, err := f.NewRawSection("comments", `1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000`)
-		So(err, ShouldBeNil)
-		So(sec, ShouldNotBeNil)
-		So(sec.Name(), ShouldEqual, "comments")
+	require.NoError(t, err)
+	require.NotNil(t, sec)
+	assert.Equal(t, "comments", sec.Name())
 
-		So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "comments"})
-		So(f.Section("comments").Body(), ShouldEqual, `1111111111111111111000000000000000001110000
-111111111111111111100000000000111000000000`)
+	assert.Equal(t, []string{ini.DefaultSection, "comments"}, f.SectionStrings())
+	assert.Equal(t, `1111111111111111111000000000000000001110000
+111111111111111111100000000000111000000000`, f.Section("comments").Body())
 
-		Convey("With duplicated name", func() {
-			sec, err := f.NewRawSection("comments", `1111111111111111111000000000000000001110000`)
-			So(err, ShouldBeNil)
-			So(sec, ShouldNotBeNil)
-			So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "comments"})
+	t.Run("with duplicated name", func(t *testing.T) {
+		sec, err := f.NewRawSection("comments", `1111111111111111111000000000000000001110000`)
+		require.NoError(t, err)
+		require.NotNil(t, sec)
+		assert.Equal(t, []string{ini.DefaultSection, "comments"}, f.SectionStrings())
 
-			// Overwrite previous existed section
-			So(f.Section("comments").Body(), ShouldEqual, `1111111111111111111000000000000000001110000`)
-		})
+		// Overwrite previous existed section
+		assert.Equal(t, `1111111111111111111000000000000000001110000`, f.Section("comments").Body())
+	})
 
-		Convey("With empty string", func() {
-			_, err := f.NewRawSection("", "")
-			So(err, ShouldNotBeNil)
-		})
+	t.Run("with empty string", func(t *testing.T) {
+		_, err := f.NewRawSection("", "")
+		require.Error(t, err)
 	})
 }
 
 func TestFile_NewSections(t *testing.T) {
-	Convey("Create new sections", t, func() {
-		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+	f := ini.Empty()
+	require.NotNil(t, f)
 
-		So(f.NewSections("package", "author"), ShouldBeNil)
-		So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "package", "author"})
+	assert.NoError(t, f.NewSections("package", "author"))
+	assert.Equal(t, []string{ini.DefaultSection, "package", "author"}, f.SectionStrings())
 
-		Convey("With duplicated name", func() {
-			So(f.NewSections("author", "features"), ShouldBeNil)
+	t.Run("with duplicated name", func(t *testing.T) {
+		assert.NoError(t, f.NewSections("author", "features"))
 
-			// Ignore section already exists
-			So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "package", "author", "features"})
-		})
+		// Ignore section already exists
+		assert.Equal(t, []string{ini.DefaultSection, "package", "author", "features"}, f.SectionStrings())
+	})
 
-		Convey("With empty string", func() {
-			So(f.NewSections("", ""), ShouldNotBeNil)
-		})
+	t.Run("with empty string", func(t *testing.T) {
+		assert.Error(t, f.NewSections("", ""))
 	})
 }
 
 func TestFile_GetSection(t *testing.T) {
-	Convey("Get a section", t, func() {
-		f, err := ini.Load(fullConf)
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+	f, err := ini.Load(fullConf)
+	require.NoError(t, err)
+	require.NotNil(t, f)
 
-		sec, err := f.GetSection("author")
-		So(err, ShouldBeNil)
-		So(sec, ShouldNotBeNil)
-		So(sec.Name(), ShouldEqual, "author")
+	sec, err := f.GetSection("author")
+	require.NoError(t, err)
+	require.NotNil(t, sec)
+	assert.Equal(t, "author", sec.Name())
 
-		Convey("Section not exists", func() {
-			_, err := f.GetSection("404")
-			So(err, ShouldNotBeNil)
-		})
+	t.Run("section not exists", func(t *testing.T) {
+		_, err := f.GetSection("404")
+		require.Error(t, err)
 	})
 }
 
 func TestFile_Section(t *testing.T) {
-	Convey("Get a section", t, func() {
+	t.Run("get a section", func(t *testing.T) {
 		f, err := ini.Load(fullConf)
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
 		sec := f.Section("author")
-		So(sec, ShouldNotBeNil)
-		So(sec.Name(), ShouldEqual, "author")
+		require.NotNil(t, sec)
+		assert.Equal(t, "author", sec.Name())
 
-		Convey("Section not exists", func() {
+		t.Run("section not exists", func(t *testing.T) {
 			sec := f.Section("404")
-			So(sec, ShouldNotBeNil)
-			So(sec.Name(), ShouldEqual, "404")
+			require.NotNil(t, sec)
+			assert.Equal(t, "404", sec.Name())
 		})
 	})
 
-	Convey("Get default section in lower case with insensitive load", t, func() {
+	t.Run("get default section in lower case with insensitive load", func(t *testing.T) {
 		f, err := ini.InsensitiveLoad([]byte(`
 [default]
 NAME = ini
 VERSION = v1`))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
-		So(f.Section("").Key("name").String(), ShouldEqual, "ini")
-		So(f.Section("").Key("version").String(), ShouldEqual, "v1")
+		assert.Equal(t, "ini", f.Section("").Key("name").String())
+		assert.Equal(t, "v1", f.Section("").Key("version").String())
 	})
 }
 
 func TestFile_Sections(t *testing.T) {
-	Convey("Get all sections", t, func() {
-		f, err := ini.Load(fullConf)
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+	f, err := ini.Load(fullConf)
+	require.NoError(t, err)
+	require.NotNil(t, f)
 
-		secs := f.Sections()
-		names := []string{ini.DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"}
-		So(len(secs), ShouldEqual, len(names))
-		for i, name := range names {
-			So(secs[i].Name(), ShouldEqual, name)
-		}
-	})
+	secs := f.Sections()
+	names := []string{ini.DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"}
+	assert.Len(t, secs, len(names))
+	for i, name := range names {
+		assert.Equal(t, name, secs[i].Name())
+	}
 }
 
 func TestFile_ChildSections(t *testing.T) {
-	Convey("Get child sections by parent name", t, func() {
-		f, err := ini.Load([]byte(`
+	f, err := ini.Load([]byte(`
 [node]
 [node.biz1]
 [node.biz2]
 [node.biz3]
 [node.bizN]
 `))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+	require.NoError(t, err)
+	require.NotNil(t, f)
 
-		children := f.ChildSections("node")
-		names := []string{"node.biz1", "node.biz2", "node.biz3", "node.bizN"}
-		So(len(children), ShouldEqual, len(names))
-		for i, name := range names {
-			So(children[i].Name(), ShouldEqual, name)
-		}
-	})
+	children := f.ChildSections("node")
+	names := []string{"node.biz1", "node.biz2", "node.biz3", "node.bizN"}
+	assert.Len(t, children, len(names))
+	for i, name := range names {
+		assert.Equal(t, name, children[i].Name())
+	}
 }
 
 func TestFile_SectionStrings(t *testing.T) {
-	Convey("Get all section names", t, func() {
-		f, err := ini.Load(fullConf)
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+	f, err := ini.Load(fullConf)
+	require.NoError(t, err)
+	require.NotNil(t, f)
 
-		So(f.SectionStrings(), ShouldResemble, []string{ini.DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"})
-	})
+	assert.Equal(t, []string{ini.DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"}, f.SectionStrings())
 }
 
 func TestFile_DeleteSection(t *testing.T) {
-	Convey("Delete a section", t, func() {
+	t.Run("delete a section", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		_ = f.NewSections("author", "package", "features")
 		f.DeleteSection("features")
 		f.DeleteSection("")
-		So(f.SectionStrings(), ShouldResemble, []string{"author", "package"})
+		assert.Equal(t, []string{"author", "package"}, f.SectionStrings())
 	})
 
-	Convey("Delete default section", t, func() {
+	t.Run("delete default section", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		f.Section("").Key("foo").SetValue("bar")
 		f.Section("section1").Key("key1").SetValue("value1")
 		f.DeleteSection("")
-		So(f.SectionStrings(), ShouldResemble, []string{"section1"})
+		assert.Equal(t, []string{"section1"}, f.SectionStrings())
 
 		var buf bytes.Buffer
 		_, err := f.WriteTo(&buf)
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
-		So(buf.String(), ShouldEqual, `[section1]
+		assert.Equal(t, `[section1]
 key1 = value1
 
-`)
+`, buf.String())
 	})
 
-	Convey("Delete a section with InsensitiveSections", t, func() {
+	t.Run("delete a section with InsensitiveSections", func(t *testing.T) {
 		f := ini.Empty(ini.LoadOptions{InsensitiveSections: true})
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		_ = f.NewSections("author", "package", "features")
 		f.DeleteSection("FEATURES")
 		f.DeleteSection("")
-		So(f.SectionStrings(), ShouldResemble, []string{"author", "package"})
+		assert.Equal(t, []string{"author", "package"}, f.SectionStrings())
 	})
 }
 
 func TestFile_Append(t *testing.T) {
-	Convey("Append a data source", t, func() {
-		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+	f := ini.Empty()
+	require.NotNil(t, f)
 
-		So(f.Append(minimalConf, []byte(`
+	assert.NoError(t, f.Append(minimalConf, []byte(`
 [author]
-NAME = Unknwon`)), ShouldBeNil)
+NAME = Unknwon`)))
 
-		Convey("With bad input", func() {
-			So(f.Append(123), ShouldNotBeNil)
-			So(f.Append(minimalConf, 123), ShouldNotBeNil)
-		})
+	t.Run("with bad input", func(t *testing.T) {
+		assert.Error(t, f.Append(123))
+		assert.Error(t, f.Append(minimalConf, 123))
 	})
 }
 
@@ -384,10 +368,10 @@ func TestFile_WriteTo(t *testing.T) {
 		t.Skip("Skipping testing on Windows")
 	}
 
-	Convey("Write content to somewhere", t, func() {
+	t.Run("write content to somewhere", func(t *testing.T) {
 		f, err := ini.Load(fullConf)
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
 		f.Section("author").Comment = `Information about package author
 # Bio can be written in multiple lines.`
@@ -397,19 +381,19 @@ func TestFile_WriteTo(t *testing.T) {
 
 		var buf bytes.Buffer
 		_, err = f.WriteTo(&buf)
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		golden := "testdata/TestFile_WriteTo.golden"
 		if *update {
-			So(ioutil.WriteFile(golden, buf.Bytes(), 0644), ShouldBeNil)
+			require.NoError(t, ioutil.WriteFile(golden, buf.Bytes(), 0644))
 		}
 
 		expected, err := ioutil.ReadFile(golden)
-		So(err, ShouldBeNil)
-		So(buf.String(), ShouldEqual, string(expected))
+		require.NoError(t, err)
+		assert.Equal(t, string(expected), buf.String())
 	})
 
-	Convey("Support multiline comments", t, func() {
+	t.Run("support multiline comments", func(t *testing.T) {
 		f, err := ini.Load([]byte(`
 # 
 # general.domain
@@ -417,15 +401,15 @@ func TestFile_WriteTo(t *testing.T) {
 # Domain name of XX system.
 domain      = mydomain.com
 `))
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		f.Section("").Key("test").Comment = "Multiline\nComment"
 
 		var buf bytes.Buffer
 		_, err = f.WriteTo(&buf)
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
-		So(buf.String(), ShouldEqual, `# 
+		assert.Equal(t, `# 
 # general.domain
 # 
 # Domain name of XX system.
@@ -434,46 +418,43 @@ domain = mydomain.com
 ; Comment
 test   = 
 
-`)
+`, buf.String())
 
 	})
 
-	Convey("Keep leading and trailing spaces in value", t, func() {
+	t.Run("keep leading and trailing spaces in value", func(t *testing.T) {
 		f, _ := ini.Load([]byte(`[foo]
 bar1 = '  val ue1 '
 bar2 = """  val ue2 """
 bar3 = "  val ue3 "
 `))
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		var buf bytes.Buffer
 		_, err := f.WriteTo(&buf)
-		So(err, ShouldBeNil)
-		So(buf.String(), ShouldEqual, `[foo]
+		require.NoError(t, err)
+		assert.Equal(t, `[foo]
 bar1 = "  val ue1 "
 bar2 = "  val ue2 "
 bar3 = "  val ue3 "
 
-`)
+`, buf.String())
 	})
 }
 
 func TestFile_SaveTo(t *testing.T) {
-	Convey("Write content to somewhere", t, func() {
-		f, err := ini.Load(fullConf)
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+	f, err := ini.Load(fullConf)
+	require.NoError(t, err)
+	require.NotNil(t, f)
 
-		So(f.SaveTo("testdata/conf_out.ini"), ShouldBeNil)
-		So(f.SaveToIndent("testdata/conf_out.ini", "\t"), ShouldBeNil)
-	})
+	assert.NoError(t, f.SaveTo("testdata/conf_out.ini"))
+	assert.NoError(t, f.SaveToIndent("testdata/conf_out.ini", "\t"))
 }
 
 func TestFile_WriteToWithOutputDelimiter(t *testing.T) {
-	Convey("Write content to somewhere using a custom output delimiter", t, func() {
-		f, err := ini.LoadSources(ini.LoadOptions{
-			KeyValueDelimiterOnWrite: "->",
-		}, []byte(`[Others]
+	f, err := ini.LoadSources(ini.LoadOptions{
+		KeyValueDelimiterOnWrite: "->",
+	}, []byte(`[Others]
 Cities = HangZhou|Boston
 Visits = 1993-10-07T20:17:05Z, 1993-10-07T20:17:05Z
 Years = 1993,1994
@@ -483,11 +464,11 @@ Populations = 12345678,98765432
 Coordinates = 192.168,10.11
 Flags       = true,false
 Note = Hello world!`))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+	require.NoError(t, err)
+	require.NotNil(t, f)
 
-		var actual bytes.Buffer
-		var expected = []byte(`[Others]
+	var actual bytes.Buffer
+	var expected = []byte(`[Others]
 Cities      -> HangZhou|Boston
 Visits      -> 1993-10-07T20:17:05Z, 1993-10-07T20:17:05Z
 Years       -> 1993,1994
@@ -499,28 +480,25 @@ Flags       -> true,false
 Note        -> Hello world!
 
 `)
-		_, err = f.WriteTo(&actual)
-		So(err, ShouldBeNil)
+	_, err = f.WriteTo(&actual)
+	require.NoError(t, err)
 
-		So(bytes.Equal(expected, actual.Bytes()), ShouldBeTrue)
-	})
+	assert.Equal(t, expected, actual.Bytes())
 }
 
 // Inspired by https://github.com/go-ini/ini/issues/207
 func TestReloadAfterShadowLoad(t *testing.T) {
-	Convey("Reload file after ShadowLoad", t, func() {
-		f, err := ini.ShadowLoad([]byte(`
+	f, err := ini.ShadowLoad([]byte(`
 [slice]
 v = 1
 v = 2
 v = 3
 `))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+	require.NoError(t, err)
+	require.NotNil(t, f)
 
-		So(f.Section("slice").Key("v").ValueWithShadows(), ShouldResemble, []string{"1", "2", "3"})
+	assert.Equal(t, []string{"1", "2", "3"}, f.Section("slice").Key("v").ValueWithShadows())
 
-		So(f.Reload(), ShouldBeNil)
-		So(f.Section("slice").Key("v").ValueWithShadows(), ShouldResemble, []string{"1", "2", "3"})
-	})
+	require.NoError(t, f.Reload())
+	assert.Equal(t, []string{"1", "2", "3"}, f.Section("slice").Key("v").ValueWithShadows())
 }

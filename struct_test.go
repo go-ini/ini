@@ -21,7 +21,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"gopkg.in/ini.v1"
 )
@@ -215,88 +216,88 @@ Cities =
 `
 
 func Test_MapToStruct(t *testing.T) {
-	Convey("Map to struct", t, func() {
-		Convey("Map file to struct", func() {
+	t.Run("map to struct", func(t *testing.T) {
+		t.Run("map file to struct", func(t *testing.T) {
 			ts := new(testStruct)
-			So(ini.MapTo(ts, []byte(confDataStruct)), ShouldBeNil)
+			assert.NoError(t, ini.MapTo(ts, []byte(confDataStruct)))
 
-			So(ts.Name, ShouldEqual, "Unknwon")
-			So(ts.Age, ShouldEqual, 21)
-			So(ts.Male, ShouldBeTrue)
-			So(ts.Money, ShouldEqual, 1.25)
-			So(ts.Unsigned, ShouldEqual, 3)
+			assert.Equal(t, "Unknwon", ts.Name)
+			assert.Equal(t, 21, ts.Age)
+			assert.True(t, ts.Male)
+			assert.Equal(t, 1.25, ts.Money)
+			assert.Equal(t, uint(3), ts.Unsigned)
 
-			t, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
-			So(err, ShouldBeNil)
-			So(ts.Born.String(), ShouldEqual, t.String())
+			ti, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
+			require.NoError(t, err)
+			assert.Equal(t, ti.String(), ts.Born.String())
 
 			dur, err := time.ParseDuration("2h45m")
-			So(err, ShouldBeNil)
-			So(ts.Time.Seconds(), ShouldEqual, dur.Seconds())
+			require.NoError(t, err)
+			assert.Equal(t, dur.Seconds(), ts.Time.Seconds())
 
-			So(ts.OldVersionTime*time.Second, ShouldEqual, 30*time.Second)
+			assert.Equal(t, 30*time.Second, ts.OldVersionTime*time.Second)
 
-			So(strings.Join(ts.Others.Cities, ","), ShouldEqual, "HangZhou,Boston")
-			So(ts.Others.Visits[0].String(), ShouldEqual, t.String())
-			So(fmt.Sprint(ts.Others.Years), ShouldEqual, "[1993 1994]")
-			So(fmt.Sprint(ts.Others.Numbers), ShouldEqual, "[10010 10086]")
-			So(fmt.Sprint(ts.Others.Ages), ShouldEqual, "[18 19]")
-			So(fmt.Sprint(ts.Others.Populations), ShouldEqual, "[12345678 98765432]")
-			So(fmt.Sprint(ts.Others.Coordinates), ShouldEqual, "[192.168 10.11]")
-			So(fmt.Sprint(ts.Others.Flags), ShouldEqual, "[true false]")
-			So(ts.Others.Note, ShouldEqual, "Hello world!")
-			So(ts.TestEmbeded.GPA, ShouldEqual, 2.8)
+			assert.Equal(t, "HangZhou,Boston", strings.Join(ts.Others.Cities, ","))
+			assert.Equal(t, ti.String(), ts.Others.Visits[0].String())
+			assert.Equal(t, "[1993 1994]", fmt.Sprint(ts.Others.Years))
+			assert.Equal(t, "[10010 10086]", fmt.Sprint(ts.Others.Numbers))
+			assert.Equal(t, "[18 19]", fmt.Sprint(ts.Others.Ages))
+			assert.Equal(t, "[12345678 98765432]", fmt.Sprint(ts.Others.Populations))
+			assert.Equal(t, "[192.168 10.11]", fmt.Sprint(ts.Others.Coordinates))
+			assert.Equal(t, "[true false]", fmt.Sprint(ts.Others.Flags))
+			assert.Equal(t, "Hello world!", ts.Others.Note)
+			assert.Equal(t, 2.8, ts.TestEmbeded.GPA)
 
-			So(strings.Join(ts.OthersPtr.Cities, ","), ShouldEqual, "HangZhou,Boston")
-			So(ts.OthersPtr.Visits[0].String(), ShouldEqual, t.String())
-			So(fmt.Sprint(ts.OthersPtr.Years), ShouldEqual, "[1993 1994]")
-			So(fmt.Sprint(ts.OthersPtr.Numbers), ShouldEqual, "[10010 10086]")
-			So(fmt.Sprint(ts.OthersPtr.Ages), ShouldEqual, "[18 19]")
-			So(fmt.Sprint(ts.OthersPtr.Populations), ShouldEqual, "[12345678 98765432]")
-			So(fmt.Sprint(ts.OthersPtr.Coordinates), ShouldEqual, "[192.168 10.11]")
-			So(fmt.Sprint(ts.OthersPtr.Flags), ShouldEqual, "[true false]")
-			So(ts.OthersPtr.Note, ShouldEqual, "Hello world!")
+			assert.Equal(t, "HangZhou,Boston", strings.Join(ts.OthersPtr.Cities, ","))
+			assert.Equal(t, ti.String(), ts.OthersPtr.Visits[0].String())
+			assert.Equal(t, "[1993 1994]", fmt.Sprint(ts.OthersPtr.Years))
+			assert.Equal(t, "[10010 10086]", fmt.Sprint(ts.OthersPtr.Numbers))
+			assert.Equal(t, "[18 19]", fmt.Sprint(ts.OthersPtr.Ages))
+			assert.Equal(t, "[12345678 98765432]", fmt.Sprint(ts.OthersPtr.Populations))
+			assert.Equal(t, "[192.168 10.11]", fmt.Sprint(ts.OthersPtr.Coordinates))
+			assert.Equal(t, "[true false]", fmt.Sprint(ts.OthersPtr.Flags))
+			assert.Equal(t, "Hello world!", ts.OthersPtr.Note)
 
-			So(ts.NilPtr, ShouldBeNil)
+			assert.Nil(t, ts.NilPtr)
 
-			So(*ts.BoolPtr, ShouldEqual, false)
-			So(ts.BoolPtrNil, ShouldEqual, nil)
-			So(*ts.FloatPtr, ShouldEqual, 0)
-			So(ts.FloatPtrNil, ShouldEqual, nil)
-			So(*ts.IntPtr, ShouldEqual, 0)
-			So(ts.IntPtrNil, ShouldEqual, nil)
-			So(*ts.UintPtr, ShouldEqual, 0)
-			So(ts.UintPtrNil, ShouldEqual, nil)
-			So(*ts.StringPtr, ShouldEqual, "")
-			So(ts.StringPtrNil, ShouldEqual, nil)
-			So(*ts.TimePtr, ShouldNotEqual, nil)
-			So(ts.TimePtrNil, ShouldEqual, nil)
-			So(*ts.DurationPtr, ShouldEqual, 0)
-			So(ts.DurationPtrNil, ShouldEqual, nil)
+			assert.Equal(t, false, *ts.BoolPtr)
+			assert.Nil(t, ts.BoolPtrNil)
+			assert.Equal(t, float64(0), *ts.FloatPtr)
+			assert.Nil(t, ts.FloatPtrNil)
+			assert.Equal(t, 0, *ts.IntPtr)
+			assert.Nil(t, ts.IntPtrNil)
+			assert.Equal(t, uint(0), *ts.UintPtr)
+			assert.Nil(t, ts.UintPtrNil)
+			assert.Equal(t, "", *ts.StringPtr)
+			assert.Nil(t, ts.StringPtrNil)
+			assert.NotNil(t, *ts.TimePtr)
+			assert.Nil(t, ts.TimePtrNil)
+			assert.Equal(t, time.Duration(0), *ts.DurationPtr)
+			assert.Nil(t, ts.DurationPtrNil)
 		})
 
-		Convey("Map section to struct", func() {
+		t.Run("map section to struct", func(t *testing.T) {
 			foobar := new(fooBar)
 			f, err := ini.Load([]byte(confDataStruct))
-			So(err, ShouldBeNil)
+			require.NoError(t, err)
 
-			So(f.Section("foo.bar").MapTo(foobar), ShouldBeNil)
-			So(foobar.Here, ShouldEqual, "there")
-			So(foobar.When, ShouldEqual, "then")
+			assert.NoError(t, f.Section("foo.bar").MapTo(foobar))
+			assert.Equal(t, "there", foobar.Here)
+			assert.Equal(t, "then", foobar.When)
 		})
 
-		Convey("Map to non-pointer struct", func() {
+		t.Run("map to non-pointer struct", func(t *testing.T) {
 			f, err := ini.Load([]byte(confDataStruct))
-			So(err, ShouldBeNil)
-			So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-			So(f.MapTo(testStruct{}), ShouldNotBeNil)
+			assert.Error(t, f.MapTo(testStruct{}))
 		})
 
-		Convey("Map to unsupported type", func() {
+		t.Run("map to unsupported type", func(t *testing.T) {
 			f, err := ini.Load([]byte(confDataStruct))
-			So(err, ShouldBeNil)
-			So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
 			f.NameMapper = func(raw string) string {
 				if raw == "Byte" {
@@ -304,64 +305,64 @@ func Test_MapToStruct(t *testing.T) {
 				}
 				return raw
 			}
-			So(f.MapTo(&unsupport{}), ShouldNotBeNil)
-			So(f.MapTo(&unsupport2{}), ShouldNotBeNil)
-			So(f.MapTo(&unsupport4{}), ShouldNotBeNil)
+			assert.Error(t, f.MapTo(&unsupport{}))
+			assert.Error(t, f.MapTo(&unsupport2{}))
+			assert.Error(t, f.MapTo(&unsupport4{}))
 		})
 
-		Convey("Map to omitempty field", func() {
+		t.Run("map to omitempty field", func(t *testing.T) {
 			ts := new(testStruct)
-			So(ini.MapTo(ts, []byte(confDataStruct)), ShouldBeNil)
+			assert.NoError(t, ini.MapTo(ts, []byte(confDataStruct)))
 
-			So(ts.Omitted, ShouldEqual, true)
+			assert.Equal(t, true, ts.Omitted)
 		})
 
-		Convey("Map with shadows", func() {
+		t.Run("map with shadows", func(t *testing.T) {
 			f, err := ini.LoadSources(ini.LoadOptions{AllowShadows: true}, []byte(confDataStruct))
-			So(err, ShouldBeNil)
+			require.NoError(t, err)
 			ts := new(testStruct)
-			So(f.MapTo(ts), ShouldBeNil)
+			assert.NoError(t, f.MapTo(ts))
 
-			So(strings.Join(ts.Shadows, " "), ShouldEqual, "1 2 3 4")
-			So(fmt.Sprintf("%v", ts.ShadowInts), ShouldEqual, "[1 2 3 4]")
+			assert.Equal(t, "1 2 3 4", strings.Join(ts.Shadows, " "))
+			assert.Equal(t, "[1 2 3 4]", fmt.Sprintf("%v", ts.ShadowInts))
 		})
 
-		Convey("Map from invalid data source", func() {
-			So(ini.MapTo(&testStruct{}, "hi"), ShouldNotBeNil)
+		t.Run("map from invalid data source", func(t *testing.T) {
+			assert.Error(t, ini.MapTo(&testStruct{}, "hi"))
 		})
 
-		Convey("Map to wrong types and gain default values", func() {
+		t.Run("map to wrong types and gain default values", func(t *testing.T) {
 			f, err := ini.Load([]byte(invalidDataConfStruct))
-			So(err, ShouldBeNil)
+			require.NoError(t, err)
 
-			t, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
-			So(err, ShouldBeNil)
-			dv := &defaultValue{"Joe", 10, true, nil, 1.25, t, []string{"HangZhou", "Boston"}}
-			So(f.MapTo(dv), ShouldBeNil)
-			So(dv.Name, ShouldEqual, "Joe")
-			So(dv.Age, ShouldEqual, 10)
-			So(dv.Male, ShouldBeTrue)
-			So(dv.Money, ShouldEqual, 1.25)
-			So(dv.Born.String(), ShouldEqual, t.String())
-			So(strings.Join(dv.Cities, ","), ShouldEqual, "HangZhou,Boston")
+			ti, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
+			require.NoError(t, err)
+			dv := &defaultValue{"Joe", 10, true, nil, 1.25, ti, []string{"HangZhou", "Boston"}}
+			assert.NoError(t, f.MapTo(dv))
+			assert.Equal(t, "Joe", dv.Name)
+			assert.Equal(t, 10, dv.Age)
+			assert.True(t, dv.Male)
+			assert.Equal(t, 1.25, dv.Money)
+			assert.Equal(t, ti.String(), dv.Born.String())
+			assert.Equal(t, "HangZhou,Boston", strings.Join(dv.Cities, ","))
 		})
 
-		Convey("Map to extended base", func() {
+		t.Run("map to extended base", func(t *testing.T) {
 			f, err := ini.Load([]byte(confDataStruct))
-			So(err, ShouldBeNil)
-			So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 			te := testExtend{}
-			So(f.Section("extended").MapTo(&te), ShouldBeNil)
-			So(te.Base, ShouldBeTrue)
-			So(te.Extend, ShouldBeTrue)
+			assert.NoError(t, f.Section("extended").MapTo(&te))
+			assert.True(t, te.Base)
+			assert.True(t, te.Extend)
 		})
 	})
 
-	Convey("Map to struct in strict mode", t, func() {
+	t.Run("map to struct in strict mode", func(t *testing.T) {
 		f, err := ini.Load([]byte(`
 name=bruce
 age=a30`))
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		type Strict struct {
 			Name string `ini:"name"`
@@ -369,76 +370,76 @@ age=a30`))
 		}
 		s := new(Strict)
 
-		So(f.Section("").StrictMapTo(s), ShouldNotBeNil)
+		assert.Error(t, f.Section("").StrictMapTo(s))
 	})
 
-	Convey("Map slice in strict mode", t, func() {
+	t.Run("map slice in strict mode", func(t *testing.T) {
 		f, err := ini.Load([]byte(`
 names=alice, bruce`))
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		type Strict struct {
 			Names []string `ini:"names"`
 		}
 		s := new(Strict)
 
-		So(f.Section("").StrictMapTo(s), ShouldBeNil)
-		So(fmt.Sprint(s.Names), ShouldEqual, "[alice bruce]")
+		assert.NoError(t, f.Section("").StrictMapTo(s))
+		assert.Equal(t, "[alice bruce]", fmt.Sprint(s.Names))
 	})
 }
 
 func Test_MapToStructNonUniqueSections(t *testing.T) {
-	Convey("Map to struct non unique", t, func() {
-		Convey("Map file to struct non unique", func() {
+	t.Run("map to struct non unique", func(t *testing.T) {
+		t.Run("map file to struct non unique", func(t *testing.T) {
 			f, err := ini.LoadSources(ini.LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
-			So(err, ShouldBeNil)
+			require.NoError(t, err)
 			ts := new(testNonUniqueSectionsStruct)
 
-			So(f.MapTo(ts), ShouldBeNil)
+			assert.NoError(t, f.MapTo(ts))
 
-			So(ts.Interface.Address, ShouldEqual, "10.2.0.1/24")
-			So(ts.Interface.ListenPort, ShouldEqual, 34777)
-			So(ts.Interface.PrivateKey, ShouldEqual, "privServerKey")
+			assert.Equal(t, "10.2.0.1/24", ts.Interface.Address)
+			assert.Equal(t, 34777, ts.Interface.ListenPort)
+			assert.Equal(t, "privServerKey", ts.Interface.PrivateKey)
 
-			So(ts.Peer[0].PublicKey, ShouldEqual, "pubClientKey")
-			So(ts.Peer[0].PresharedKey, ShouldEqual, "psKey")
-			So(ts.Peer[0].AllowedIPs[0], ShouldEqual, "10.2.0.2/32")
-			So(ts.Peer[0].AllowedIPs[1], ShouldEqual, "fd00:2::2/128")
+			assert.Equal(t, "pubClientKey", ts.Peer[0].PublicKey)
+			assert.Equal(t, "psKey", ts.Peer[0].PresharedKey)
+			assert.Equal(t, "10.2.0.2/32", ts.Peer[0].AllowedIPs[0])
+			assert.Equal(t, "fd00:2::2/128", ts.Peer[0].AllowedIPs[1])
 
-			So(ts.Peer[1].PublicKey, ShouldEqual, "pubClientKey2")
-			So(ts.Peer[1].PresharedKey, ShouldEqual, "psKey2")
-			So(ts.Peer[1].AllowedIPs[0], ShouldEqual, "10.2.0.3/32")
-			So(ts.Peer[1].AllowedIPs[1], ShouldEqual, "fd00:2::3/128")
+			assert.Equal(t, "pubClientKey2", ts.Peer[1].PublicKey)
+			assert.Equal(t, "psKey2", ts.Peer[1].PresharedKey)
+			assert.Equal(t, "10.2.0.3/32", ts.Peer[1].AllowedIPs[0])
+			assert.Equal(t, "fd00:2::3/128", ts.Peer[1].AllowedIPs[1])
 		})
 
-		Convey("Map non unique section to struct", func() {
+		t.Run("map non unique section to struct", func(t *testing.T) {
 			newPeer := new(testPeer)
 			newPeerSlice := make([]testPeer, 0)
 
 			f, err := ini.LoadSources(ini.LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
-			So(err, ShouldBeNil)
+			require.NoError(t, err)
 
 			// try only first one
-			So(f.Section("Peer").MapTo(newPeer), ShouldBeNil)
-			So(newPeer.PublicKey, ShouldEqual, "pubClientKey")
-			So(newPeer.PresharedKey, ShouldEqual, "psKey")
-			So(newPeer.AllowedIPs[0], ShouldEqual, "10.2.0.2/32")
-			So(newPeer.AllowedIPs[1], ShouldEqual, "fd00:2::2/128")
+			assert.NoError(t, f.Section("Peer").MapTo(newPeer))
+			assert.Equal(t, "pubClientKey", newPeer.PublicKey)
+			assert.Equal(t, "psKey", newPeer.PresharedKey)
+			assert.Equal(t, "10.2.0.2/32", newPeer.AllowedIPs[0])
+			assert.Equal(t, "fd00:2::2/128", newPeer.AllowedIPs[1])
 
 			// try all
-			So(f.Section("Peer").MapTo(&newPeerSlice), ShouldBeNil)
-			So(newPeerSlice[0].PublicKey, ShouldEqual, "pubClientKey")
-			So(newPeerSlice[0].PresharedKey, ShouldEqual, "psKey")
-			So(newPeerSlice[0].AllowedIPs[0], ShouldEqual, "10.2.0.2/32")
-			So(newPeerSlice[0].AllowedIPs[1], ShouldEqual, "fd00:2::2/128")
+			assert.NoError(t, f.Section("Peer").MapTo(&newPeerSlice))
+			assert.Equal(t, "pubClientKey", newPeerSlice[0].PublicKey)
+			assert.Equal(t, "psKey", newPeerSlice[0].PresharedKey)
+			assert.Equal(t, "10.2.0.2/32", newPeerSlice[0].AllowedIPs[0])
+			assert.Equal(t, "fd00:2::2/128", newPeerSlice[0].AllowedIPs[1])
 
-			So(newPeerSlice[1].PublicKey, ShouldEqual, "pubClientKey2")
-			So(newPeerSlice[1].PresharedKey, ShouldEqual, "psKey2")
-			So(newPeerSlice[1].AllowedIPs[0], ShouldEqual, "10.2.0.3/32")
-			So(newPeerSlice[1].AllowedIPs[1], ShouldEqual, "fd00:2::3/128")
+			assert.Equal(t, "pubClientKey2", newPeerSlice[1].PublicKey)
+			assert.Equal(t, "psKey2", newPeerSlice[1].PresharedKey)
+			assert.Equal(t, "10.2.0.3/32", newPeerSlice[1].AllowedIPs[0])
+			assert.Equal(t, "fd00:2::3/128", newPeerSlice[1].AllowedIPs[1])
 		})
 
-		Convey("Map non unique sections with subsections to struct", func() {
+		t.Run("map non unique sections with subsections to struct", func(t *testing.T) {
 			iniFile, err := ini.LoadSources(ini.LoadOptions{AllowNonUniqueSections: true}, strings.NewReader(`
 [Section]
 FieldInSubSection = 1
@@ -450,7 +451,7 @@ FieldInSubSection = 4
 FieldInSubSection2 = 5
 FieldInSection = 6
 `))
-			So(err, ShouldBeNil)
+			require.NoError(t, err)
 
 			type SubSection struct {
 				FieldInSubSection string `ini:"FieldInSubSection"`
@@ -471,21 +472,21 @@ FieldInSection = 6
 
 			f := new(File)
 			err = iniFile.MapTo(f)
-			So(err, ShouldBeNil)
+			require.NoError(t, err)
 
-			So(f.Sections[0].FieldInSubSection, ShouldEqual, "1")
-			So(f.Sections[0].FieldInSubSection2, ShouldEqual, "2")
-			So(f.Sections[0].FieldInSection, ShouldEqual, "3")
+			assert.Equal(t, "1", f.Sections[0].FieldInSubSection)
+			assert.Equal(t, "2", f.Sections[0].FieldInSubSection2)
+			assert.Equal(t, "3", f.Sections[0].FieldInSection)
 
-			So(f.Sections[1].FieldInSubSection, ShouldEqual, "4")
-			So(f.Sections[1].FieldInSubSection2, ShouldEqual, "5")
-			So(f.Sections[1].FieldInSection, ShouldEqual, "6")
+			assert.Equal(t, "4", f.Sections[1].FieldInSubSection)
+			assert.Equal(t, "5", f.Sections[1].FieldInSubSection2)
+			assert.Equal(t, "6", f.Sections[1].FieldInSection)
 		})
 	})
 }
 
 func Test_ReflectFromStruct(t *testing.T) {
-	Convey("Reflect from struct", t, func() {
+	t.Run("reflect from struct", func(t *testing.T) {
 		type Embeded struct {
 			Dates       []time.Time `delim:"|" comment:"Time data"`
 			Places      []string
@@ -510,11 +511,11 @@ func Test_ReflectFromStruct(t *testing.T) {
 			*Embeded  `ini:"infos" comment:"Embeded section"`
 		}
 
-		t, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
-		So(err, ShouldBeNil)
-		a := &Author{"Unknwon", true, nil, 21, 100, 2.8, t, "", "ignored",
+		ti, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
+		require.NoError(t, err)
+		a := &Author{"Unknwon", true, nil, 21, 100, 2.8, ti, "", "ignored",
 			&Embeded{
-				[]time.Time{t, t},
+				[]time.Time{ti, ti},
 				[]string{"HangZhou", "Boston"},
 				[]int{1993, 1994},
 				[]int64{10010, 10086},
@@ -525,12 +526,12 @@ func Test_ReflectFromStruct(t *testing.T) {
 				[]int{},
 			}}
 		cfg := ini.Empty()
-		So(ini.ReflectFrom(cfg, a), ShouldBeNil)
+		assert.NoError(t, ini.ReflectFrom(cfg, a))
 
 		var buf bytes.Buffer
 		_, err = cfg.WriteTo(&buf)
-		So(err, ShouldBeNil)
-		So(buf.String(), ShouldEqual, `NAME     = Unknwon
+		require.NoError(t, err)
+		assert.Equal(t, `NAME     = Unknwon
 Male     = true
 Optional = 
 ; Author's age
@@ -552,13 +553,15 @@ Coordinates = 192.168,10.11
 Flags       = true,false
 None        = 
 
-`)
+`,
+			buf.String(),
+		)
 
-		Convey("Reflect from non-point struct", func() {
-			So(ini.ReflectFrom(cfg, Author{}), ShouldNotBeNil)
+		t.Run("reflect from non-point struct", func(t *testing.T) {
+			assert.Error(t, ini.ReflectFrom(cfg, Author{}))
 		})
 
-		Convey("Reflect from struct with omitempty", func() {
+		t.Run("reflect from struct with omitempty", func(t *testing.T) {
 			cfg := ini.Empty()
 			type SpecialStruct struct {
 				FirstName  string    `ini:"first_name"`
@@ -580,18 +583,20 @@ None        =
 				NotEmpty:  9,
 			}
 
-			So(ini.ReflectFrom(cfg, special), ShouldBeNil)
+			assert.NoError(t, ini.ReflectFrom(cfg, special))
 
 			var buf bytes.Buffer
 			_, err = cfg.WriteTo(&buf)
-			So(buf.String(), ShouldEqual, `first_name = John
+			assert.Equal(t, `first_name = John
 last_name  = Doe
 omitempty  = 9
 
-`)
+`,
+				buf.String(),
+			)
 		})
 
-		Convey("Reflect from struct with non-anonymous structure pointer", func() {
+		t.Run("reflect from struct with non-anonymous structure pointer", func(t *testing.T) {
 			cfg := ini.Empty()
 			type Rpc struct {
 				Enable  bool   `ini:"enable"`
@@ -611,23 +616,25 @@ omitempty  = 9
 					Name:    "name",
 				},
 			}
-			So(cfg.ReflectFrom(config), ShouldBeNil)
+			assert.NoError(t, cfg.ReflectFrom(config))
 
 			var buf bytes.Buffer
 			_, err = cfg.WriteTo(&buf)
-			So(buf.String(), ShouldEqual, `[rpc]
+			assert.Equal(t, `[rpc]
 enable = true
 type   = type
 addr   = address
 name   = name
 
-`)
+`,
+				buf.String(),
+			)
 		})
 	})
 }
 
 func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
-	Convey("Reflect from struct with non unique sections", t, func() {
+	t.Run("reflect from struct with non unique sections", func(t *testing.T) {
 		nonUnique := &testNonUniqueSectionsStruct{
 			Interface: testInterface{
 				Address:    "10.2.0.1/24",
@@ -652,12 +659,12 @@ func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
 			AllowNonUniqueSections: true,
 		})
 
-		So(ini.ReflectFrom(cfg, nonUnique), ShouldBeNil)
+		assert.NoError(t, ini.ReflectFrom(cfg, nonUnique))
 
 		var buf bytes.Buffer
 		_, err := cfg.WriteTo(&buf)
-		So(err, ShouldBeNil)
-		So(buf.String(), ShouldEqual, confNonUniqueSectionDataStruct)
+		require.NoError(t, err)
+		assert.Equal(t, confNonUniqueSectionDataStruct, buf.String())
 
 		// note: using ReflectFrom from should overwrite the existing sections
 		err = cfg.Section("Peer").ReflectFrom([]*testPeer{
@@ -673,12 +680,12 @@ func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
 			},
 		})
 
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		buf = bytes.Buffer{}
 		_, err = cfg.WriteTo(&buf)
-		So(err, ShouldBeNil)
-		So(buf.String(), ShouldEqual, `[Interface]
+		require.NoError(t, err)
+		assert.Equal(t, `[Interface]
 Address    = 10.2.0.1/24
 ListenPort = 34777
 PrivateKey = privServerKey
@@ -693,7 +700,9 @@ PublicKey    = pubClientKey4
 PresharedKey = psKey4
 AllowedIPs   = 10.2.0.5/32,fd00:2::5/128
 
-`)
+`,
+			buf.String(),
+		)
 
 		// note: using ReflectFrom from should overwrite the existing sections
 		err = cfg.Section("Peer").ReflectFrom(&testPeer{
@@ -702,12 +711,12 @@ AllowedIPs   = 10.2.0.5/32,fd00:2::5/128
 			AllowedIPs:   []string{"10.2.0.6/32,fd00:2::6/128"},
 		})
 
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		buf = bytes.Buffer{}
 		_, err = cfg.WriteTo(&buf)
-		So(err, ShouldBeNil)
-		So(buf.String(), ShouldEqual, `[Interface]
+		require.NoError(t, err)
+		assert.Equal(t, `[Interface]
 Address    = 10.2.0.1/24
 ListenPort = 34777
 PrivateKey = privServerKey
@@ -717,13 +726,15 @@ PublicKey    = pubClientKey5
 PresharedKey = psKey5
 AllowedIPs   = 10.2.0.6/32,fd00:2::6/128
 
-`)
+`,
+			buf.String(),
+		)
 	})
 }
 
 // Inspired by https://github.com/go-ini/ini/issues/196
 func TestMapToAndReflectFromStructWithShadows(t *testing.T) {
-	Convey("Map to struct and then reflect with shadows should generate original config content", t, func() {
+	t.Run("map to struct and then reflect with shadows should generate original config content", func(t *testing.T) {
 		type include struct {
 			Paths []string `ini:"path,omitempty,allowshadow"`
 		}
@@ -734,26 +745,28 @@ func TestMapToAndReflectFromStructWithShadows(t *testing.T) {
 [include]
 path = /tmp/gpm-profiles/test5.profile
 path = /tmp/gpm-profiles/test1.profile`))
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		sec := cfg.Section("include")
 		inc := new(include)
 		err = sec.MapTo(inc)
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		err = sec.ReflectFrom(inc)
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		var buf bytes.Buffer
 		_, err = cfg.WriteTo(&buf)
-		So(err, ShouldBeNil)
-		So(buf.String(), ShouldEqual, `[include]
+		require.NoError(t, err)
+		assert.Equal(t, `[include]
 path = /tmp/gpm-profiles/test5.profile
 path = /tmp/gpm-profiles/test1.profile
 
-`)
+`,
+			buf.String(),
+		)
 
-		Convey("Reflect from struct with shadows", func() {
+		t.Run("reflect from struct with shadows", func(t *testing.T) {
 			cfg := ini.Empty(ini.LoadOptions{
 				AllowShadows: true,
 			})
@@ -787,12 +800,12 @@ path = /tmp/gpm-profiles/test1.profile
 				None:        []int{},
 			}
 
-			So(ini.ReflectFrom(cfg, shadow), ShouldBeNil)
+			assert.NoError(t, ini.ReflectFrom(cfg, shadow))
 
 			var buf bytes.Buffer
 			_, err := cfg.WriteTo(&buf)
-			So(err, ShouldBeNil)
-			So(buf.String(), ShouldEqual, `sa          = s1
+			require.NoError(t, err)
+			assert.Equal(t, `sa          = s1
 sa          = s2
 allowshadow = s3
 allowshadow = s4
@@ -813,7 +826,9 @@ Flags       = true
 Flags       = false
 None        = 
 
-`)
+`,
+				buf.String(),
+			)
 		})
 	})
 }
@@ -823,17 +838,17 @@ type testMapper struct {
 }
 
 func Test_NameGetter(t *testing.T) {
-	Convey("Test name mappers", t, func() {
-		So(ini.MapToWithMapper(&testMapper{}, ini.TitleUnderscore, []byte("packag_name=ini")), ShouldBeNil)
+	t.Run("test name mappers", func(t *testing.T) {
+		assert.NoError(t, ini.MapToWithMapper(&testMapper{}, ini.TitleUnderscore, []byte("packag_name=ini")))
 
 		cfg, err := ini.Load([]byte("PACKAGE_NAME=ini"))
-		So(err, ShouldBeNil)
-		So(cfg, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
 
 		cfg.NameMapper = ini.SnackCase
 		tg := new(testMapper)
-		So(cfg.MapTo(tg), ShouldBeNil)
-		So(tg.PackageName, ShouldEqual, "ini")
+		assert.NoError(t, cfg.MapTo(tg))
+		assert.Equal(t, "ini", tg.PackageName)
 	})
 }
 
@@ -842,13 +857,13 @@ type testDurationStruct struct {
 }
 
 func Test_Duration(t *testing.T) {
-	Convey("Duration less than 16m50s", t, func() {
+	t.Run("duration less than 16m50s", func(t *testing.T) {
 		ds := new(testDurationStruct)
-		So(ini.MapTo(ds, []byte("Duration=16m49s")), ShouldBeNil)
+		assert.NoError(t, ini.MapTo(ds, []byte("Duration=16m49s")))
 
 		dur, err := time.ParseDuration("16m49s")
-		So(err, ShouldBeNil)
-		So(ds.Duration.Seconds(), ShouldEqual, dur.Seconds())
+		require.NoError(t, err)
+		assert.Equal(t, dur.Seconds(), ds.Duration.Seconds())
 	})
 }
 
@@ -868,7 +883,7 @@ func (es Employers) ReflectINIStruct(f *ini.File) error {
 
 // Inspired by https://github.com/go-ini/ini/issues/199
 func Test_StructReflector(t *testing.T) {
-	Convey("Reflect with StructReflector interface", t, func() {
+	t.Run("reflect with StructReflector interface", func(t *testing.T) {
 		p := &struct {
 			FirstName string
 			Employer  Employers
@@ -887,13 +902,13 @@ func Test_StructReflector(t *testing.T) {
 		}
 
 		f := ini.Empty()
-		So(f.ReflectFrom(p), ShouldBeNil)
+		assert.NoError(t, f.ReflectFrom(p))
 
 		var buf bytes.Buffer
 		_, err := f.WriteTo(&buf)
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
 
-		So(buf.String(), ShouldEqual, `FirstName = Andrew
+		assert.Equal(t, `FirstName = Andrew
 
 [Employer "VMware"]
 Title = Staff II Engineer
@@ -901,6 +916,8 @@ Title = Staff II Engineer
 [Employer "EMC"]
 Title = Consultant Engineer
 
-`)
+`,
+			buf.String(),
+		)
 	})
 }

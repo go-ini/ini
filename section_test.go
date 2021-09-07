@@ -17,261 +17,263 @@ package ini_test
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"gopkg.in/ini.v1"
 )
 
 func TestSection_SetBody(t *testing.T) {
-	Convey("Set body of raw section", t, func() {
+	t.Run("set body of raw section", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		sec, err := f.NewRawSection("comments", `1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000`)
-		So(err, ShouldBeNil)
-		So(sec, ShouldNotBeNil)
-		So(sec.Body(), ShouldEqual, `1111111111111111111000000000000000001110000
-111111111111111111100000000000111000000000`)
+		require.NoError(t, err)
+		require.NotNil(t, sec)
+		assert.Equal(t, `1111111111111111111000000000000000001110000
+111111111111111111100000000000111000000000`, sec.Body())
 
 		sec.SetBody("1111111111111111111000000000000000001110000")
-		So(sec.Body(), ShouldEqual, `1111111111111111111000000000000000001110000`)
+		assert.Equal(t, `1111111111111111111000000000000000001110000`, sec.Body())
 
-		Convey("Set for non-raw section", func() {
+		t.Run("set for non-raw section", func(t *testing.T) {
 			sec, err := f.NewSection("author")
-			So(err, ShouldBeNil)
-			So(sec, ShouldNotBeNil)
-			So(sec.Body(), ShouldBeEmpty)
+			require.NoError(t, err)
+			require.NotNil(t, sec)
+			assert.Empty(t, sec.Body())
 
 			sec.SetBody("1111111111111111111000000000000000001110000")
-			So(sec.Body(), ShouldBeEmpty)
+			assert.Empty(t, sec.Body())
 		})
 	})
 }
 
 func TestSection_NewKey(t *testing.T) {
-	Convey("Create a new key", t, func() {
+	t.Run("create a new key", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
-		So(k.Name(), ShouldEqual, "NAME")
-		So(k.Value(), ShouldEqual, "ini")
+		require.NoError(t, err)
+		require.NotNil(t, k)
+		assert.Equal(t, "NAME", k.Name())
+		assert.Equal(t, "ini", k.Value())
 
-		Convey("With duplicated name", func() {
+		t.Run("with duplicated name", func(t *testing.T) {
 			k, err := f.Section("").NewKey("NAME", "ini.v1")
-			So(err, ShouldBeNil)
-			So(k, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, k)
 
 			// Overwrite previous existed key
-			So(k.Value(), ShouldEqual, "ini.v1")
+			assert.Equal(t, "ini.v1", k.Value())
 		})
 
-		Convey("With empty string", func() {
+		t.Run("with empty string", func(t *testing.T) {
 			_, err := f.Section("").NewKey("", "")
-			So(err, ShouldNotBeNil)
+			require.Error(t, err)
 		})
 	})
 
-	Convey("Create keys with same name and allow shadow", t, func() {
+	t.Run("create keys with same name and allow shadow", func(t *testing.T) {
 		f, err := ini.ShadowLoad([]byte(""))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 		k, err = f.Section("").NewKey("NAME", "ini.v1")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 
-		So(k.ValueWithShadows(), ShouldResemble, []string{"ini", "ini.v1"})
+		assert.Equal(t, []string{"ini", "ini.v1"}, k.ValueWithShadows())
 	})
 }
 
 func TestSection_NewBooleanKey(t *testing.T) {
-	Convey("Create a new boolean key", t, func() {
+	t.Run("create a new boolean key", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		k, err := f.Section("").NewBooleanKey("start-ssh-server")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
-		So(k.Name(), ShouldEqual, "start-ssh-server")
-		So(k.Value(), ShouldEqual, "true")
+		require.NoError(t, err)
+		require.NotNil(t, k)
+		assert.Equal(t, "start-ssh-server", k.Name())
+		assert.Equal(t, "true", k.Value())
 
-		Convey("With empty string", func() {
+		t.Run("with empty string", func(t *testing.T) {
 			_, err := f.Section("").NewBooleanKey("")
-			So(err, ShouldNotBeNil)
+			require.Error(t, err)
 		})
 	})
 }
 
 func TestSection_GetKey(t *testing.T) {
-	Convey("Get a key", t, func() {
+	t.Run("get a key", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 
 		k, err = f.Section("").GetKey("NAME")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
-		So(k.Name(), ShouldEqual, "NAME")
-		So(k.Value(), ShouldEqual, "ini")
+		require.NoError(t, err)
+		require.NotNil(t, k)
+		assert.Equal(t, "NAME", k.Name())
+		assert.Equal(t, "ini", k.Value())
 
-		Convey("Key not exists", func() {
+		t.Run("key not exists", func(t *testing.T) {
 			_, err := f.Section("").GetKey("404")
-			So(err, ShouldNotBeNil)
+			require.Error(t, err)
 		})
 
-		Convey("Key exists in parent section", func() {
+		t.Run("key exists in parent section", func(t *testing.T) {
 			k, err := f.Section("parent").NewKey("AGE", "18")
-			So(err, ShouldBeNil)
-			So(k, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, k)
 
 			k, err = f.Section("parent.child.son").GetKey("AGE")
-			So(err, ShouldBeNil)
-			So(k, ShouldNotBeNil)
-			So(k.Value(), ShouldEqual, "18")
+			require.NoError(t, err)
+			require.NotNil(t, k)
+			assert.Equal(t, "18", k.Value())
 		})
 	})
 }
 
 func TestSection_HasKey(t *testing.T) {
-	Convey("Check if a key exists", t, func() {
+	t.Run("check if a key exists", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 
-		So(f.Section("").HasKey("NAME"), ShouldBeTrue)
-		So(f.Section("").HasKey("NAME"), ShouldBeTrue)
-		So(f.Section("").HasKey("404"), ShouldBeFalse)
-		So(f.Section("").HasKey("404"), ShouldBeFalse)
+		assert.True(t, f.Section("").HasKey("NAME"))
+		assert.True(t, f.Section("").HasKey("NAME"))
+		assert.False(t, f.Section("").HasKey("404"))
+		assert.False(t, f.Section("").HasKey("404"))
 	})
 }
 
 func TestSection_HasValue(t *testing.T) {
-	Convey("Check if contains a value in any key", t, func() {
+	t.Run("check if contains a value in any key", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 
-		So(f.Section("").HasValue("ini"), ShouldBeTrue)
-		So(f.Section("").HasValue("404"), ShouldBeFalse)
+		assert.True(t, f.Section("").HasValue("ini"))
+		assert.False(t, f.Section("").HasValue("404"))
 	})
 }
 
 func TestSection_Key(t *testing.T) {
-	Convey("Get a key", t, func() {
+	t.Run("get a key", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 
 		k = f.Section("").Key("NAME")
-		So(k, ShouldNotBeNil)
-		So(k.Name(), ShouldEqual, "NAME")
-		So(k.Value(), ShouldEqual, "ini")
+		require.NotNil(t, k)
+		assert.Equal(t, "NAME", k.Name())
+		assert.Equal(t, "ini", k.Value())
 
-		Convey("Key not exists", func() {
+		t.Run("key not exists", func(t *testing.T) {
 			k := f.Section("").Key("404")
-			So(k, ShouldNotBeNil)
-			So(k.Name(), ShouldEqual, "404")
+			require.NotNil(t, k)
+			assert.Equal(t, "404", k.Name())
 		})
 
-		Convey("Key exists in parent section", func() {
+		t.Run("key exists in parent section", func(t *testing.T) {
 			k, err := f.Section("parent").NewKey("AGE", "18")
-			So(err, ShouldBeNil)
-			So(k, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, k)
 
 			k = f.Section("parent.child.son").Key("AGE")
-			So(k, ShouldNotBeNil)
-			So(k.Value(), ShouldEqual, "18")
+			require.NotNil(t, k)
+			assert.Equal(t, "18", k.Value())
 		})
 	})
 }
 
 func TestSection_Keys(t *testing.T) {
-	Convey("Get all keys in a section", t, func() {
+	t.Run("get all keys in a section", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 		k, err = f.Section("").NewKey("VERSION", "v1")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 		k, err = f.Section("").NewKey("IMPORT_PATH", "gopkg.in/ini.v1")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 
 		keys := f.Section("").Keys()
 		names := []string{"NAME", "VERSION", "IMPORT_PATH"}
-		So(len(keys), ShouldEqual, len(names))
+		assert.Equal(t, len(names), len(keys))
 		for i, name := range names {
-			So(keys[i].Name(), ShouldEqual, name)
+			assert.Equal(t, name, keys[i].Name())
 		}
 	})
 }
 
 func TestSection_ParentKeys(t *testing.T) {
-	Convey("Get all keys of parent sections", t, func() {
+	t.Run("get all keys of parent sections", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		k, err := f.Section("package").NewKey("NAME", "ini")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 		k, err = f.Section("package").NewKey("VERSION", "v1")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 		k, err = f.Section("package").NewKey("IMPORT_PATH", "gopkg.in/ini.v1")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 
 		keys := f.Section("package.sub.sub2").ParentKeys()
 		names := []string{"NAME", "VERSION", "IMPORT_PATH"}
-		So(len(keys), ShouldEqual, len(names))
+		assert.Equal(t, len(names), len(keys))
 		for i, name := range names {
-			So(keys[i].Name(), ShouldEqual, name)
+			assert.Equal(t, name, keys[i].Name())
 		}
 	})
 }
 
 func TestSection_KeyStrings(t *testing.T) {
-	Convey("Get all key names in a section", t, func() {
+	t.Run("get all key names in a section", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 		k, err = f.Section("").NewKey("VERSION", "v1")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 		k, err = f.Section("").NewKey("IMPORT_PATH", "gopkg.in/ini.v1")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 
-		So(f.Section("").KeyStrings(), ShouldResemble, []string{"NAME", "VERSION", "IMPORT_PATH"})
+		assert.Equal(t, []string{"NAME", "VERSION", "IMPORT_PATH"}, f.Section("").KeyStrings())
 	})
 }
 
 func TestSection_KeyHash(t *testing.T) {
-	Convey("Get clone of key hash", t, func() {
+	t.Run("get clone of key hash", func(t *testing.T) {
 		f, err := ini.Load([]byte(`
 key = one
 [log]
@@ -283,10 +285,10 @@ key = two
 name = app2
 file = b.log
 `))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
-		So(f.Section("").Key("key").String(), ShouldEqual, "two")
+		assert.Equal(t, "two", f.Section("").Key("key").String())
 
 		hash := f.Section("log").KeysHash()
 		relation := map[string]string{
@@ -294,22 +296,22 @@ file = b.log
 			"file": "b.log",
 		}
 		for k, v := range hash {
-			So(v, ShouldEqual, relation[k])
+			assert.Equal(t, relation[k], v)
 		}
 	})
 }
 
 func TestSection_DeleteKey(t *testing.T) {
-	Convey("Delete a key", t, func() {
+	t.Run("delete a key", func(t *testing.T) {
 		f := ini.Empty()
-		So(f, ShouldNotBeNil)
+		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
-		So(err, ShouldBeNil)
-		So(k, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, k)
 
-		So(f.Section("").HasKey("NAME"), ShouldBeTrue)
+		assert.True(t, f.Section("").HasKey("NAME"))
 		f.Section("").DeleteKey("NAME")
-		So(f.Section("").HasKey("NAME"), ShouldBeFalse)
+		assert.False(t, f.Section("").HasKey("NAME"))
 	})
 }

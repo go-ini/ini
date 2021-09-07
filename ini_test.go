@@ -20,7 +20,9 @@ import (
 	"io/ioutil"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"gopkg.in/ini.v1"
 )
 
@@ -51,56 +53,56 @@ const (
 var update = flag.Bool("update", false, "Update .golden files")
 
 func TestLoad(t *testing.T) {
-	Convey("Load from good data sources", t, func() {
+	t.Run("load from good data sources", func(t *testing.T) {
 		f, err := ini.Load(
 			"testdata/minimal.ini",
 			[]byte("NAME = ini\nIMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s"),
 			bytes.NewReader([]byte(`VERSION = v1`)),
 			ioutil.NopCloser(bytes.NewReader([]byte("[author]\nNAME = Unknwon"))),
 		)
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
 		// Validate values make sure all sources are loaded correctly
 		sec := f.Section("")
-		So(sec.Key("NAME").String(), ShouldEqual, "ini")
-		So(sec.Key("VERSION").String(), ShouldEqual, "v1")
-		So(sec.Key("IMPORT_PATH").String(), ShouldEqual, "gopkg.in/ini.v1")
+		assert.Equal(t, "ini", sec.Key("NAME").String())
+		assert.Equal(t, "v1", sec.Key("VERSION").String())
+		assert.Equal(t, "gopkg.in/ini.v1", sec.Key("IMPORT_PATH").String())
 
 		sec = f.Section("author")
-		So(sec.Key("NAME").String(), ShouldEqual, "Unknwon")
-		So(sec.Key("E-MAIL").String(), ShouldEqual, "u@gogs.io")
+		assert.Equal(t, "Unknwon", sec.Key("NAME").String())
+		assert.Equal(t, "u@gogs.io", sec.Key("E-MAIL").String())
 	})
 
-	Convey("Load from bad data sources", t, func() {
-		Convey("Invalid input", func() {
+	t.Run("load from bad data sources", func(t *testing.T) {
+		t.Run("invalid input", func(t *testing.T) {
 			_, err := ini.Load(notFoundConf)
-			So(err, ShouldNotBeNil)
+			require.Error(t, err)
 		})
 
-		Convey("Unsupported type", func() {
+		t.Run("unsupported type", func(t *testing.T) {
 			_, err := ini.Load(123)
-			So(err, ShouldNotBeNil)
+			require.Error(t, err)
 		})
 	})
 
-	Convey("Can't properly parse INI files containing `#` or `;` in value", t, func() {
+	t.Run("cannot properly parse INI files containing `#` or `;` in value", func(t *testing.T) {
 		f, err := ini.Load([]byte(`
 	[author]
 	NAME = U#n#k#n#w#o#n
 	GITHUB = U;n;k;n;w;o;n
 	`))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
 		sec := f.Section("author")
 		nameValue := sec.Key("NAME").String()
 		githubValue := sec.Key("GITHUB").String()
-		So(nameValue, ShouldEqual, "U")
-		So(githubValue, ShouldEqual, "U")
+		assert.Equal(t, "U", nameValue)
+		assert.Equal(t, "U", githubValue)
 	})
 
-	Convey("Can't parse small python-compatible INI files", t, func() {
+	t.Run("cannot parse small python-compatible INI files", func(t *testing.T) {
 		f, err := ini.Load([]byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
@@ -110,12 +112,12 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
    barfoo
    -----END RSA PRIVATE KEY-----
 `))
-		So(err, ShouldNotBeNil)
-		So(f, ShouldBeNil)
-		So(err.Error(), ShouldEqual, "key-value delimiter not found: foo\n")
+		require.Error(t, err)
+		assert.Nil(t, f)
+		assert.Equal(t, "key-value delimiter not found: foo\n", err.Error())
 	})
 
-	Convey("Can't parse big python-compatible INI files", t, func() {
+	t.Run("cannot parse big python-compatible INI files", func(t *testing.T) {
 		f, err := ini.Load([]byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
@@ -217,217 +219,222 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
    96barfoo
    -----END RSA PRIVATE KEY-----
 `))
-		So(err, ShouldNotBeNil)
-		So(f, ShouldBeNil)
-		So(err.Error(), ShouldEqual, "key-value delimiter not found: 1foo\n")
+		require.Error(t, err)
+		assert.Nil(t, f)
+		assert.Equal(t, "key-value delimiter not found: 1foo\n", err.Error())
 	})
 }
 
 func TestLooseLoad(t *testing.T) {
-	Convey("Load from data sources with option `Loose` true", t, func() {
-		f, err := ini.LoadSources(ini.LoadOptions{Loose: true}, notFoundConf, minimalConf)
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+	f, err := ini.LoadSources(ini.LoadOptions{Loose: true}, notFoundConf, minimalConf)
+	require.NoError(t, err)
+	require.NotNil(t, f)
 
-		Convey("Inverse case", func() {
-			_, err = ini.Load(notFoundConf)
-			So(err, ShouldNotBeNil)
-		})
+	t.Run("inverse case", func(t *testing.T) {
+		_, err = ini.Load(notFoundConf)
+		require.Error(t, err)
 	})
 }
 
 func TestInsensitiveLoad(t *testing.T) {
-	Convey("Insensitive to section and key names", t, func() {
+	t.Run("insensitive to section and key names", func(t *testing.T) {
 		f, err := ini.InsensitiveLoad(minimalConf)
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
-		So(f.Section("Author").Key("e-mail").String(), ShouldEqual, "u@gogs.io")
+		assert.Equal(t, "u@gogs.io", f.Section("Author").Key("e-mail").String())
 
-		Convey("Write out", func() {
+		t.Run("write out", func(t *testing.T) {
 			var buf bytes.Buffer
 			_, err := f.WriteTo(&buf)
-			So(err, ShouldBeNil)
-			So(buf.String(), ShouldEqual, `[author]
+			require.NoError(t, err)
+			assert.Equal(t, `[author]
 e-mail = u@gogs.io
 
-`)
+`,
+				buf.String(),
+			)
 		})
 
-		Convey("Inverse case", func() {
+		t.Run("inverse case", func(t *testing.T) {
 			f, err := ini.Load(minimalConf)
-			So(err, ShouldBeNil)
-			So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-			So(f.Section("Author").Key("e-mail").String(), ShouldBeEmpty)
+			assert.Empty(t, f.Section("Author").Key("e-mail").String())
 		})
 	})
 
 	// Ref: https://github.com/go-ini/ini/issues/198
-	Convey("Insensitive load with default section", t, func() {
+	t.Run("insensitive load with default section", func(t *testing.T) {
 		f, err := ini.InsensitiveLoad([]byte(`
 user = unknwon
 [profile]
 email = unknwon@local
 `))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
-		So(f.Section(ini.DefaultSection).Key("user").String(), ShouldEqual, "unknwon")
+		assert.Equal(t, "unknwon", f.Section(ini.DefaultSection).Key("user").String())
 	})
 }
 
 func TestLoadSources(t *testing.T) {
-	Convey("Load from data sources with options", t, func() {
-		Convey("with true `AllowPythonMultilineValues`", func() {
-			Convey("Ignore nonexistent files", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true, Loose: true}, notFoundConf, minimalConf)
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+	t.Run("with true `AllowPythonMultilineValues`", func(t *testing.T) {
+		t.Run("ignore nonexistent files", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true, Loose: true}, notFoundConf, minimalConf)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				Convey("Inverse case", func() {
-					_, err = ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, notFoundConf)
-					So(err, ShouldNotBeNil)
-				})
+			t.Run("inverse case", func(t *testing.T) {
+				_, err = ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, notFoundConf)
+				require.Error(t, err)
 			})
+		})
 
-			Convey("Insensitive to section and key names", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true, Insensitive: true}, minimalConf)
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+		t.Run("insensitive to section and key names", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true, Insensitive: true}, minimalConf)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("Author").Key("e-mail").String(), ShouldEqual, "u@gogs.io")
+			assert.Equal(t, "u@gogs.io", f.Section("Author").Key("e-mail").String())
 
-				Convey("Write out", func() {
-					var buf bytes.Buffer
-					_, err := f.WriteTo(&buf)
-					So(err, ShouldBeNil)
-					So(buf.String(), ShouldEqual, `[author]
+			t.Run("write out", func(t *testing.T) {
+				var buf bytes.Buffer
+				_, err := f.WriteTo(&buf)
+				require.NoError(t, err)
+				assert.Equal(t, `[author]
 e-mail = u@gogs.io
 
-`)
-				})
-
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, minimalConf)
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
-
-					So(f.Section("Author").Key("e-mail").String(), ShouldBeEmpty)
-				})
+`,
+					buf.String(),
+				)
 			})
 
-			Convey("Insensitive to sections and sensitive to key names", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{InsensitiveSections: true}, minimalConf)
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			t.Run("inverse case", func(t *testing.T) {
+				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, minimalConf)
+				require.NoError(t, err)
+				require.NotNil(t, f)
 
-				So(f.Section("Author").Key("E-MAIL").String(), ShouldEqual, "u@gogs.io")
+				assert.Empty(t, f.Section("Author").Key("e-mail").String())
+			})
+		})
 
-				Convey("Write out", func() {
-					var buf bytes.Buffer
-					_, err := f.WriteTo(&buf)
-					So(err, ShouldBeNil)
-					So(buf.String(), ShouldEqual, `[author]
+		t.Run("insensitive to sections and sensitive to key names", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{InsensitiveSections: true}, minimalConf)
+			require.NoError(t, err)
+			require.NotNil(t, f)
+
+			assert.Equal(t, "u@gogs.io", f.Section("Author").Key("E-MAIL").String())
+
+			t.Run("write out", func(t *testing.T) {
+				var buf bytes.Buffer
+				_, err := f.WriteTo(&buf)
+				require.NoError(t, err)
+				assert.Equal(t, `[author]
 E-MAIL = u@gogs.io
 
-`)
-				})
-
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{}, minimalConf)
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
-
-					So(f.Section("Author").Key("e-mail").String(), ShouldBeEmpty)
-				})
+`,
+					buf.String(),
+				)
 			})
 
-			Convey("Sensitive to sections and insensitive to key names", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{InsensitiveKeys: true}, minimalConf)
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			t.Run("inverse case", func(t *testing.T) {
+				f, err := ini.LoadSources(ini.LoadOptions{}, minimalConf)
+				require.NoError(t, err)
+				require.NotNil(t, f)
 
-				So(f.Section("author").Key("e-mail").String(), ShouldEqual, "u@gogs.io")
+				assert.Empty(t, f.Section("Author").Key("e-mail").String())
+			})
+		})
 
-				Convey("Write out", func() {
-					var buf bytes.Buffer
-					_, err := f.WriteTo(&buf)
-					So(err, ShouldBeNil)
-					So(buf.String(), ShouldEqual, `[author]
+		t.Run("sensitive to sections and insensitive to key names", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{InsensitiveKeys: true}, minimalConf)
+			require.NoError(t, err)
+			require.NotNil(t, f)
+
+			assert.Equal(t, "u@gogs.io", f.Section("author").Key("e-mail").String())
+
+			t.Run("write out", func(t *testing.T) {
+				var buf bytes.Buffer
+				_, err := f.WriteTo(&buf)
+				require.NoError(t, err)
+				assert.Equal(t, `[author]
 e-mail = u@gogs.io
 
-`)
-				})
-
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{}, minimalConf)
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
-
-					So(f.Section("Author").Key("e-mail").String(), ShouldBeEmpty)
-				})
+`,
+					buf.String(),
+				)
 			})
 
-			Convey("Ignore continuation lines", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: true,
-					IgnoreContinuation:         true,
-				}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				f, err := ini.LoadSources(ini.LoadOptions{}, minimalConf)
+				require.NoError(t, err)
+				require.NotNil(t, f)
+
+				assert.Empty(t, f.Section("Author").Key("e-mail").String())
+			})
+		})
+
+		t.Run("ignore continuation lines", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: true,
+				IgnoreContinuation:         true,
+			}, []byte(`
 key1=a\b\
 key2=c\d\
 key3=value`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").Key("key1").String(), ShouldEqual, `a\b\`)
-				So(f.Section("").Key("key2").String(), ShouldEqual, `c\d\`)
-				So(f.Section("").Key("key3").String(), ShouldEqual, "value")
+			assert.Equal(t, `a\b\`, f.Section("").Key("key1").String())
+			assert.Equal(t, `c\d\`, f.Section("").Key("key2").String())
+			assert.Equal(t, "value", f.Section("").Key("key3").String())
 
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 key1=a\b\
 key2=c\d\`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
+				require.NoError(t, err)
+				require.NotNil(t, f)
 
-					So(f.Section("").Key("key1").String(), ShouldEqual, `a\bkey2=c\d`)
-				})
+				assert.Equal(t, `a\bkey2=c\d`, f.Section("").Key("key1").String())
 			})
+		})
 
-			Convey("Ignore inline comments", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: true,
-					IgnoreInlineComment:        true,
-				}, []byte(`
+		t.Run("ignore inline comments", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: true,
+				IgnoreInlineComment:        true,
+			}, []byte(`
 key1=value ;comment
 key2=value2 #comment2
 key3=val#ue #comment3`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").Key("key1").String(), ShouldEqual, `value ;comment`)
-				So(f.Section("").Key("key2").String(), ShouldEqual, `value2 #comment2`)
-				So(f.Section("").Key("key3").String(), ShouldEqual, `val#ue #comment3`)
+			assert.Equal(t, `value ;comment`, f.Section("").Key("key1").String())
+			assert.Equal(t, `value2 #comment2`, f.Section("").Key("key2").String())
+			assert.Equal(t, `val#ue #comment3`, f.Section("").Key("key3").String())
 
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 key1=value ;comment
 key2=value2 #comment2`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
+				require.NoError(t, err)
+				require.NotNil(t, f)
 
-					So(f.Section("").Key("key1").String(), ShouldEqual, `value`)
-					So(f.Section("").Key("key1").Comment, ShouldEqual, `;comment`)
-					So(f.Section("").Key("key2").String(), ShouldEqual, `value2`)
-					So(f.Section("").Key("key2").Comment, ShouldEqual, `#comment2`)
-				})
+				assert.Equal(t, `value`, f.Section("").Key("key1").String())
+				assert.Equal(t, `;comment`, f.Section("").Key("key1").Comment)
+				assert.Equal(t, `value2`, f.Section("").Key("key2").String())
+				assert.Equal(t, `#comment2`, f.Section("").Key("key2").Comment)
 			})
+		})
 
-			Convey("Skip unrecognizable lines", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					SkipUnrecognizableLines: true,
-				}, []byte(`
+		t.Run("skip unrecognizable lines", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				SkipUnrecognizableLines: true,
+			}, []byte(`
 GenerationDepth: 13
 
 BiomeRarityScale: 100
@@ -439,128 +446,136 @@ BiomeRarityScale: 100
 BiomeGroup(NormalBiomes, 3, 99, RoofedForestEnchanted, ForestSakura, FloatingJungle
 BiomeGroup(IceBiomes, 4, 85, Ice Plains)
 `))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").Key("GenerationDepth").String(), ShouldEqual, "13")
-				So(f.Section("").Key("BiomeRarityScale").String(), ShouldEqual, "100")
-				So(f.Section("").HasKey("BiomeGroup"), ShouldBeFalse)
-			})
+			assert.Equal(t, "13", f.Section("").Key("GenerationDepth").String())
+			assert.Equal(t, "100", f.Section("").Key("BiomeRarityScale").String())
+			assert.False(t, f.Section("").HasKey("BiomeGroup"))
+		})
 
-			Convey("Allow boolean type keys", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: true,
-					AllowBooleanKeys:           true,
-				}, []byte(`
+		t.Run("allow boolean type keys", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: true,
+				AllowBooleanKeys:           true,
+			}, []byte(`
 key1=hello
 #key2
 key3`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").KeyStrings(), ShouldResemble, []string{"key1", "key3"})
-				So(f.Section("").Key("key3").MustBool(false), ShouldBeTrue)
+			assert.Equal(t, []string{"key1", "key3"}, f.Section("").KeyStrings())
+			assert.True(t, f.Section("").Key("key3").MustBool(false))
 
-				Convey("Write out", func() {
-					var buf bytes.Buffer
-					_, err := f.WriteTo(&buf)
-					So(err, ShouldBeNil)
-					So(buf.String(), ShouldEqual, `key1 = hello
+			t.Run("write out", func(t *testing.T) {
+				var buf bytes.Buffer
+				_, err := f.WriteTo(&buf)
+				require.NoError(t, err)
+				assert.Equal(t, `key1 = hello
 # key2
 key3
-`)
-				})
+`,
+					buf.String(),
+				)
+			})
 
-				Convey("Inverse case", func() {
-					_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 key1=hello
 #key2
 key3`))
-					So(err, ShouldNotBeNil)
-				})
+				require.Error(t, err)
 			})
+		})
 
-			Convey("Allow shadow keys", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowShadows: true, AllowPythonMultilineValues: true}, []byte(`
+		t.Run("allow shadow keys", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{AllowShadows: true, AllowPythonMultilineValues: true}, []byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git
 fetch = +refs/heads/*:refs/remotes/origin/*`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section(`remote "origin"`).Key("url").String(), ShouldEqual, "https://github.com/Antergone/test1.git")
-				So(f.Section(`remote "origin"`).Key("url").ValueWithShadows(), ShouldResemble, []string{
+			assert.Equal(t, "https://github.com/Antergone/test1.git", f.Section(`remote "origin"`).Key("url").String())
+			assert.Equal(
+				t,
+				[]string{
 					"https://github.com/Antergone/test1.git",
 					"https://github.com/Antergone/test2.git",
-				})
-				So(f.Section(`remote "origin"`).Key("fetch").String(), ShouldEqual, "+refs/heads/*:refs/remotes/origin/*")
+				},
+				f.Section(`remote "origin"`).Key("url").ValueWithShadows(),
+			)
+			assert.Equal(t, "+refs/heads/*:refs/remotes/origin/*", f.Section(`remote "origin"`).Key("fetch").String())
 
-				Convey("Write out", func() {
-					var buf bytes.Buffer
-					_, err := f.WriteTo(&buf)
-					So(err, ShouldBeNil)
-					So(buf.String(), ShouldEqual, `[remote "origin"]
+			t.Run("write out", func(t *testing.T) {
+				var buf bytes.Buffer
+				_, err := f.WriteTo(&buf)
+				require.NoError(t, err)
+				assert.Equal(t, `[remote "origin"]
 url   = https://github.com/Antergone/test1.git
 url   = https://github.com/Antergone/test2.git
 fetch = +refs/heads/*:refs/remotes/origin/*
 
-`)
-				})
+`,
+					buf.String(),
+				)
+			})
 
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
+				require.NoError(t, err)
+				require.NotNil(t, f)
 
-					So(f.Section(`remote "origin"`).Key("url").String(), ShouldEqual, "https://github.com/Antergone/test2.git")
-				})
+				assert.Equal(t, "https://github.com/Antergone/test2.git", f.Section(`remote "origin"`).Key("url").String())
 			})
+		})
 
-			Convey("Unescape double quotes inside value", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: true,
-					UnescapeValueDoubleQuotes:  true,
-				}, []byte(`
+		t.Run("unescape double quotes inside value", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: true,
+				UnescapeValueDoubleQuotes:  true,
+			}, []byte(`
 create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").Key("create_repo").String(), ShouldEqual, `创建了仓库 <a href="%s">%s</a>`)
+			assert.Equal(t, `创建了仓库 <a href="%s">%s</a>`, f.Section("").Key("create_repo").String())
 
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
+				require.NoError(t, err)
+				require.NotNil(t, f)
 
-					So(f.Section("").Key("create_repo").String(), ShouldEqual, `"创建了仓库 <a href=\"%s\">%s</a>"`)
-				})
+				assert.Equal(t, `"创建了仓库 <a href=\"%s\">%s</a>"`, f.Section("").Key("create_repo").String())
 			})
+		})
 
-			Convey("Unescape comment symbols inside value", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues:  true,
-					IgnoreInlineComment:         true,
-					UnescapeValueCommentSymbols: true,
-				}, []byte(`
+		t.Run("unescape comment symbols inside value", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues:  true,
+				IgnoreInlineComment:         true,
+				UnescapeValueCommentSymbols: true,
+			}, []byte(`
 key = test value <span style="color: %s\; background: %s">more text</span>
 `))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").Key("key").String(), ShouldEqual, `test value <span style="color: %s; background: %s">more text</span>`)
-			})
+			assert.Equal(t, `test value <span style="color: %s; background: %s">more text</span>`, f.Section("").Key("key").String())
+		})
 
-			Convey("Can parse small python-compatible INI files", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: true,
-					Insensitive:                true,
-					UnparseableSections:        []string{"core_lesson", "comments"},
-				}, []byte(`
+		t.Run("can parse small python-compatible INI files", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: true,
+				Insensitive:                true,
+				UnparseableSections:        []string{"core_lesson", "comments"},
+			}, []byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
   foo
@@ -573,19 +588,19 @@ multiline_list =
   second
   third
 `))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("long").Key("long_rsa_private_key").String(), ShouldEqual, "-----BEGIN RSA PRIVATE KEY-----\nfoo\nbar\nfoobar\nbarfoo\n-----END RSA PRIVATE KEY-----")
-				So(f.Section("long").Key("multiline_list").String(), ShouldEqual, "\nfirst\nsecond\nthird")
-			})
+			assert.Equal(t, "-----BEGIN RSA PRIVATE KEY-----\nfoo\nbar\nfoobar\nbarfoo\n-----END RSA PRIVATE KEY-----", f.Section("long").Key("long_rsa_private_key").String())
+			assert.Equal(t, "\nfirst\nsecond\nthird", f.Section("long").Key("multiline_list").String())
+		})
 
-			Convey("Can parse big python-compatible INI files", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: true,
-					Insensitive:                true,
-					UnparseableSections:        []string{"core_lesson", "comments"},
-				}, []byte(`
+		t.Run("can parse big python-compatible INI files", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: true,
+				Insensitive:                true,
+				UnparseableSections:        []string{"core_lesson", "comments"},
+			}, []byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
    1foo
@@ -686,10 +701,10 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
    96barfoo
    -----END RSA PRIVATE KEY-----
 `))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("long").Key("long_rsa_private_key").String(), ShouldEqual, `-----BEGIN RSA PRIVATE KEY-----
+			assert.Equal(t, `-----BEGIN RSA PRIVATE KEY-----
 1foo
 2bar
 3foobar
@@ -786,15 +801,17 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 94bar
 95foobar
 96barfoo
------END RSA PRIVATE KEY-----`)
-			})
+-----END RSA PRIVATE KEY-----`,
+				f.Section("long").Key("long_rsa_private_key").String(),
+			)
+		})
 
-			Convey("Allow unparsable sections", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: true,
-					Insensitive:                true,
-					UnparseableSections:        []string{"core_lesson", "comments"},
-				}, []byte(`
+		t.Run("allow unparsable sections", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: true,
+				Insensitive:                true,
+				UnparseableSections:        []string{"core_lesson", "comments"},
+			}, []byte(`
 Lesson_Location = 87
 Lesson_Status = C
 Score = 3
@@ -806,20 +823,22 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 [COMMENTS]
 <1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").Key("score").String(), ShouldEqual, "3")
-				So(f.Section("").Body(), ShouldBeEmpty)
-				So(f.Section("core_lesson").Body(), ShouldEqual, `my lesson state data – 1111111111111111111000000000000000001110000
-111111111111111111100000000000111000000000 – end my lesson state data`)
-				So(f.Section("comments").Body(), ShouldEqual, `<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`)
+			assert.Equal(t, "3", f.Section("").Key("score").String())
+			assert.Empty(t, f.Section("").Body())
+			assert.Equal(t, `my lesson state data – 1111111111111111111000000000000000001110000
+111111111111111111100000000000111000000000 – end my lesson state data`,
+				f.Section("core_lesson").Body(),
+			)
+			assert.Equal(t, `<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`, f.Section("comments").Body())
 
-				Convey("Write out", func() {
-					var buf bytes.Buffer
-					_, err := f.WriteTo(&buf)
-					So(err, ShouldBeNil)
-					So(buf.String(), ShouldEqual, `lesson_location = 87
+			t.Run("write out", func(t *testing.T) {
+				var buf bytes.Buffer
+				_, err := f.WriteTo(&buf)
+				require.NoError(t, err)
+				assert.Equal(t, `lesson_location = 87
 lesson_status   = C
 score           = 3
 time            = 00:02:30
@@ -830,270 +849,282 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 [comments]
 <1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
-`)
-				})
+`,
+					buf.String(),
+				)
+			})
 
-				Convey("Inverse case", func() {
-					_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 [CORE_LESSON]
 my lesson state data – 1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000 – end my lesson state data`))
-					So(err, ShouldNotBeNil)
-				})
-			})
-
-			Convey("And false `SpaceBeforeInlineComment`", func() {
-				Convey("Can't parse INI files containing `#` or `;` in value", func() {
-					f, err := ini.LoadSources(
-						ini.LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: false},
-						[]byte(`
-[author]
-NAME = U#n#k#n#w#o#n
-GITHUB = U;n;k;n;w;o;n
-`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
-					sec := f.Section("author")
-					nameValue := sec.Key("NAME").String()
-					githubValue := sec.Key("GITHUB").String()
-					So(nameValue, ShouldEqual, "U")
-					So(githubValue, ShouldEqual, "U")
-				})
-			})
-
-			Convey("And true `SpaceBeforeInlineComment`", func() {
-				Convey("Can parse INI files containing `#` or `;` in value", func() {
-					f, err := ini.LoadSources(
-						ini.LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: true},
-						[]byte(`
-[author]
-NAME = U#n#k#n#w#o#n
-GITHUB = U;n;k;n;w;o;n
-`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
-					sec := f.Section("author")
-					nameValue := sec.Key("NAME").String()
-					githubValue := sec.Key("GITHUB").String()
-					So(nameValue, ShouldEqual, "U#n#k#n#w#o#n")
-					So(githubValue, ShouldEqual, "U;n;k;n;w;o;n")
-				})
+				require.Error(t, err)
 			})
 		})
 
-		Convey("with false `AllowPythonMultilineValues`", func() {
-			Convey("Ignore nonexistent files", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: false,
-					Loose:                      true,
-				}, notFoundConf, minimalConf)
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
-
-				Convey("Inverse case", func() {
-					_, err = ini.LoadSources(ini.LoadOptions{
-						AllowPythonMultilineValues: false,
-					}, notFoundConf)
-					So(err, ShouldNotBeNil)
-				})
+		t.Run("and false `SpaceBeforeInlineComment`", func(t *testing.T) {
+			t.Run("cannot parse INI files containing `#` or `;` in value", func(t *testing.T) {
+				f, err := ini.LoadSources(
+					ini.LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: false},
+					[]byte(`
+[author]
+NAME = U#n#k#n#w#o#n
+GITHUB = U;n;k;n;w;o;n
+`))
+				require.NoError(t, err)
+				require.NotNil(t, f)
+				sec := f.Section("author")
+				nameValue := sec.Key("NAME").String()
+				githubValue := sec.Key("GITHUB").String()
+				assert.Equal(t, "U", nameValue)
+				assert.Equal(t, "U", githubValue)
 			})
+		})
 
-			Convey("Insensitive to section and key names", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
+		t.Run("and true `SpaceBeforeInlineComment`", func(t *testing.T) {
+			t.Run("can parse INI files containing `#` or `;` in value", func(t *testing.T) {
+				f, err := ini.LoadSources(
+					ini.LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: true},
+					[]byte(`
+[author]
+NAME = U#n#k#n#w#o#n
+GITHUB = U;n;k;n;w;o;n
+`))
+				require.NoError(t, err)
+				require.NotNil(t, f)
+				sec := f.Section("author")
+				nameValue := sec.Key("NAME").String()
+				githubValue := sec.Key("GITHUB").String()
+				assert.Equal(t, "U#n#k#n#w#o#n", nameValue)
+				assert.Equal(t, "U;n;k;n;w;o;n", githubValue)
+			})
+		})
+	})
+
+	t.Run("with false `AllowPythonMultilineValues`", func(t *testing.T) {
+		t.Run("ignore nonexistent files", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: false,
+				Loose:                      true,
+			}, notFoundConf, minimalConf)
+			require.NoError(t, err)
+			require.NotNil(t, f)
+
+			t.Run("inverse case", func(t *testing.T) {
+				_, err = ini.LoadSources(ini.LoadOptions{
 					AllowPythonMultilineValues: false,
-					Insensitive:                true,
-				}, minimalConf)
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+				}, notFoundConf)
+				require.Error(t, err)
+			})
+		})
 
-				So(f.Section("Author").Key("e-mail").String(), ShouldEqual, "u@gogs.io")
+		t.Run("insensitive to section and key names", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: false,
+				Insensitive:                true,
+			}, minimalConf)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				Convey("Write out", func() {
-					var buf bytes.Buffer
-					_, err := f.WriteTo(&buf)
-					So(err, ShouldBeNil)
-					So(buf.String(), ShouldEqual, `[author]
+			assert.Equal(t, "u@gogs.io", f.Section("Author").Key("e-mail").String())
+
+			t.Run("write out", func(t *testing.T) {
+				var buf bytes.Buffer
+				_, err := f.WriteTo(&buf)
+				require.NoError(t, err)
+				assert.Equal(t, `[author]
 e-mail = u@gogs.io
 
-`)
-				})
-
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{
-						AllowPythonMultilineValues: false,
-					}, minimalConf)
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
-
-					So(f.Section("Author").Key("e-mail").String(), ShouldBeEmpty)
-				})
+`,
+					buf.String(),
+				)
 			})
 
-			Convey("Ignore continuation lines", func() {
+			t.Run("inverse case", func(t *testing.T) {
 				f, err := ini.LoadSources(ini.LoadOptions{
 					AllowPythonMultilineValues: false,
-					IgnoreContinuation:         true,
-				}, []byte(`
+				}, minimalConf)
+				require.NoError(t, err)
+				require.NotNil(t, f)
+
+				assert.Empty(t, f.Section("Author").Key("e-mail").String())
+			})
+		})
+
+		t.Run("ignore continuation lines", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: false,
+				IgnoreContinuation:         true,
+			}, []byte(`
 key1=a\b\
 key2=c\d\
 key3=value`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").Key("key1").String(), ShouldEqual, `a\b\`)
-				So(f.Section("").Key("key2").String(), ShouldEqual, `c\d\`)
-				So(f.Section("").Key("key3").String(), ShouldEqual, "value")
+			assert.Equal(t, `a\b\`, f.Section("").Key("key1").String())
+			assert.Equal(t, `c\d\`, f.Section("").Key("key2").String())
+			assert.Equal(t, "value", f.Section("").Key("key3").String())
 
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 key1=a\b\
 key2=c\d\`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
+				require.NoError(t, err)
+				require.NotNil(t, f)
 
-					So(f.Section("").Key("key1").String(), ShouldEqual, `a\bkey2=c\d`)
-				})
+				assert.Equal(t, `a\bkey2=c\d`, f.Section("").Key("key1").String())
 			})
+		})
 
-			Convey("Ignore inline comments", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: false,
-					IgnoreInlineComment:        true,
-				}, []byte(`
+		t.Run("ignore inline comments", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: false,
+				IgnoreInlineComment:        true,
+			}, []byte(`
 key1=value ;comment
 key2=value2 #comment2
 key3=val#ue #comment3`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").Key("key1").String(), ShouldEqual, `value ;comment`)
-				So(f.Section("").Key("key2").String(), ShouldEqual, `value2 #comment2`)
-				So(f.Section("").Key("key3").String(), ShouldEqual, `val#ue #comment3`)
+			assert.Equal(t, `value ;comment`, f.Section("").Key("key1").String())
+			assert.Equal(t, `value2 #comment2`, f.Section("").Key("key2").String())
+			assert.Equal(t, `val#ue #comment3`, f.Section("").Key("key3").String())
 
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 key1=value ;comment
 key2=value2 #comment2`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
+				require.NoError(t, err)
+				require.NotNil(t, f)
 
-					So(f.Section("").Key("key1").String(), ShouldEqual, `value`)
-					So(f.Section("").Key("key1").Comment, ShouldEqual, `;comment`)
-					So(f.Section("").Key("key2").String(), ShouldEqual, `value2`)
-					So(f.Section("").Key("key2").Comment, ShouldEqual, `#comment2`)
-				})
+				assert.Equal(t, `value`, f.Section("").Key("key1").String())
+				assert.Equal(t, `;comment`, f.Section("").Key("key1").Comment)
+				assert.Equal(t, `value2`, f.Section("").Key("key2").String())
+				assert.Equal(t, `#comment2`, f.Section("").Key("key2").Comment)
 			})
+		})
 
-			Convey("Allow boolean type keys", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: false,
-					AllowBooleanKeys:           true,
-				}, []byte(`
+		t.Run("allow boolean type keys", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: false,
+				AllowBooleanKeys:           true,
+			}, []byte(`
 key1=hello
 #key2
 key3`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").KeyStrings(), ShouldResemble, []string{"key1", "key3"})
-				So(f.Section("").Key("key3").MustBool(false), ShouldBeTrue)
+			assert.Equal(t, []string{"key1", "key3"}, f.Section("").KeyStrings())
+			assert.True(t, f.Section("").Key("key3").MustBool(false))
 
-				Convey("Write out", func() {
-					var buf bytes.Buffer
-					_, err := f.WriteTo(&buf)
-					So(err, ShouldBeNil)
-					So(buf.String(), ShouldEqual, `key1 = hello
+			t.Run("write out", func(t *testing.T) {
+				var buf bytes.Buffer
+				_, err := f.WriteTo(&buf)
+				require.NoError(t, err)
+				assert.Equal(t, `key1 = hello
 # key2
 key3
-`)
-				})
+`,
+					buf.String(),
+				)
+			})
 
-				Convey("Inverse case", func() {
-					_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 key1=hello
 #key2
 key3`))
-					So(err, ShouldNotBeNil)
-				})
+				require.Error(t, err)
 			})
+		})
 
-			Convey("Allow shadow keys", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false, AllowShadows: true}, []byte(`
+		t.Run("allow shadow keys", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false, AllowShadows: true}, []byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git
 fetch = +refs/heads/*:refs/remotes/origin/*`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section(`remote "origin"`).Key("url").String(), ShouldEqual, "https://github.com/Antergone/test1.git")
-				So(f.Section(`remote "origin"`).Key("url").ValueWithShadows(), ShouldResemble, []string{
+			assert.Equal(t, "https://github.com/Antergone/test1.git", f.Section(`remote "origin"`).Key("url").String())
+			assert.Equal(
+				t,
+				[]string{
 					"https://github.com/Antergone/test1.git",
 					"https://github.com/Antergone/test2.git",
-				})
-				So(f.Section(`remote "origin"`).Key("fetch").String(), ShouldEqual, "+refs/heads/*:refs/remotes/origin/*")
+				},
+				f.Section(`remote "origin"`).Key("url").ValueWithShadows(),
+			)
+			assert.Equal(t, "+refs/heads/*:refs/remotes/origin/*", f.Section(`remote "origin"`).Key("fetch").String())
 
-				Convey("Write out", func() {
-					var buf bytes.Buffer
-					_, err := f.WriteTo(&buf)
-					So(err, ShouldBeNil)
-					So(buf.String(), ShouldEqual, `[remote "origin"]
+			t.Run("write out", func(t *testing.T) {
+				var buf bytes.Buffer
+				_, err := f.WriteTo(&buf)
+				require.NoError(t, err)
+				assert.Equal(t, `[remote "origin"]
 url   = https://github.com/Antergone/test1.git
 url   = https://github.com/Antergone/test2.git
 fetch = +refs/heads/*:refs/remotes/origin/*
 
-`)
-				})
+`,
+					buf.String(),
+				)
+			})
 
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
+				require.NoError(t, err)
+				require.NotNil(t, f)
 
-					So(f.Section(`remote "origin"`).Key("url").String(), ShouldEqual, "https://github.com/Antergone/test2.git")
-				})
+				assert.Equal(t, "https://github.com/Antergone/test2.git", f.Section(`remote "origin"`).Key("url").String())
 			})
+		})
 
-			Convey("Unescape double quotes inside value", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: false,
-					UnescapeValueDoubleQuotes:  true,
-				}, []byte(`
+		t.Run("unescape double quotes inside value", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: false,
+				UnescapeValueDoubleQuotes:  true,
+			}, []byte(`
 create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").Key("create_repo").String(), ShouldEqual, `创建了仓库 <a href="%s">%s</a>`)
+			assert.Equal(t, `创建了仓库 <a href="%s">%s</a>`, f.Section("").Key("create_repo").String())
 
-				Convey("Inverse case", func() {
-					f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
+				require.NoError(t, err)
+				require.NotNil(t, f)
 
-					So(f.Section("").Key("create_repo").String(), ShouldEqual, `"创建了仓库 <a href=\"%s\">%s</a>"`)
-				})
+				assert.Equal(t, `"创建了仓库 <a href=\"%s\">%s</a>"`, f.Section("").Key("create_repo").String())
 			})
+		})
 
-			Convey("Unescape comment symbols inside value", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues:  false,
-					IgnoreInlineComment:         true,
-					UnescapeValueCommentSymbols: true,
-				}, []byte(`
+		t.Run("unescape comment symbols inside value", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues:  false,
+				IgnoreInlineComment:         true,
+				UnescapeValueCommentSymbols: true,
+			}, []byte(`
 key = test value <span style="color: %s\; background: %s">more text</span>
 `))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").Key("key").String(), ShouldEqual, `test value <span style="color: %s; background: %s">more text</span>`)
-			})
+			assert.Equal(t, `test value <span style="color: %s; background: %s">more text</span>`, f.Section("").Key("key").String())
+		})
 
-			Convey("Can't parse small python-compatible INI files", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+		t.Run("cannot parse small python-compatible INI files", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
   foo
@@ -1102,13 +1133,13 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
   barfoo
   -----END RSA PRIVATE KEY-----
 `))
-				So(err, ShouldNotBeNil)
-				So(f, ShouldBeNil)
-				So(err.Error(), ShouldEqual, "key-value delimiter not found: foo\n")
-			})
+			require.Error(t, err)
+			assert.Nil(t, f)
+			assert.Equal(t, "key-value delimiter not found: foo\n", err.Error())
+		})
 
-			Convey("Can't parse big python-compatible INI files", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+		t.Run("cannot parse big python-compatible INI files", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
   1foo
@@ -1209,17 +1240,17 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
   96barfoo
   -----END RSA PRIVATE KEY-----
 `))
-				So(err, ShouldNotBeNil)
-				So(f, ShouldBeNil)
-				So(err.Error(), ShouldEqual, "key-value delimiter not found: 1foo\n")
-			})
+			require.Error(t, err)
+			assert.Nil(t, f)
+			assert.Equal(t, "key-value delimiter not found: 1foo\n", err.Error())
+		})
 
-			Convey("Allow unparsable sections", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{
-					AllowPythonMultilineValues: false,
-					Insensitive:                true,
-					UnparseableSections:        []string{"core_lesson", "comments"},
-				}, []byte(`
+		t.Run("allow unparsable sections", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{
+				AllowPythonMultilineValues: false,
+				Insensitive:                true,
+				UnparseableSections:        []string{"core_lesson", "comments"},
+			}, []byte(`
 Lesson_Location = 87
 Lesson_Status = C
 Score = 3
@@ -1231,20 +1262,22 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 [COMMENTS]
 <1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				So(f.Section("").Key("score").String(), ShouldEqual, "3")
-				So(f.Section("").Body(), ShouldBeEmpty)
-				So(f.Section("core_lesson").Body(), ShouldEqual, `my lesson state data – 1111111111111111111000000000000000001110000
-111111111111111111100000000000111000000000 – end my lesson state data`)
-				So(f.Section("comments").Body(), ShouldEqual, `<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`)
+			assert.Equal(t, "3", f.Section("").Key("score").String())
+			assert.Empty(t, f.Section("").Body())
+			assert.Equal(t, `my lesson state data – 1111111111111111111000000000000000001110000
+111111111111111111100000000000111000000000 – end my lesson state data`,
+				f.Section("core_lesson").Body(),
+			)
+			assert.Equal(t, `<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`, f.Section("comments").Body())
 
-				Convey("Write out", func() {
-					var buf bytes.Buffer
-					_, err := f.WriteTo(&buf)
-					So(err, ShouldBeNil)
-					So(buf.String(), ShouldEqual, `lesson_location = 87
+			t.Run("write out", func(t *testing.T) {
+				var buf bytes.Buffer
+				_, err := f.WriteTo(&buf)
+				require.NoError(t, err)
+				assert.Equal(t, `lesson_location = 87
 lesson_status   = C
 score           = 3
 time            = 00:02:30
@@ -1255,172 +1288,179 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 [comments]
 <1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
-`)
-				})
+`,
+					buf.String(),
+				)
+			})
 
-				Convey("Inverse case", func() {
-					_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+			t.Run("inverse case", func(t *testing.T) {
+				_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 [CORE_LESSON]
 my lesson state data – 1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000 – end my lesson state data`))
-					So(err, ShouldNotBeNil)
-				})
-			})
-
-			Convey("And false `SpaceBeforeInlineComment`", func() {
-				Convey("Can't parse INI files containing `#` or `;` in value", func() {
-					f, err := ini.LoadSources(
-						ini.LoadOptions{AllowPythonMultilineValues: true, SpaceBeforeInlineComment: false},
-						[]byte(`
-[author]
-NAME = U#n#k#n#w#o#n
-GITHUB = U;n;k;n;w;o;n
-`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
-					sec := f.Section("author")
-					nameValue := sec.Key("NAME").String()
-					githubValue := sec.Key("GITHUB").String()
-					So(nameValue, ShouldEqual, "U")
-					So(githubValue, ShouldEqual, "U")
-				})
-			})
-
-			Convey("And true `SpaceBeforeInlineComment`", func() {
-				Convey("Can parse INI files containing `#` or `;` in value", func() {
-					f, err := ini.LoadSources(
-						ini.LoadOptions{AllowPythonMultilineValues: true, SpaceBeforeInlineComment: true},
-						[]byte(`
-[author]
-NAME = U#n#k#n#w#o#n
-GITHUB = U;n;k;n;w;o;n
-`))
-					So(err, ShouldBeNil)
-					So(f, ShouldNotBeNil)
-					sec := f.Section("author")
-					nameValue := sec.Key("NAME").String()
-					githubValue := sec.Key("GITHUB").String()
-					So(nameValue, ShouldEqual, "U#n#k#n#w#o#n")
-					So(githubValue, ShouldEqual, "U;n;k;n;w;o;n")
-				})
+				require.Error(t, err)
 			})
 		})
 
-		Convey("with `ChildSectionDelimiter` ':'", func() {
-			Convey("Get all keys of parent sections", func() {
-				f := ini.Empty(ini.LoadOptions{ChildSectionDelimiter: ":"})
-				So(f, ShouldNotBeNil)
+		t.Run("and false `SpaceBeforeInlineComment`", func(t *testing.T) {
+			t.Run("cannot parse INI files containing `#` or `;` in value", func(t *testing.T) {
+				f, err := ini.LoadSources(
+					ini.LoadOptions{AllowPythonMultilineValues: true, SpaceBeforeInlineComment: false},
+					[]byte(`
+[author]
+NAME = U#n#k#n#w#o#n
+GITHUB = U;n;k;n;w;o;n
+`))
+				require.NoError(t, err)
+				require.NotNil(t, f)
+				sec := f.Section("author")
+				nameValue := sec.Key("NAME").String()
+				githubValue := sec.Key("GITHUB").String()
+				assert.Equal(t, "U", nameValue)
+				assert.Equal(t, "U", githubValue)
+			})
+		})
 
-				k, err := f.Section("package").NewKey("NAME", "ini")
-				So(err, ShouldBeNil)
-				So(k, ShouldNotBeNil)
-				k, err = f.Section("package").NewKey("VERSION", "v1")
-				So(err, ShouldBeNil)
-				So(k, ShouldNotBeNil)
-				k, err = f.Section("package").NewKey("IMPORT_PATH", "gopkg.in/ini.v1")
-				So(err, ShouldBeNil)
-				So(k, ShouldNotBeNil)
+		t.Run("and true `SpaceBeforeInlineComment`", func(t *testing.T) {
+			t.Run("can parse INI files containing `#` or `;` in value", func(t *testing.T) {
+				f, err := ini.LoadSources(
+					ini.LoadOptions{AllowPythonMultilineValues: true, SpaceBeforeInlineComment: true},
+					[]byte(`
+[author]
+NAME = U#n#k#n#w#o#n
+GITHUB = U;n;k;n;w;o;n
+`))
+				require.NoError(t, err)
+				require.NotNil(t, f)
+				sec := f.Section("author")
+				nameValue := sec.Key("NAME").String()
+				githubValue := sec.Key("GITHUB").String()
+				assert.Equal(t, "U#n#k#n#w#o#n", nameValue)
+				assert.Equal(t, "U;n;k;n;w;o;n", githubValue)
+			})
+		})
+	})
 
-				keys := f.Section("package:sub:sub2").ParentKeys()
-				names := []string{"NAME", "VERSION", "IMPORT_PATH"}
-				So(len(keys), ShouldEqual, len(names))
-				for i, name := range names {
-					So(keys[i].Name(), ShouldEqual, name)
+	t.Run("with `ChildSectionDelimiter` ':'", func(t *testing.T) {
+		t.Run("get all keys of parent sections", func(t *testing.T) {
+			f := ini.Empty(ini.LoadOptions{ChildSectionDelimiter: ":"})
+			require.NotNil(t, f)
+
+			k, err := f.Section("package").NewKey("NAME", "ini")
+			require.NoError(t, err)
+			assert.NotNil(t, k)
+			k, err = f.Section("package").NewKey("VERSION", "v1")
+			require.NoError(t, err)
+			assert.NotNil(t, k)
+			k, err = f.Section("package").NewKey("IMPORT_PATH", "gopkg.in/ini.v1")
+			require.NoError(t, err)
+			assert.NotNil(t, k)
+
+			keys := f.Section("package:sub:sub2").ParentKeys()
+			names := []string{"NAME", "VERSION", "IMPORT_PATH"}
+			assert.Equal(t, len(names), len(keys))
+			for i, name := range names {
+				assert.Equal(t, name, keys[i].Name())
+			}
+		})
+
+		t.Run("getting and setting values", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{ChildSectionDelimiter: ":"}, fullConf)
+			require.NoError(t, err)
+			require.NotNil(t, f)
+
+			t.Run("get parent-keys that are available to the child section", func(t *testing.T) {
+				parentKeys := f.Section("package:sub").ParentKeys()
+				assert.NotNil(t, parentKeys)
+				for _, k := range parentKeys {
+					assert.Equal(t, "CLONE_URL", k.Name())
 				}
 			})
 
-			Convey("Getting and setting values", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{ChildSectionDelimiter: ":"}, fullConf)
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
-
-				Convey("Get parent-keys that are available to the child section", func() {
-					parentKeys := f.Section("package:sub").ParentKeys()
-					So(parentKeys, ShouldNotBeNil)
-					for _, k := range parentKeys {
-						So(k.Name(), ShouldEqual, "CLONE_URL")
-					}
-				})
-
-				Convey("Get parent section value", func() {
-					So(f.Section("package:sub").Key("CLONE_URL").String(), ShouldEqual, "https://gopkg.in/ini.v1")
-					So(f.Section("package:fake:sub").Key("CLONE_URL").String(), ShouldEqual, "https://gopkg.in/ini.v1")
-				})
+			t.Run("get parent section value", func(t *testing.T) {
+				assert.Equal(t, "https://gopkg.in/ini.v1", f.Section("package:sub").Key("CLONE_URL").String())
+				assert.Equal(t, "https://gopkg.in/ini.v1", f.Section("package:fake:sub").Key("CLONE_URL").String())
 			})
+		})
 
-			Convey("Get child sections by parent name", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{ChildSectionDelimiter: ":"}, []byte(`
+		t.Run("get child sections by parent name", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{ChildSectionDelimiter: ":"}, []byte(`
 [node]
 [node:biz1]
 [node:biz2]
 [node.biz3]
 [node.bizN]
 `))
-				So(err, ShouldBeNil)
-				So(f, ShouldNotBeNil)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-				children := f.ChildSections("node")
-				names := []string{"node:biz1", "node:biz2"}
-				So(len(children), ShouldEqual, len(names))
-				for i, name := range names {
-					So(children[i].Name(), ShouldEqual, name)
-				}
-			})
+			children := f.ChildSections("node")
+			names := []string{"node:biz1", "node:biz2"}
+			assert.Equal(t, len(names), len(children))
+			for i, name := range names {
+				assert.Equal(t, name, children[i].Name())
+			}
+		})
+	})
+
+	t.Run("ShortCircuit", func(t *testing.T) {
+		t.Run("load the first available configuration, ignore other configuration", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true}, minimalConf, []byte(`key1 = value1`))
+			require.NotNil(t, f)
+			require.NoError(t, err)
+			var buf bytes.Buffer
+			_, err = f.WriteTo(&buf)
+			require.NoError(t, err)
+			assert.Equal(t, `[author]
+E-MAIL = u@gogs.io
+
+`,
+				buf.String(),
+			)
 		})
 
-		Convey("ShortCircuit", func() {
-			Convey("Load the first available configuration, ignore other configuration", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true}, minimalConf, []byte(`key1 = value1`))
-				So(f, ShouldNotBeNil)
-				So(err, ShouldBeNil)
-				var buf bytes.Buffer
-				_, err = f.WriteTo(&buf)
-				So(err, ShouldBeNil)
-				So(buf.String(), ShouldEqual, `[author]
+		t.Run("return an error when fail to load", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true}, notFoundConf, minimalConf)
+			assert.Nil(t, f)
+			require.Error(t, err)
+		})
+
+		t.Run("used with Loose to ignore errors that the file does not exist", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true, Loose: true}, notFoundConf, minimalConf)
+			require.NotNil(t, f)
+			require.NoError(t, err)
+			var buf bytes.Buffer
+			_, err = f.WriteTo(&buf)
+			require.NoError(t, err)
+			assert.Equal(t, `[author]
 E-MAIL = u@gogs.io
 
-`)
-			})
+`,
+				buf.String(),
+			)
+		})
 
-			Convey("Return an error when fail to load", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true}, notFoundConf, minimalConf)
-				So(f, ShouldBeNil)
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("Used with Loose to ignore errors that the file does not exist", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true, Loose: true}, notFoundConf, minimalConf)
-				So(f, ShouldNotBeNil)
-				So(err, ShouldBeNil)
-				var buf bytes.Buffer
-				_, err = f.WriteTo(&buf)
-				So(err, ShouldBeNil)
-				So(buf.String(), ShouldEqual, `[author]
-E-MAIL = u@gogs.io
-
-`)
-			})
-
-			Convey("Ensure all sources are loaded without ShortCircuit", func() {
-				f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: false}, minimalConf, []byte(`key1 = value1`))
-				So(f, ShouldNotBeNil)
-				So(err, ShouldBeNil)
-				var buf bytes.Buffer
-				_, err = f.WriteTo(&buf)
-				So(err, ShouldBeNil)
-				So(buf.String(), ShouldEqual, `key1 = value1
+		t.Run("ensure all sources are loaded without ShortCircuit", func(t *testing.T) {
+			f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: false}, minimalConf, []byte(`key1 = value1`))
+			require.NotNil(t, f)
+			require.NoError(t, err)
+			var buf bytes.Buffer
+			_, err = f.WriteTo(&buf)
+			require.NoError(t, err)
+			assert.Equal(t, `key1 = value1
 
 [author]
 E-MAIL = u@gogs.io
 
-`)
-			})
+`,
+				buf.String(),
+			)
 		})
 	})
 }
 
 func Test_KeyValueDelimiters(t *testing.T) {
-	Convey("Custom key-value delimiters", t, func() {
+	t.Run("custom key-value delimiters", func(t *testing.T) {
 		f, err := ini.LoadSources(ini.LoadOptions{
 			KeyValueDelimiters: "?!",
 		}, []byte(`
@@ -1428,16 +1468,16 @@ func Test_KeyValueDelimiters(t *testing.T) {
 key1?value1
 key2!value2
 `))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
-		So(f.Section("section").Key("key1").String(), ShouldEqual, "value1")
-		So(f.Section("section").Key("key2").String(), ShouldEqual, "value2")
+		assert.Equal(t, "value1", f.Section("section").Key("key1").String())
+		assert.Equal(t, "value2", f.Section("section").Key("key2").String())
 	})
 }
 
 func Test_PreserveSurroundedQuote(t *testing.T) {
-	Convey("Preserve surrounded quote test", t, func() {
+	t.Run("preserve surrounded quote test", func(t *testing.T) {
 		f, err := ini.LoadSources(ini.LoadOptions{
 			PreserveSurroundedQuote: true,
 		}, []byte(`
@@ -1445,14 +1485,14 @@ func Test_PreserveSurroundedQuote(t *testing.T) {
 key1 = "value1"
 key2 = value2
 `))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
-		So(f.Section("section").Key("key1").String(), ShouldEqual, "\"value1\"")
-		So(f.Section("section").Key("key2").String(), ShouldEqual, "value2")
+		assert.Equal(t, "\"value1\"", f.Section("section").Key("key1").String())
+		assert.Equal(t, "value2", f.Section("section").Key("key2").String())
 	})
 
-	Convey("Preserve surrounded quote test inverse test", t, func() {
+	t.Run("preserve surrounded quote test inverse test", func(t *testing.T) {
 		f, err := ini.LoadSources(ini.LoadOptions{
 			PreserveSurroundedQuote: false,
 		}, []byte(`
@@ -1460,10 +1500,10 @@ key2 = value2
 key1 = "value1"
 key2 = value2
 `))
-		So(err, ShouldBeNil)
-		So(f, ShouldNotBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
-		So(f.Section("section").Key("key1").String(), ShouldEqual, "value1")
-		So(f.Section("section").Key("key2").String(), ShouldEqual, "value2")
+		assert.Equal(t, "value1", f.Section("section").Key("key1").String())
+		assert.Equal(t, "value2", f.Section("section").Key("key2").String())
 	})
 }
