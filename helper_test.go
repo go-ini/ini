@@ -17,13 +17,11 @@ package ini
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
-func Test_isSlice(t *testing.T) {
-	Convey("Check if a string is in the slice", t, func() {
-		ss := []string{"a", "b", "c"}
-		So(inSlice("a", ss), ShouldBeTrue)
-		So(inSlice("d", ss), ShouldBeFalse)
-	})
+func TestIsInSlice(t *testing.T) {
+	ss := []string{"a", "b", "c"}
+	assert.True(t, inSlice("a", ss))
+	assert.False(t, inSlice("d", ss))
 }
