@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-package ini_test
+package ini
 
 import (
 	"bytes"
@@ -24,13 +24,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"gopkg.in/ini.v1"
 )
 
 func TestKey_AddShadow(t *testing.T) {
 	t.Run("add shadow to a key", func(t *testing.T) {
-		f, err := ini.ShadowLoad([]byte(`
+		f, err := ShadowLoad([]byte(`
 [notes]
 -: note1`))
 		require.NoError(t, err)
@@ -62,7 +60,7 @@ func TestKey_AddShadow(t *testing.T) {
 	})
 
 	t.Run("allow duplicate shadowed values", func(t *testing.T) {
-		f := ini.Empty(ini.LoadOptions{
+		f := Empty(LoadOptions{
 			AllowShadows:               true,
 			AllowDuplicateShadowValues: true,
 		})
@@ -79,7 +77,7 @@ func TestKey_AddShadow(t *testing.T) {
 	})
 
 	t.Run("shadow is not allowed", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
@@ -156,7 +154,7 @@ func timesEqual(t *testing.T, values []time.Time, expected ...time.Time) {
 
 func TestKey_Helpers(t *testing.T) {
 	t.Run("getting and setting values", func(t *testing.T) {
-		f, err := ini.Load(fullConf)
+		f, err := Load(fullConf)
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -213,7 +211,7 @@ func TestKey_Helpers(t *testing.T) {
 
 		t.Run("get sections", func(t *testing.T) {
 			sections := f.Sections()
-			for i, name := range []string{ini.DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"} {
+			for i, name := range []string{DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"} {
 				assert.Equal(t, name, sections[i].Name())
 			}
 		})
@@ -525,7 +523,7 @@ func TestKey_Helpers(t *testing.T) {
 
 func TestKey_StringsWithShadows(t *testing.T) {
 	t.Run("get strings of shadows of a key", func(t *testing.T) {
-		f, err := ini.ShadowLoad([]byte(""))
+		f, err := ShadowLoad([]byte(""))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -542,7 +540,7 @@ func TestKey_StringsWithShadows(t *testing.T) {
 
 func TestKey_SetValue(t *testing.T) {
 	t.Run("set value of key", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
@@ -557,7 +555,7 @@ func TestKey_SetValue(t *testing.T) {
 
 func TestKey_NestedValues(t *testing.T) {
 	t.Run("read and write nested values", func(t *testing.T) {
-		f, err := ini.LoadSources(ini.LoadOptions{
+		f, err := LoadSources(LoadOptions{
 			AllowNestedValues: true,
 		}, []byte(`
 aws_access_key_id = foo
@@ -589,7 +587,7 @@ s3                    =
 
 func TestRecursiveValues(t *testing.T) {
 	t.Run("recursive values should not reflect on same key", func(t *testing.T) {
-		f, err := ini.Load([]byte(`
+		f, err := Load([]byte(`
 NAME = ini
 expires = yes
 [package]
@@ -603,7 +601,7 @@ expires = %(expires)s`))
 	})
 
 	t.Run("recursive value with no target found", func(t *testing.T) {
-		f, err := ini.Load([]byte(`
+		f, err := Load([]byte(`
 [foo]
 bar = %(missing)s
 `))

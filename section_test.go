@@ -12,20 +12,18 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-package ini_test
+package ini
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"gopkg.in/ini.v1"
 )
 
 func TestSection_SetBody(t *testing.T) {
 	t.Run("set body of raw section", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		sec, err := f.NewRawSection("comments", `1111111111111111111000000000000000001110000
@@ -52,7 +50,7 @@ func TestSection_SetBody(t *testing.T) {
 
 func TestSection_NewKey(t *testing.T) {
 	t.Run("create a new key", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
@@ -77,7 +75,7 @@ func TestSection_NewKey(t *testing.T) {
 	})
 
 	t.Run("create keys with same name and allow shadow", func(t *testing.T) {
-		f, err := ini.ShadowLoad([]byte(""))
+		f, err := ShadowLoad([]byte(""))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -94,7 +92,7 @@ func TestSection_NewKey(t *testing.T) {
 
 func TestSection_NewBooleanKey(t *testing.T) {
 	t.Run("create a new boolean key", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewBooleanKey("start-ssh-server")
@@ -112,7 +110,7 @@ func TestSection_NewBooleanKey(t *testing.T) {
 
 func TestSection_GetKey(t *testing.T) {
 	t.Run("get a key", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
@@ -145,7 +143,7 @@ func TestSection_GetKey(t *testing.T) {
 
 func TestSection_HasKey(t *testing.T) {
 	t.Run("check if a key exists", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
@@ -161,7 +159,7 @@ func TestSection_HasKey(t *testing.T) {
 
 func TestSection_HasValue(t *testing.T) {
 	t.Run("check if contains a value in any key", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
@@ -175,7 +173,7 @@ func TestSection_HasValue(t *testing.T) {
 
 func TestSection_Key(t *testing.T) {
 	t.Run("get a key", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
@@ -207,7 +205,7 @@ func TestSection_Key(t *testing.T) {
 
 func TestSection_Keys(t *testing.T) {
 	t.Run("get all keys in a section", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
@@ -231,7 +229,7 @@ func TestSection_Keys(t *testing.T) {
 
 func TestSection_ParentKeys(t *testing.T) {
 	t.Run("get all keys of parent sections", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("package").NewKey("NAME", "ini")
@@ -255,7 +253,7 @@ func TestSection_ParentKeys(t *testing.T) {
 
 func TestSection_KeyStrings(t *testing.T) {
 	t.Run("get all key names in a section", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
@@ -274,7 +272,7 @@ func TestSection_KeyStrings(t *testing.T) {
 
 func TestSection_KeyHash(t *testing.T) {
 	t.Run("get clone of key hash", func(t *testing.T) {
-		f, err := ini.Load([]byte(`
+		f, err := Load([]byte(`
 key = one
 [log]
 name = app
@@ -303,7 +301,7 @@ file = b.log
 
 func TestSection_DeleteKey(t *testing.T) {
 	t.Run("delete a key", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
