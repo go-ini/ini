@@ -12,21 +12,19 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-package ini_test
+package ini
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"gopkg.in/ini.v1"
 )
 
 func TestBOM(t *testing.T) {
 	t.Run("test handling BOM", func(t *testing.T) {
 		t.Run("UTF-8-BOM", func(t *testing.T) {
-			f, err := ini.Load("testdata/UTF-8-BOM.ini")
+			f, err := Load("testdata/UTF-8-BOM.ini")
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -34,7 +32,7 @@ func TestBOM(t *testing.T) {
 		})
 
 		t.Run("UTF-16-LE-BOM", func(t *testing.T) {
-			f, err := ini.Load("testdata/UTF-16-LE-BOM.ini")
+			f, err := Load("testdata/UTF-16-LE-BOM.ini")
 			require.NoError(t, err)
 			require.NotNil(t, f)
 		})
@@ -47,32 +45,32 @@ func TestBOM(t *testing.T) {
 func TestBadLoad(t *testing.T) {
 	t.Run("load with bad data", func(t *testing.T) {
 		t.Run("bad section name", func(t *testing.T) {
-			_, err := ini.Load([]byte("[]"))
+			_, err := Load([]byte("[]"))
 			require.Error(t, err)
 
-			_, err = ini.Load([]byte("["))
+			_, err = Load([]byte("["))
 			require.Error(t, err)
 		})
 
 		t.Run("bad keys", func(t *testing.T) {
-			_, err := ini.Load([]byte(`"""name`))
+			_, err := Load([]byte(`"""name`))
 			require.Error(t, err)
 
-			_, err = ini.Load([]byte(`"""name"""`))
+			_, err = Load([]byte(`"""name"""`))
 			require.Error(t, err)
 
-			_, err = ini.Load([]byte(`""=1`))
+			_, err = Load([]byte(`""=1`))
 			require.Error(t, err)
 
-			_, err = ini.Load([]byte(`=`))
+			_, err = Load([]byte(`=`))
 			require.Error(t, err)
 
-			_, err = ini.Load([]byte(`name`))
+			_, err = Load([]byte(`name`))
 			require.Error(t, err)
 		})
 
 		t.Run("bad values", func(t *testing.T) {
-			_, err := ini.Load([]byte(`name="""Unknwon`))
+			_, err := Load([]byte(`name="""Unknwon`))
 			require.Error(t, err)
 		})
 	})

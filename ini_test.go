@@ -12,18 +12,18 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-package ini_test
+package ini
 
 import (
 	"bytes"
 	"flag"
 	"io/ioutil"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"gopkg.in/ini.v1"
 )
 
 const (
@@ -54,7 +54,7 @@ var update = flag.Bool("update", false, "Update .golden files")
 
 func TestLoad(t *testing.T) {
 	t.Run("load from good data sources", func(t *testing.T) {
-		f, err := ini.Load(
+		f, err := Load(
 			"testdata/minimal.ini",
 			[]byte("NAME = ini\nIMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s"),
 			bytes.NewReader([]byte(`VERSION = v1`)),
@@ -76,18 +76,18 @@ func TestLoad(t *testing.T) {
 
 	t.Run("load from bad data sources", func(t *testing.T) {
 		t.Run("invalid input", func(t *testing.T) {
-			_, err := ini.Load(notFoundConf)
+			_, err := Load(notFoundConf)
 			require.Error(t, err)
 		})
 
 		t.Run("unsupported type", func(t *testing.T) {
-			_, err := ini.Load(123)
+			_, err := Load(123)
 			require.Error(t, err)
 		})
 	})
 
 	t.Run("cannot properly parse INI files containing `#` or `;` in value", func(t *testing.T) {
-		f, err := ini.Load([]byte(`
+		f, err := Load([]byte(`
 	[author]
 	NAME = U#n#k#n#w#o#n
 	GITHUB = U;n;k;n;w;o;n
@@ -103,7 +103,7 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("cannot parse small python-compatible INI files", func(t *testing.T) {
-		f, err := ini.Load([]byte(`
+		f, err := Load([]byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
    foo
@@ -118,7 +118,7 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 	})
 
 	t.Run("cannot parse big python-compatible INI files", func(t *testing.T) {
-		f, err := ini.Load([]byte(`
+		f, err := Load([]byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
    1foo
@@ -226,19 +226,19 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 }
 
 func TestLooseLoad(t *testing.T) {
-	f, err := ini.LoadSources(ini.LoadOptions{Loose: true}, notFoundConf, minimalConf)
+	f, err := LoadSources(LoadOptions{Loose: true}, notFoundConf, minimalConf)
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
 	t.Run("inverse case", func(t *testing.T) {
-		_, err = ini.Load(notFoundConf)
+		_, err = Load(notFoundConf)
 		require.Error(t, err)
 	})
 }
 
 func TestInsensitiveLoad(t *testing.T) {
 	t.Run("insensitive to section and key names", func(t *testing.T) {
-		f, err := ini.InsensitiveLoad(minimalConf)
+		f, err := InsensitiveLoad(minimalConf)
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -257,7 +257,7 @@ e-mail = u@gogs.io
 		})
 
 		t.Run("inverse case", func(t *testing.T) {
-			f, err := ini.Load(minimalConf)
+			f, err := Load(minimalConf)
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -267,7 +267,7 @@ e-mail = u@gogs.io
 
 	// Ref: https://github.com/go-ini/ini/issues/198
 	t.Run("insensitive load with default section", func(t *testing.T) {
-		f, err := ini.InsensitiveLoad([]byte(`
+		f, err := InsensitiveLoad([]byte(`
 user = unknwon
 [profile]
 email = unknwon@local
@@ -275,25 +275,25 @@ email = unknwon@local
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
-		assert.Equal(t, "unknwon", f.Section(ini.DefaultSection).Key("user").String())
+		assert.Equal(t, "unknwon", f.Section(DefaultSection).Key("user").String())
 	})
 }
 
 func TestLoadSources(t *testing.T) {
 	t.Run("with true `AllowPythonMultilineValues`", func(t *testing.T) {
 		t.Run("ignore nonexistent files", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true, Loose: true}, notFoundConf, minimalConf)
+			f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true, Loose: true}, notFoundConf, minimalConf)
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err = ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, notFoundConf)
+				_, err = LoadSources(LoadOptions{AllowPythonMultilineValues: true}, notFoundConf)
 				require.Error(t, err)
 			})
 		})
 
 		t.Run("insensitive to section and key names", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true, Insensitive: true}, minimalConf)
+			f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true, Insensitive: true}, minimalConf)
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -312,7 +312,7 @@ e-mail = u@gogs.io
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, minimalConf)
+				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, minimalConf)
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -321,7 +321,7 @@ e-mail = u@gogs.io
 		})
 
 		t.Run("insensitive to sections and sensitive to key names", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{InsensitiveSections: true}, minimalConf)
+			f, err := LoadSources(LoadOptions{InsensitiveSections: true}, minimalConf)
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -340,7 +340,7 @@ E-MAIL = u@gogs.io
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{}, minimalConf)
+				f, err := LoadSources(LoadOptions{}, minimalConf)
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -349,7 +349,7 @@ E-MAIL = u@gogs.io
 		})
 
 		t.Run("sensitive to sections and insensitive to key names", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{InsensitiveKeys: true}, minimalConf)
+			f, err := LoadSources(LoadOptions{InsensitiveKeys: true}, minimalConf)
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -368,7 +368,7 @@ e-mail = u@gogs.io
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{}, minimalConf)
+				f, err := LoadSources(LoadOptions{}, minimalConf)
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -377,7 +377,7 @@ e-mail = u@gogs.io
 		})
 
 		t.Run("ignore continuation lines", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: true,
 				IgnoreContinuation:         true,
 			}, []byte(`
@@ -392,7 +392,7 @@ key3=value`))
 			assert.Equal(t, "value", f.Section("").Key("key3").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 key1=a\b\
 key2=c\d\`))
 				require.NoError(t, err)
@@ -403,7 +403,7 @@ key2=c\d\`))
 		})
 
 		t.Run("ignore inline comments", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: true,
 				IgnoreInlineComment:        true,
 			}, []byte(`
@@ -418,7 +418,7 @@ key3=val#ue #comment3`))
 			assert.Equal(t, `val#ue #comment3`, f.Section("").Key("key3").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 key1=value ;comment
 key2=value2 #comment2`))
 				require.NoError(t, err)
@@ -432,7 +432,7 @@ key2=value2 #comment2`))
 		})
 
 		t.Run("skip unrecognizable lines", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				SkipUnrecognizableLines: true,
 			}, []byte(`
 GenerationDepth: 13
@@ -455,7 +455,7 @@ BiomeGroup(IceBiomes, 4, 85, Ice Plains)
 		})
 
 		t.Run("allow boolean type keys", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: true,
 				AllowBooleanKeys:           true,
 			}, []byte(`
@@ -481,7 +481,7 @@ key3
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+				_, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 key1=hello
 #key2
 key3`))
@@ -490,7 +490,7 @@ key3`))
 		})
 
 		t.Run("allow shadow keys", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{AllowShadows: true, AllowPythonMultilineValues: true}, []byte(`
+			f, err := LoadSources(LoadOptions{AllowShadows: true, AllowPythonMultilineValues: true}, []byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git
@@ -524,7 +524,7 @@ fetch = +refs/heads/*:refs/remotes/origin/*
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git`))
@@ -536,7 +536,7 @@ url = https://github.com/Antergone/test2.git`))
 		})
 
 		t.Run("unescape double quotes inside value", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: true,
 				UnescapeValueDoubleQuotes:  true,
 			}, []byte(`
@@ -547,7 +547,7 @@ create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
 			assert.Equal(t, `创建了仓库 <a href="%s">%s</a>`, f.Section("").Key("create_repo").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
 				require.NoError(t, err)
 				require.NotNil(t, f)
@@ -557,7 +557,7 @@ create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
 		})
 
 		t.Run("unescape comment symbols inside value", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues:  true,
 				IgnoreInlineComment:         true,
 				UnescapeValueCommentSymbols: true,
@@ -571,7 +571,7 @@ key = test value <span style="color: %s\; background: %s">more text</span>
 		})
 
 		t.Run("can parse small python-compatible INI files", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: true,
 				Insensitive:                true,
 				UnparseableSections:        []string{"core_lesson", "comments"},
@@ -596,7 +596,7 @@ multiline_list =
 		})
 
 		t.Run("can parse big python-compatible INI files", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: true,
 				Insensitive:                true,
 				UnparseableSections:        []string{"core_lesson", "comments"},
@@ -807,7 +807,7 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 		})
 
 		t.Run("allow unparsable sections", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: true,
 				Insensitive:                true,
 				UnparseableSections:        []string{"core_lesson", "comments"},
@@ -855,7 +855,7 @@ my lesson state data – 1111111111111111111000000000000000001110000
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+				_, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
 [CORE_LESSON]
 my lesson state data – 1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000 – end my lesson state data`))
@@ -865,8 +865,8 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 		t.Run("and false `SpaceBeforeInlineComment`", func(t *testing.T) {
 			t.Run("cannot parse INI files containing `#` or `;` in value", func(t *testing.T) {
-				f, err := ini.LoadSources(
-					ini.LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: false},
+				f, err := LoadSources(
+					LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: false},
 					[]byte(`
 [author]
 NAME = U#n#k#n#w#o#n
@@ -884,8 +884,8 @@ GITHUB = U;n;k;n;w;o;n
 
 		t.Run("and true `SpaceBeforeInlineComment`", func(t *testing.T) {
 			t.Run("can parse INI files containing `#` or `;` in value", func(t *testing.T) {
-				f, err := ini.LoadSources(
-					ini.LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: true},
+				f, err := LoadSources(
+					LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: true},
 					[]byte(`
 [author]
 NAME = U#n#k#n#w#o#n
@@ -904,7 +904,7 @@ GITHUB = U;n;k;n;w;o;n
 
 	t.Run("with false `AllowPythonMultilineValues`", func(t *testing.T) {
 		t.Run("ignore nonexistent files", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: false,
 				Loose:                      true,
 			}, notFoundConf, minimalConf)
@@ -912,7 +912,7 @@ GITHUB = U;n;k;n;w;o;n
 			require.NotNil(t, f)
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err = ini.LoadSources(ini.LoadOptions{
+				_, err = LoadSources(LoadOptions{
 					AllowPythonMultilineValues: false,
 				}, notFoundConf)
 				require.Error(t, err)
@@ -920,7 +920,7 @@ GITHUB = U;n;k;n;w;o;n
 		})
 
 		t.Run("insensitive to section and key names", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: false,
 				Insensitive:                true,
 			}, minimalConf)
@@ -942,7 +942,7 @@ e-mail = u@gogs.io
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{
+				f, err := LoadSources(LoadOptions{
 					AllowPythonMultilineValues: false,
 				}, minimalConf)
 				require.NoError(t, err)
@@ -953,7 +953,7 @@ e-mail = u@gogs.io
 		})
 
 		t.Run("ignore continuation lines", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: false,
 				IgnoreContinuation:         true,
 			}, []byte(`
@@ -968,7 +968,7 @@ key3=value`))
 			assert.Equal(t, "value", f.Section("").Key("key3").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 key1=a\b\
 key2=c\d\`))
 				require.NoError(t, err)
@@ -979,7 +979,7 @@ key2=c\d\`))
 		})
 
 		t.Run("ignore inline comments", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: false,
 				IgnoreInlineComment:        true,
 			}, []byte(`
@@ -994,7 +994,7 @@ key3=val#ue #comment3`))
 			assert.Equal(t, `val#ue #comment3`, f.Section("").Key("key3").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 key1=value ;comment
 key2=value2 #comment2`))
 				require.NoError(t, err)
@@ -1008,7 +1008,7 @@ key2=value2 #comment2`))
 		})
 
 		t.Run("allow boolean type keys", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: false,
 				AllowBooleanKeys:           true,
 			}, []byte(`
@@ -1034,7 +1034,7 @@ key3
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				_, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 key1=hello
 #key2
 key3`))
@@ -1043,7 +1043,7 @@ key3`))
 		})
 
 		t.Run("allow shadow keys", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false, AllowShadows: true}, []byte(`
+			f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false, AllowShadows: true}, []byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git
@@ -1077,7 +1077,7 @@ fetch = +refs/heads/*:refs/remotes/origin/*
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git`))
@@ -1089,7 +1089,7 @@ url = https://github.com/Antergone/test2.git`))
 		})
 
 		t.Run("unescape double quotes inside value", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: false,
 				UnescapeValueDoubleQuotes:  true,
 			}, []byte(`
@@ -1100,7 +1100,7 @@ create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
 			assert.Equal(t, `创建了仓库 <a href="%s">%s</a>`, f.Section("").Key("create_repo").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
 				require.NoError(t, err)
 				require.NotNil(t, f)
@@ -1110,7 +1110,7 @@ create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
 		})
 
 		t.Run("unescape comment symbols inside value", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues:  false,
 				IgnoreInlineComment:         true,
 				UnescapeValueCommentSymbols: true,
@@ -1124,7 +1124,7 @@ key = test value <span style="color: %s\; background: %s">more text</span>
 		})
 
 		t.Run("cannot parse small python-compatible INI files", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+			f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
   foo
@@ -1139,7 +1139,7 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 		})
 
 		t.Run("cannot parse big python-compatible INI files", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+			f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
   1foo
@@ -1246,7 +1246,7 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 		})
 
 		t.Run("allow unparsable sections", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{
+			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: false,
 				Insensitive:                true,
 				UnparseableSections:        []string{"core_lesson", "comments"},
@@ -1294,7 +1294,7 @@ my lesson state data – 1111111111111111111000000000000000001110000
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err := ini.LoadSources(ini.LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				_, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
 [CORE_LESSON]
 my lesson state data – 1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000 – end my lesson state data`))
@@ -1304,8 +1304,8 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 		t.Run("and false `SpaceBeforeInlineComment`", func(t *testing.T) {
 			t.Run("cannot parse INI files containing `#` or `;` in value", func(t *testing.T) {
-				f, err := ini.LoadSources(
-					ini.LoadOptions{AllowPythonMultilineValues: true, SpaceBeforeInlineComment: false},
+				f, err := LoadSources(
+					LoadOptions{AllowPythonMultilineValues: true, SpaceBeforeInlineComment: false},
 					[]byte(`
 [author]
 NAME = U#n#k#n#w#o#n
@@ -1323,8 +1323,8 @@ GITHUB = U;n;k;n;w;o;n
 
 		t.Run("and true `SpaceBeforeInlineComment`", func(t *testing.T) {
 			t.Run("can parse INI files containing `#` or `;` in value", func(t *testing.T) {
-				f, err := ini.LoadSources(
-					ini.LoadOptions{AllowPythonMultilineValues: true, SpaceBeforeInlineComment: true},
+				f, err := LoadSources(
+					LoadOptions{AllowPythonMultilineValues: true, SpaceBeforeInlineComment: true},
 					[]byte(`
 [author]
 NAME = U#n#k#n#w#o#n
@@ -1343,7 +1343,7 @@ GITHUB = U;n;k;n;w;o;n
 
 	t.Run("with `ChildSectionDelimiter` ':'", func(t *testing.T) {
 		t.Run("get all keys of parent sections", func(t *testing.T) {
-			f := ini.Empty(ini.LoadOptions{ChildSectionDelimiter: ":"})
+			f := Empty(LoadOptions{ChildSectionDelimiter: ":"})
 			require.NotNil(t, f)
 
 			k, err := f.Section("package").NewKey("NAME", "ini")
@@ -1365,7 +1365,7 @@ GITHUB = U;n;k;n;w;o;n
 		})
 
 		t.Run("getting and setting values", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{ChildSectionDelimiter: ":"}, fullConf)
+			f, err := LoadSources(LoadOptions{ChildSectionDelimiter: ":"}, fullConf)
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1384,7 +1384,7 @@ GITHUB = U;n;k;n;w;o;n
 		})
 
 		t.Run("get child sections by parent name", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{ChildSectionDelimiter: ":"}, []byte(`
+			f, err := LoadSources(LoadOptions{ChildSectionDelimiter: ":"}, []byte(`
 [node]
 [node:biz1]
 [node:biz2]
@@ -1405,7 +1405,7 @@ GITHUB = U;n;k;n;w;o;n
 
 	t.Run("ShortCircuit", func(t *testing.T) {
 		t.Run("load the first available configuration, ignore other configuration", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true}, minimalConf, []byte(`key1 = value1`))
+			f, err := LoadSources(LoadOptions{ShortCircuit: true}, minimalConf, []byte(`key1 = value1`))
 			require.NotNil(t, f)
 			require.NoError(t, err)
 			var buf bytes.Buffer
@@ -1420,13 +1420,13 @@ E-MAIL = u@gogs.io
 		})
 
 		t.Run("return an error when fail to load", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true}, notFoundConf, minimalConf)
+			f, err := LoadSources(LoadOptions{ShortCircuit: true}, notFoundConf, minimalConf)
 			assert.Nil(t, f)
 			require.Error(t, err)
 		})
 
 		t.Run("used with Loose to ignore errors that the file does not exist", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: true, Loose: true}, notFoundConf, minimalConf)
+			f, err := LoadSources(LoadOptions{ShortCircuit: true, Loose: true}, notFoundConf, minimalConf)
 			require.NotNil(t, f)
 			require.NoError(t, err)
 			var buf bytes.Buffer
@@ -1441,7 +1441,7 @@ E-MAIL = u@gogs.io
 		})
 
 		t.Run("ensure all sources are loaded without ShortCircuit", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{ShortCircuit: false}, minimalConf, []byte(`key1 = value1`))
+			f, err := LoadSources(LoadOptions{ShortCircuit: false}, minimalConf, []byte(`key1 = value1`))
 			require.NotNil(t, f)
 			require.NoError(t, err)
 			var buf bytes.Buffer
@@ -1461,7 +1461,7 @@ E-MAIL = u@gogs.io
 
 func Test_KeyValueDelimiters(t *testing.T) {
 	t.Run("custom key-value delimiters", func(t *testing.T) {
-		f, err := ini.LoadSources(ini.LoadOptions{
+		f, err := LoadSources(LoadOptions{
 			KeyValueDelimiters: "?!",
 		}, []byte(`
 [section]
@@ -1478,7 +1478,7 @@ key2!value2
 
 func Test_PreserveSurroundedQuote(t *testing.T) {
 	t.Run("preserve surrounded quote test", func(t *testing.T) {
-		f, err := ini.LoadSources(ini.LoadOptions{
+		f, err := LoadSources(LoadOptions{
 			PreserveSurroundedQuote: true,
 		}, []byte(`
 [section]
@@ -1493,7 +1493,7 @@ key2 = value2
 	})
 
 	t.Run("preserve surrounded quote test inverse test", func(t *testing.T) {
-		f, err := ini.LoadSources(ini.LoadOptions{
+		f, err := LoadSources(LoadOptions{
 			PreserveSurroundedQuote: false,
 		}, []byte(`
 [section]
@@ -1506,4 +1506,59 @@ key2 = value2
 		assert.Equal(t, "value1", f.Section("section").Key("key1").String())
 		assert.Equal(t, "value2", f.Section("section").Key("key2").String())
 	})
+}
+
+type testData struct {
+	Value1 string `ini:"value1"`
+	Value2 string `ini:"value2"`
+	Value3 string `ini:"value3"`
+}
+
+func TestPythonMultiline(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping testing on Windows")
+	}
+
+	path := filepath.Join("testdata", "multiline.ini")
+	f, err := LoadSources(LoadOptions{
+		AllowPythonMultilineValues: true,
+		ReaderBufferSize:           64 * 1024,
+	}, path)
+	require.NoError(t, err)
+	require.NotNil(t, f)
+	assert.Len(t, f.Sections(), 1)
+
+	defaultSection := f.Section("")
+	assert.NotNil(t, f.Section(""))
+
+	var testData testData
+	err = defaultSection.MapTo(&testData)
+	require.NoError(t, err)
+	assert.Equal(t, "some text here\nsome more text here\n\nthere is an empty line above and below\n", testData.Value1)
+	assert.Equal(t, "there is an empty line above\nthat is not indented so it should not be part\nof the value", testData.Value2)
+	assert.Equal(t, `.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Eu consequat ac felis donec et odio pellentesque diam volutpat. Mauris commodo quis imperdiet massa tincidunt nunc. Interdum velit euismod in pellentesque. Nisl condimentum id venenatis a condimentum vitae sapien pellentesque. Nascetur ridiculus mus mauris vitae. Posuere urna nec tincidunt praesent semper feugiat. Lorem donec massa sapien faucibus et molestie ac feugiat sed. Ipsum dolor sit amet consectetur adipiscing elit. Enim sed faucibus turpis in eu mi. A diam sollicitudin tempor id. Quam nulla porttitor massa id neque aliquam vestibulum morbi blandit.
+
+Lectus sit amet est placerat in egestas. At risus viverra adipiscing at in tellus integer. Tristique senectus et netus et malesuada fames ac. In hac habitasse platea dictumst. Purus in mollis nunc sed. Pellentesque sit amet porttitor eget dolor morbi. Elit at imperdiet dui accumsan sit amet nulla. Cursus in hac habitasse platea dictumst. Bibendum arcu vitae elementum curabitur. Faucibus ornare suspendisse sed nisi lacus. In vitae turpis massa sed. Libero nunc consequat interdum varius sit amet. Molestie a iaculis at erat pellentesque.
+
+Dui faucibus in ornare quam viverra orci sagittis eu. Purus in mollis nunc sed id semper. Sed arcu non odio euismod lacinia at. Quis commodo odio aenean sed adipiscing diam donec. Quisque id diam vel quam elementum pulvinar. Lorem ipsum dolor sit amet. Purus ut faucibus pulvinar elementum integer enim neque volutpat ac. Fermentum posuere urna nec tincidunt praesent semper feugiat nibh sed. Gravida rutrum quisque non tellus orci. Ipsum dolor sit amet consectetur adipiscing elit pellentesque habitant. Et sollicitudin ac orci phasellus egestas tellus rutrum tellus pellentesque. Eget gravida cum sociis natoque penatibus et magnis. Elementum eu facilisis sed odio morbi quis commodo. Mollis nunc sed id semper risus in hendrerit gravida rutrum. Lorem dolor sed viverra ipsum.
+
+Pellentesque adipiscing commodo elit at imperdiet dui accumsan sit amet. Justo eget magna fermentum iaculis eu non diam. Condimentum mattis pellentesque id nibh tortor id aliquet lectus. Tellus molestie nunc non blandit massa enim. Mauris ultrices eros in cursus turpis. Purus viverra accumsan in nisl nisi scelerisque. Quis lectus nulla at volutpat. Purus ut faucibus pulvinar elementum integer enim. In pellentesque massa placerat duis ultricies lacus sed turpis. Elit sed vulputate mi sit amet mauris commodo. Tellus elementum sagittis vitae et. Duis tristique sollicitudin nibh sit amet commodo nulla facilisi nullam. Lectus vestibulum mattis ullamcorper velit sed ullamcorper morbi tincidunt ornare. Libero id faucibus nisl tincidunt eget nullam. Mattis aliquam faucibus purus in massa tempor. Fames ac turpis egestas sed tempus urna. Gravida in fermentum et sollicitudin ac orci phasellus egestas.
+
+Blandit turpis cursus in hac habitasse. Sed id semper risus in. Amet porttitor eget dolor morbi non arcu. Rhoncus est pellentesque elit ullamcorper dignissim cras tincidunt. Ut morbi tincidunt augue interdum velit. Lorem mollis aliquam ut porttitor leo a. Nunc eget lorem dolor sed viverra. Scelerisque mauris pellentesque pulvinar pellentesque. Elit at imperdiet dui accumsan sit amet. Eget magna fermentum iaculis eu non diam phasellus vestibulum lorem. Laoreet non curabitur gravida arcu ac tortor dignissim. Tortor pretium viverra suspendisse potenti nullam ac tortor vitae purus. Lacus sed viverra tellus in hac habitasse platea dictumst vestibulum. Viverra adipiscing at in tellus. Duis at tellus at urna condimentum. Eget gravida cum sociis natoque penatibus et magnis dis parturient. Pharetra massa massa ultricies mi quis hendrerit.
+
+Mauris pellentesque pulvinar pellentesque habitant morbi tristique. Maecenas volutpat blandit aliquam etiam. Sed turpis tincidunt id aliquet. Eget duis at tellus at urna condimentum. Pellentesque habitant morbi tristique senectus et. Amet aliquam id diam maecenas. Volutpat est velit egestas dui id. Vulputate eu scelerisque felis imperdiet proin fermentum leo vel orci. Massa sed elementum tempus egestas sed sed risus pretium. Quam quisque id diam vel quam elementum pulvinar etiam non. Sapien faucibus et molestie ac. Ipsum dolor sit amet consectetur adipiscing. Viverra orci sagittis eu volutpat. Leo urna molestie at elementum. Commodo viverra maecenas accumsan lacus. Non sodales neque sodales ut etiam sit amet. Habitant morbi tristique senectus et netus et malesuada fames. Habitant morbi tristique senectus et netus et malesuada. Blandit aliquam etiam erat velit scelerisque in. Varius duis at consectetur lorem donec massa sapien faucibus et.
+
+Augue mauris augue neque gravida in. Odio ut sem nulla pharetra diam sit amet nisl suscipit. Nulla aliquet enim tortor at auctor urna nunc id. Morbi tristique senectus et netus et malesuada fames ac. Quam id leo in vitae turpis massa sed elementum tempus. Ipsum faucibus vitae aliquet nec ullamcorper sit amet risus nullam. Maecenas volutpat blandit aliquam etiam erat velit scelerisque in. Sagittis nisl rhoncus mattis rhoncus urna neque viverra justo. Massa tempor nec feugiat nisl pretium. Vulputate sapien nec sagittis aliquam malesuada bibendum arcu vitae elementum. Enim lobortis scelerisque fermentum dui faucibus in ornare. Faucibus ornare suspendisse sed nisi lacus. Morbi tristique senectus et netus et malesuada fames. Malesuada pellentesque elit eget gravida cum sociis natoque penatibus et. Dictum non consectetur a erat nam at. Leo urna molestie at elementum eu facilisis sed odio morbi. Quam id leo in vitae turpis massa. Neque egestas congue quisque egestas diam in arcu. Varius morbi enim nunc faucibus a pellentesque sit. Aliquet enim tortor at auctor urna.
+
+Elit scelerisque mauris pellentesque pulvinar pellentesque habitant morbi tristique. Luctus accumsan tortor posuere ac. Eu ultrices vitae auctor eu augue ut lectus arcu bibendum. Pretium nibh ipsum consequat nisl vel pretium lectus. Aliquam etiam erat velit scelerisque in dictum. Sem et tortor consequat id porta nibh venenatis cras sed. A scelerisque purus semper eget duis at tellus at urna. At auctor urna nunc id. Ornare quam viverra orci sagittis eu volutpat odio. Nisl purus in mollis nunc sed id semper. Ornare suspendisse sed nisi lacus sed. Consectetur lorem donec massa sapien faucibus et. Ipsum dolor sit amet consectetur adipiscing elit ut. Porta nibh venenatis cras sed. Dignissim diam quis enim lobortis scelerisque. Quam nulla porttitor massa id. Tellus molestie nunc non blandit massa.
+
+Malesuada fames ac turpis egestas. Suscipit tellus mauris a diam maecenas. Turpis in eu mi bibendum neque egestas. Venenatis tellus in metus vulputate eu scelerisque felis imperdiet. Quis imperdiet massa tincidunt nunc pulvinar sapien et. Urna duis convallis convallis tellus id. Velit egestas dui id ornare arcu odio. Consectetur purus ut faucibus pulvinar elementum integer enim neque. Aenean sed adipiscing diam donec adipiscing tristique. Tortor aliquam nulla facilisi cras fermentum odio eu. Diam in arcu cursus euismod quis viverra nibh cras.
+
+Id ornare arcu odio ut sem. Arcu dictum varius duis at consectetur lorem donec massa sapien. Proin libero nunc consequat interdum varius sit. Ut eu sem integer vitae justo. Vitae elementum curabitur vitae nunc. Diam quam nulla porttitor massa. Lectus mauris ultrices eros in cursus turpis massa tincidunt dui. Natoque penatibus et magnis dis parturient montes. Pellentesque habitant morbi tristique senectus et netus et malesuada fames. Libero nunc consequat interdum varius sit. Rhoncus dolor purus non enim praesent. Pellentesque sit amet porttitor eget. Nibh tortor id aliquet lectus proin nibh. Fermentum iaculis eu non diam phasellus vestibulum lorem sed.
+
+Eu feugiat pretium nibh ipsum consequat nisl vel pretium lectus. Habitant morbi tristique senectus et netus et malesuada fames ac. Urna condimentum mattis pellentesque id. Lorem sed risus ultricies tristique nulla aliquet enim tortor at. Ipsum dolor sit amet consectetur adipiscing elit. Convallis a cras semper auctor neque vitae tempus quam. A diam sollicitudin tempor id eu nisl nunc mi ipsum. Maecenas sed enim ut sem viverra aliquet eget. Massa enim nec dui nunc mattis enim. Nam aliquam sem et tortor consequat. Adipiscing commodo elit at imperdiet dui accumsan sit amet nulla. Nullam eget felis eget nunc lobortis. Mauris a diam maecenas sed enim ut sem viverra. Ornare massa eget egestas purus. In hac habitasse platea dictumst. Ut tortor pretium viverra suspendisse potenti nullam ac tortor. Nisl nunc mi ipsum faucibus. At varius vel pharetra vel. Mauris ultrices eros in cursus turpis massa tincidunt.`,
+		testData.Value3,
+	)
 }

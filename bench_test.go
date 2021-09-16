@@ -12,16 +12,14 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-package ini_test
+package ini
 
 import (
 	"testing"
-
-	"gopkg.in/ini.v1"
 )
 
-func newTestFile(block bool) *ini.File {
-	c, _ := ini.Load([]byte(confData))
+func newTestFile(block bool) *File {
+	c, _ := Load([]byte(confData))
 	c.BlockMode = block
 	return c
 }

@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-package ini_test
+package ini
 
 import (
 	"bytes"
@@ -22,12 +22,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"gopkg.in/ini.v1"
 )
 
 func TestEmpty(t *testing.T) {
-	f := ini.Empty()
+	f := Empty()
 	require.NotNil(t, f)
 
 	// Should only have the default section
@@ -38,7 +36,7 @@ func TestEmpty(t *testing.T) {
 }
 
 func TestFile_NewSection(t *testing.T) {
-	f := ini.Empty()
+	f := Empty()
 	require.NotNil(t, f)
 
 	sec, err := f.NewSection("author")
@@ -46,7 +44,7 @@ func TestFile_NewSection(t *testing.T) {
 	require.NotNil(t, sec)
 	assert.Equal(t, "author", sec.Name())
 
-	assert.Equal(t, []string{ini.DefaultSection, "author"}, f.SectionStrings())
+	assert.Equal(t, []string{DefaultSection, "author"}, f.SectionStrings())
 
 	t.Run("with duplicated name", func(t *testing.T) {
 		sec, err := f.NewSection("author")
@@ -54,7 +52,7 @@ func TestFile_NewSection(t *testing.T) {
 		require.NotNil(t, sec)
 
 		// Does nothing if section already exists
-		assert.Equal(t, []string{ini.DefaultSection, "author"}, f.SectionStrings())
+		assert.Equal(t, []string{DefaultSection, "author"}, f.SectionStrings())
 	})
 
 	t.Run("with empty string", func(t *testing.T) {
@@ -65,7 +63,7 @@ func TestFile_NewSection(t *testing.T) {
 
 func TestFile_NonUniqueSection(t *testing.T) {
 	t.Run("read and write non-unique sections", func(t *testing.T) {
-		f, err := ini.LoadSources(ini.LoadOptions{
+		f, err := LoadSources(LoadOptions{
 			AllowNonUniqueSections: true,
 		}, []byte(`[Interface]
 Address = 192.168.2.1
@@ -114,7 +112,7 @@ AllowedIPs = 192.168.2.4/32
 	})
 
 	t.Run("delete non-unique section", func(t *testing.T) {
-		f, err := ini.LoadSources(ini.LoadOptions{
+		f, err := LoadSources(LoadOptions{
 			AllowNonUniqueSections: true,
 		}, []byte(`[Interface]
 Address    = 192.168.2.1
@@ -161,20 +159,20 @@ AllowedIPs = 192.168.2.4/32
 	})
 
 	t.Run("delete all sections", func(t *testing.T) {
-		f := ini.Empty(ini.LoadOptions{
+		f := Empty(LoadOptions{
 			AllowNonUniqueSections: true,
 		})
 		require.NotNil(t, f)
 
 		_ = f.NewSections("Interface", "Peer", "Peer")
-		assert.Equal(t, []string{ini.DefaultSection, "Interface", "Peer", "Peer"}, f.SectionStrings())
+		assert.Equal(t, []string{DefaultSection, "Interface", "Peer", "Peer"}, f.SectionStrings())
 		f.DeleteSection("Peer")
-		assert.Equal(t, []string{ini.DefaultSection, "Interface"}, f.SectionStrings())
+		assert.Equal(t, []string{DefaultSection, "Interface"}, f.SectionStrings())
 	})
 }
 
 func TestFile_NewRawSection(t *testing.T) {
-	f := ini.Empty()
+	f := Empty()
 	require.NotNil(t, f)
 
 	sec, err := f.NewRawSection("comments", `1111111111111111111000000000000000001110000
@@ -183,7 +181,7 @@ func TestFile_NewRawSection(t *testing.T) {
 	require.NotNil(t, sec)
 	assert.Equal(t, "comments", sec.Name())
 
-	assert.Equal(t, []string{ini.DefaultSection, "comments"}, f.SectionStrings())
+	assert.Equal(t, []string{DefaultSection, "comments"}, f.SectionStrings())
 	assert.Equal(t, `1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000`, f.Section("comments").Body())
 
@@ -191,7 +189,7 @@ func TestFile_NewRawSection(t *testing.T) {
 		sec, err := f.NewRawSection("comments", `1111111111111111111000000000000000001110000`)
 		require.NoError(t, err)
 		require.NotNil(t, sec)
-		assert.Equal(t, []string{ini.DefaultSection, "comments"}, f.SectionStrings())
+		assert.Equal(t, []string{DefaultSection, "comments"}, f.SectionStrings())
 
 		// Overwrite previous existed section
 		assert.Equal(t, `1111111111111111111000000000000000001110000`, f.Section("comments").Body())
@@ -204,17 +202,17 @@ func TestFile_NewRawSection(t *testing.T) {
 }
 
 func TestFile_NewSections(t *testing.T) {
-	f := ini.Empty()
+	f := Empty()
 	require.NotNil(t, f)
 
 	assert.NoError(t, f.NewSections("package", "author"))
-	assert.Equal(t, []string{ini.DefaultSection, "package", "author"}, f.SectionStrings())
+	assert.Equal(t, []string{DefaultSection, "package", "author"}, f.SectionStrings())
 
 	t.Run("with duplicated name", func(t *testing.T) {
 		assert.NoError(t, f.NewSections("author", "features"))
 
 		// Ignore section already exists
-		assert.Equal(t, []string{ini.DefaultSection, "package", "author", "features"}, f.SectionStrings())
+		assert.Equal(t, []string{DefaultSection, "package", "author", "features"}, f.SectionStrings())
 	})
 
 	t.Run("with empty string", func(t *testing.T) {
@@ -223,7 +221,7 @@ func TestFile_NewSections(t *testing.T) {
 }
 
 func TestFile_GetSection(t *testing.T) {
-	f, err := ini.Load(fullConf)
+	f, err := Load(fullConf)
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
@@ -240,7 +238,7 @@ func TestFile_GetSection(t *testing.T) {
 
 func TestFile_Section(t *testing.T) {
 	t.Run("get a section", func(t *testing.T) {
-		f, err := ini.Load(fullConf)
+		f, err := Load(fullConf)
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -256,7 +254,7 @@ func TestFile_Section(t *testing.T) {
 	})
 
 	t.Run("get default section in lower case with insensitive load", func(t *testing.T) {
-		f, err := ini.InsensitiveLoad([]byte(`
+		f, err := InsensitiveLoad([]byte(`
 [default]
 NAME = ini
 VERSION = v1`))
@@ -269,12 +267,12 @@ VERSION = v1`))
 }
 
 func TestFile_Sections(t *testing.T) {
-	f, err := ini.Load(fullConf)
+	f, err := Load(fullConf)
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
 	secs := f.Sections()
-	names := []string{ini.DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"}
+	names := []string{DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"}
 	assert.Len(t, secs, len(names))
 	for i, name := range names {
 		assert.Equal(t, name, secs[i].Name())
@@ -282,7 +280,7 @@ func TestFile_Sections(t *testing.T) {
 }
 
 func TestFile_ChildSections(t *testing.T) {
-	f, err := ini.Load([]byte(`
+	f, err := Load([]byte(`
 [node]
 [node.biz1]
 [node.biz2]
@@ -301,16 +299,16 @@ func TestFile_ChildSections(t *testing.T) {
 }
 
 func TestFile_SectionStrings(t *testing.T) {
-	f, err := ini.Load(fullConf)
+	f, err := Load(fullConf)
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
-	assert.Equal(t, []string{ini.DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"}, f.SectionStrings())
+	assert.Equal(t, []string{DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"}, f.SectionStrings())
 }
 
 func TestFile_DeleteSection(t *testing.T) {
 	t.Run("delete a section", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		_ = f.NewSections("author", "package", "features")
@@ -320,7 +318,7 @@ func TestFile_DeleteSection(t *testing.T) {
 	})
 
 	t.Run("delete default section", func(t *testing.T) {
-		f := ini.Empty()
+		f := Empty()
 		require.NotNil(t, f)
 
 		f.Section("").Key("foo").SetValue("bar")
@@ -339,7 +337,7 @@ key1 = value1
 	})
 
 	t.Run("delete a section with InsensitiveSections", func(t *testing.T) {
-		f := ini.Empty(ini.LoadOptions{InsensitiveSections: true})
+		f := Empty(LoadOptions{InsensitiveSections: true})
 		require.NotNil(t, f)
 
 		_ = f.NewSections("author", "package", "features")
@@ -350,7 +348,7 @@ key1 = value1
 }
 
 func TestFile_Append(t *testing.T) {
-	f := ini.Empty()
+	f := Empty()
 	require.NotNil(t, f)
 
 	assert.NoError(t, f.Append(minimalConf, []byte(`
@@ -369,7 +367,7 @@ func TestFile_WriteTo(t *testing.T) {
 	}
 
 	t.Run("write content to somewhere", func(t *testing.T) {
-		f, err := ini.Load(fullConf)
+		f, err := Load(fullConf)
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -394,7 +392,7 @@ func TestFile_WriteTo(t *testing.T) {
 	})
 
 	t.Run("support multiline comments", func(t *testing.T) {
-		f, err := ini.Load([]byte(`
+		f, err := Load([]byte(`
 # 
 # general.domain
 # 
@@ -423,7 +421,7 @@ test   =
 	})
 
 	t.Run("keep leading and trailing spaces in value", func(t *testing.T) {
-		f, _ := ini.Load([]byte(`[foo]
+		f, _ := Load([]byte(`[foo]
 bar1 = '  val ue1 '
 bar2 = """  val ue2 """
 bar3 = "  val ue3 "
@@ -443,7 +441,7 @@ bar3 = "  val ue3 "
 }
 
 func TestFile_SaveTo(t *testing.T) {
-	f, err := ini.Load(fullConf)
+	f, err := Load(fullConf)
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
@@ -452,7 +450,7 @@ func TestFile_SaveTo(t *testing.T) {
 }
 
 func TestFile_WriteToWithOutputDelimiter(t *testing.T) {
-	f, err := ini.LoadSources(ini.LoadOptions{
+	f, err := LoadSources(LoadOptions{
 		KeyValueDelimiterOnWrite: "->",
 	}, []byte(`[Others]
 Cities = HangZhou|Boston
@@ -488,7 +486,7 @@ Note        -> Hello world!
 
 // Inspired by https://github.com/go-ini/ini/issues/207
 func TestReloadAfterShadowLoad(t *testing.T) {
-	f, err := ini.ShadowLoad([]byte(`
+	f, err := ShadowLoad([]byte(`
 [slice]
 v = 1
 v = 2

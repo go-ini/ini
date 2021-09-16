@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-package ini_test
+package ini
 
 import (
 	"bytes"
@@ -23,8 +23,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"gopkg.in/ini.v1"
 )
 
 type testNested struct {
@@ -219,7 +217,7 @@ func Test_MapToStruct(t *testing.T) {
 	t.Run("map to struct", func(t *testing.T) {
 		t.Run("map file to struct", func(t *testing.T) {
 			ts := new(testStruct)
-			assert.NoError(t, ini.MapTo(ts, []byte(confDataStruct)))
+			assert.NoError(t, MapTo(ts, []byte(confDataStruct)))
 
 			assert.Equal(t, "Unknwon", ts.Name)
 			assert.Equal(t, 21, ts.Age)
@@ -278,7 +276,7 @@ func Test_MapToStruct(t *testing.T) {
 
 		t.Run("map section to struct", func(t *testing.T) {
 			foobar := new(fooBar)
-			f, err := ini.Load([]byte(confDataStruct))
+			f, err := Load([]byte(confDataStruct))
 			require.NoError(t, err)
 
 			assert.NoError(t, f.Section("foo.bar").MapTo(foobar))
@@ -287,7 +285,7 @@ func Test_MapToStruct(t *testing.T) {
 		})
 
 		t.Run("map to non-pointer struct", func(t *testing.T) {
-			f, err := ini.Load([]byte(confDataStruct))
+			f, err := Load([]byte(confDataStruct))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -295,7 +293,7 @@ func Test_MapToStruct(t *testing.T) {
 		})
 
 		t.Run("map to unsupported type", func(t *testing.T) {
-			f, err := ini.Load([]byte(confDataStruct))
+			f, err := Load([]byte(confDataStruct))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -312,13 +310,13 @@ func Test_MapToStruct(t *testing.T) {
 
 		t.Run("map to omitempty field", func(t *testing.T) {
 			ts := new(testStruct)
-			assert.NoError(t, ini.MapTo(ts, []byte(confDataStruct)))
+			assert.NoError(t, MapTo(ts, []byte(confDataStruct)))
 
 			assert.Equal(t, true, ts.Omitted)
 		})
 
 		t.Run("map with shadows", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{AllowShadows: true}, []byte(confDataStruct))
+			f, err := LoadSources(LoadOptions{AllowShadows: true}, []byte(confDataStruct))
 			require.NoError(t, err)
 			ts := new(testStruct)
 			assert.NoError(t, f.MapTo(ts))
@@ -328,11 +326,11 @@ func Test_MapToStruct(t *testing.T) {
 		})
 
 		t.Run("map from invalid data source", func(t *testing.T) {
-			assert.Error(t, ini.MapTo(&testStruct{}, "hi"))
+			assert.Error(t, MapTo(&testStruct{}, "hi"))
 		})
 
 		t.Run("map to wrong types and gain default values", func(t *testing.T) {
-			f, err := ini.Load([]byte(invalidDataConfStruct))
+			f, err := Load([]byte(invalidDataConfStruct))
 			require.NoError(t, err)
 
 			ti, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
@@ -348,7 +346,7 @@ func Test_MapToStruct(t *testing.T) {
 		})
 
 		t.Run("map to extended base", func(t *testing.T) {
-			f, err := ini.Load([]byte(confDataStruct))
+			f, err := Load([]byte(confDataStruct))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 			te := testExtend{}
@@ -359,7 +357,7 @@ func Test_MapToStruct(t *testing.T) {
 	})
 
 	t.Run("map to struct in strict mode", func(t *testing.T) {
-		f, err := ini.Load([]byte(`
+		f, err := Load([]byte(`
 name=bruce
 age=a30`))
 		require.NoError(t, err)
@@ -374,7 +372,7 @@ age=a30`))
 	})
 
 	t.Run("map slice in strict mode", func(t *testing.T) {
-		f, err := ini.Load([]byte(`
+		f, err := Load([]byte(`
 names=alice, bruce`))
 		require.NoError(t, err)
 
@@ -391,7 +389,7 @@ names=alice, bruce`))
 func Test_MapToStructNonUniqueSections(t *testing.T) {
 	t.Run("map to struct non unique", func(t *testing.T) {
 		t.Run("map file to struct non unique", func(t *testing.T) {
-			f, err := ini.LoadSources(ini.LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
+			f, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
 			require.NoError(t, err)
 			ts := new(testNonUniqueSectionsStruct)
 
@@ -416,7 +414,7 @@ func Test_MapToStructNonUniqueSections(t *testing.T) {
 			newPeer := new(testPeer)
 			newPeerSlice := make([]testPeer, 0)
 
-			f, err := ini.LoadSources(ini.LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
+			f, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
 			require.NoError(t, err)
 
 			// try only first one
@@ -440,7 +438,7 @@ func Test_MapToStructNonUniqueSections(t *testing.T) {
 		})
 
 		t.Run("map non unique sections with subsections to struct", func(t *testing.T) {
-			iniFile, err := ini.LoadSources(ini.LoadOptions{AllowNonUniqueSections: true}, strings.NewReader(`
+			iniFile, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, strings.NewReader(`
 [Section]
 FieldInSubSection = 1
 FieldInSubSection2 = 2
@@ -525,8 +523,8 @@ func Test_ReflectFromStruct(t *testing.T) {
 				[]bool{true, false},
 				[]int{},
 			}}
-		cfg := ini.Empty()
-		assert.NoError(t, ini.ReflectFrom(cfg, a))
+		cfg := Empty()
+		assert.NoError(t, ReflectFrom(cfg, a))
 
 		var buf bytes.Buffer
 		_, err = cfg.WriteTo(&buf)
@@ -558,11 +556,11 @@ None        =
 		)
 
 		t.Run("reflect from non-point struct", func(t *testing.T) {
-			assert.Error(t, ini.ReflectFrom(cfg, Author{}))
+			assert.Error(t, ReflectFrom(cfg, Author{}))
 		})
 
 		t.Run("reflect from struct with omitempty", func(t *testing.T) {
-			cfg := ini.Empty()
+			cfg := Empty()
 			type SpecialStruct struct {
 				FirstName  string    `ini:"first_name"`
 				LastName   string    `ini:"last_name,omitempty"`
@@ -583,7 +581,7 @@ None        =
 				NotEmpty:  9,
 			}
 
-			assert.NoError(t, ini.ReflectFrom(cfg, special))
+			assert.NoError(t, ReflectFrom(cfg, special))
 
 			var buf bytes.Buffer
 			_, err = cfg.WriteTo(&buf)
@@ -597,7 +595,7 @@ omitempty  = 9
 		})
 
 		t.Run("reflect from struct with non-anonymous structure pointer", func(t *testing.T) {
-			cfg := ini.Empty()
+			cfg := Empty()
 			type Rpc struct {
 				Enable  bool   `ini:"enable"`
 				Type    string `ini:"type"`
@@ -655,11 +653,11 @@ func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
 			},
 		}
 
-		cfg := ini.Empty(ini.LoadOptions{
+		cfg := Empty(LoadOptions{
 			AllowNonUniqueSections: true,
 		})
 
-		assert.NoError(t, ini.ReflectFrom(cfg, nonUnique))
+		assert.NoError(t, ReflectFrom(cfg, nonUnique))
 
 		var buf bytes.Buffer
 		_, err := cfg.WriteTo(&buf)
@@ -739,7 +737,7 @@ func TestMapToAndReflectFromStructWithShadows(t *testing.T) {
 			Paths []string `ini:"path,omitempty,allowshadow"`
 		}
 
-		cfg, err := ini.LoadSources(ini.LoadOptions{
+		cfg, err := LoadSources(LoadOptions{
 			AllowShadows: true,
 		}, []byte(`
 [include]
@@ -767,7 +765,7 @@ path = /tmp/gpm-profiles/test1.profile
 		)
 
 		t.Run("reflect from struct with shadows", func(t *testing.T) {
-			cfg := ini.Empty(ini.LoadOptions{
+			cfg := Empty(LoadOptions{
 				AllowShadows: true,
 			})
 			type ShadowStruct struct {
@@ -800,7 +798,7 @@ path = /tmp/gpm-profiles/test1.profile
 				None:        []int{},
 			}
 
-			assert.NoError(t, ini.ReflectFrom(cfg, shadow))
+			assert.NoError(t, ReflectFrom(cfg, shadow))
 
 			var buf bytes.Buffer
 			_, err := cfg.WriteTo(&buf)
@@ -839,13 +837,13 @@ type testMapper struct {
 
 func Test_NameGetter(t *testing.T) {
 	t.Run("test name mappers", func(t *testing.T) {
-		assert.NoError(t, ini.MapToWithMapper(&testMapper{}, ini.TitleUnderscore, []byte("packag_name=ini")))
+		assert.NoError(t, MapToWithMapper(&testMapper{}, TitleUnderscore, []byte("packag_name=ini")))
 
-		cfg, err := ini.Load([]byte("PACKAGE_NAME=ini"))
+		cfg, err := Load([]byte("PACKAGE_NAME=ini"))
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 
-		cfg.NameMapper = ini.SnackCase
+		cfg.NameMapper = SnackCase
 		tg := new(testMapper)
 		assert.NoError(t, cfg.MapTo(tg))
 		assert.Equal(t, "ini", tg.PackageName)
@@ -859,7 +857,7 @@ type testDurationStruct struct {
 func Test_Duration(t *testing.T) {
 	t.Run("duration less than 16m50s", func(t *testing.T) {
 		ds := new(testDurationStruct)
-		assert.NoError(t, ini.MapTo(ds, []byte("Duration=16m49s")))
+		assert.NoError(t, MapTo(ds, []byte("Duration=16m49s")))
 
 		dur, err := time.ParseDuration("16m49s")
 		require.NoError(t, err)
@@ -874,7 +872,7 @@ type Employer struct {
 
 type Employers []*Employer
 
-func (es Employers) ReflectINIStruct(f *ini.File) error {
+func (es Employers) ReflectINIStruct(f *File) error {
 	for _, e := range es {
 		f.Section(e.Name).Key("Title").SetValue(e.Title)
 	}
@@ -901,7 +899,7 @@ func Test_StructReflector(t *testing.T) {
 			},
 		}
 
-		f := ini.Empty()
+		f := Empty()
 		assert.NoError(t, f.ReflectFrom(p))
 
 		var buf bytes.Buffer
