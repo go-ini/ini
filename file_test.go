@@ -266,30 +266,29 @@ VERSION = v1`))
 		assert.Equal(t, "v1", f.Section("").Key("version").String())
 	})
 
-	Convey("Get section after deletion", t, func() {
-		f, err := ini.Load([]byte(`
+	t.Run("get sections after deletion", func(t *testing.T) {
+		f, err := Load([]byte(`
 [RANDOM]
 `))
-		So(f, ShouldNotBeNil)
-		So(err, ShouldBeNil)
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
 		sectionNames := f.SectionStrings()
 		sort.Strings(sectionNames)
-		So(sectionNames, ShouldResemble, []string{ini.DefaultSection, "RANDOM"})
+		assert.Equal(t, []string{DefaultSection, "RANDOM"}, sectionNames)
 
 		for _, currentSection := range sectionNames {
 			f.DeleteSection(currentSection)
 		}
-		Convey("Section recreated", func() {
-			for sectionParam, expectedSectionName := range map[string]string{
-				"":       ini.DefaultSection,
-				"RANDOM": "RANDOM",
-			} {
-				sec := f.Section(sectionParam)
-				So(sec, ShouldNotBeNil)
-				So(sec.Name(), ShouldEqual, expectedSectionName)
-			}
-		})
 
+		for sectionParam, expectedSectionName := range map[string]string{
+			"":       DefaultSection,
+			"RANDOM": "RANDOM",
+		} {
+			sec := f.Section(sectionParam)
+			require.NotNil(t, sec)
+			assert.Equal(t, expectedSectionName, sec.Name())
+		}
 	})
 
 }
