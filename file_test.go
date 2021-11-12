@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"runtime"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -264,6 +265,33 @@ VERSION = v1`))
 		assert.Equal(t, "ini", f.Section("").Key("name").String())
 		assert.Equal(t, "v1", f.Section("").Key("version").String())
 	})
+
+	Convey("Get section after deletion", t, func() {
+		f, err := ini.Load([]byte(`
+[RANDOM]
+`))
+		So(f, ShouldNotBeNil)
+		So(err, ShouldBeNil)
+		sectionNames := f.SectionStrings()
+		sort.Strings(sectionNames)
+		So(sectionNames, ShouldResemble, []string{ini.DefaultSection, "RANDOM"})
+
+		for _, currentSection := range sectionNames {
+			f.DeleteSection(currentSection)
+		}
+		Convey("Section recreated", func() {
+			for sectionParam, expectedSectionName := range map[string]string{
+				"":       ini.DefaultSection,
+				"RANDOM": "RANDOM",
+			} {
+				sec := f.Section(sectionParam)
+				So(sec, ShouldNotBeNil)
+				So(sec.Name(), ShouldEqual, expectedSectionName)
+			}
+		})
+
+	})
+
 }
 
 func TestFile_Sections(t *testing.T) {
