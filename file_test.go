@@ -237,6 +237,20 @@ func TestFile_GetSection(t *testing.T) {
 	})
 }
 
+func TestFile_HasSection(t *testing.T) {
+	f, err := Load(fullConf)
+	require.NoError(t, err)
+	require.NotNil(t, f)
+
+	sec := f.HasSection("author")
+	assert.Equal(t, true, sec)
+
+	t.Run("section not exists", func(t *testing.T) {
+		nonexistent := f.HasSection("404")
+		assert.Equal(t, false, nonexistent)
+	})
+}
+
 func TestFile_Section(t *testing.T) {
 	t.Run("get a section", func(t *testing.T) {
 		f, err := Load(fullConf)
