@@ -243,11 +243,11 @@ func TestFile_HasSection(t *testing.T) {
 	require.NotNil(t, f)
 
 	sec := f.HasSection("author")
-	assert.Equal(t, true, sec)
+	assert.True(t, sec)
 
 	t.Run("section not exists", func(t *testing.T) {
 		nonexistent := f.HasSection("404")
-		assert.Equal(t, false, nonexistent)
+		assert.False(t, nonexistent)
 	})
 }
 
