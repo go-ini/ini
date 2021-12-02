@@ -1562,3 +1562,26 @@ func TestPythonMultiline(t *testing.T) {
 		testData.Value3,
 	)
 }
+
+func TestPythonMultiline_EOF(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping testing on Windows")
+	}
+
+	path := filepath.Join("testdata", "multiline_eof.ini")
+	f, err := LoadSources(LoadOptions{
+		AllowPythonMultilineValues: true,
+		ReaderBufferSize:           64 * 1024,
+	}, path)
+	require.NoError(t, err)
+	require.NotNil(t, f)
+	assert.Len(t, f.Sections(), 1)
+
+	defaultSection := f.Section("")
+	assert.NotNil(t, f.Section(""))
+
+	var testData testData
+	err = defaultSection.MapTo(&testData)
+	require.NoError(t, err)
+	assert.Equal(t, "some text here\n\tsome more text here 2", testData.Value1)
+}
