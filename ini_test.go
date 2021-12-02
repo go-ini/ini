@@ -1585,3 +1585,75 @@ func TestPythonMultiline_EOF(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "some text here\n\tsome more text here 2", testData.Value1)
 }
+
+func Test_NestedValuesSpanningSections(t *testing.T) {
+	t.Run("basic nested value", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{
+			AllowNestedValues: true,
+		}, []byte(`
+[section]
+key1 = value1
+key2 =
+  nested1 = nestedvalue1
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "value1", f.Section("section").Key("key1").String())
+		assert.Equal(t, "", f.Section("section").Key("key2").String())
+		assert.Equal(t, []string{"nested1 = nestedvalue1"}, f.Section("section").Key("key2").NestedValues())
+	})
+
+	t.Run("no nested values", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{
+			AllowNestedValues: true,
+		}, []byte(`
+[section]
+key1 = value1
+key2 =
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "value1", f.Section("section").Key("key1").String())
+		assert.Equal(t, "", f.Section("section").Key("key2").String())
+	})
+
+	t.Run("no nested values and following sections", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{
+			AllowNestedValues: true,
+		}, []byte(`
+[section]
+key1 = value1
+key2 =
+
+[section2]
+key3 = value3
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "value1", f.Section("section").Key("key1").String())
+		assert.Equal(t, "", f.Section("section").Key("key2").String())
+		assert.Equal(t, "value3", f.Section("section2").Key("key3").String())
+	})
+
+	t.Run("no nested values and following sections with indentation", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{
+			AllowNestedValues: true,
+		}, []byte(`
+[section]
+key1 = value1
+key2 =
+
+[section2]
+  key3 = value3
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "value1", f.Section("section").Key("key1").String())
+		assert.Equal(t, "", f.Section("section").Key("key2").String())
+		assert.Equal(t, "value3", f.Section("section2").Key("key3").String())
+	})
+}
