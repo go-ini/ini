@@ -521,6 +521,25 @@ func TestKey_Helpers(t *testing.T) {
 	})
 }
 
+func testKey_ValueWithShadows(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		f, err := ShadowLoad([]byte(`
+keyName = value1
+keyName = value2
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		k := f.Section("").Key("FakeKey")
+		require.NotNil(t, k)
+		assert.Equal(t, []string{}, k.ValueWithShadows())
+
+		k = f.Section("").Key("keyName")
+		require.NotNil(t, k)
+		assert.Equal(t, []string{"value1", "value2"}, k.ValueWithShadows())
+	})
+}
+
 func TestKey_StringsWithShadows(t *testing.T) {
 	t.Run("get strings of shadows of a key", func(t *testing.T) {
 		f, err := ShadowLoad([]byte(""))
