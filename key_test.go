@@ -521,7 +521,7 @@ func TestKey_Helpers(t *testing.T) {
 	})
 }
 
-func testKey_ValueWithShadows(t *testing.T) {
+func TestKey_ValueWithShadows(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		f, err := ShadowLoad([]byte(`
 keyName = value1

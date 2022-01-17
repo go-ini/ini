@@ -442,7 +442,21 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 				kname = `"""` + kname + `"""`
 			}
 
-			for _, val := range key.ValueWithShadows() {
+			shadows := key.ValueWithShadows()
+			if len(shadows) == 0 {
+				if _, err := buf.WriteString(kname); err != nil {
+					return nil, err
+				}
+				// Write out alignment spaces before "=" sign
+				if PrettyFormat {
+					buf.Write(alignSpaces[:alignLength-len(kname)])
+				}
+				if _, err := buf.WriteString(equalSign + LineBreak); err != nil {
+					return nil, err
+				}
+			}
+
+			for _, val := range shadows {
 				if _, err := buf.WriteString(kname); err != nil {
 					return nil, err
 				}
