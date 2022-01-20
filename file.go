@@ -481,10 +481,10 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 			}
 
 			for _, val := range shadows {
-				exit_loop, err := writeKeyValue(val)
+				exitLoop, err := writeKeyValue(val)
 				if err != nil {
 					return nil, err
-				} else if exit_loop {
+				} else if exitLoop {
 					continue KeyList
 				}
 			}
