@@ -57,6 +57,13 @@ func TestKey_AddShadow(t *testing.T) {
 			assert.NoError(t, k.AddShadow("ini"))
 			assert.Equal(t, []string{"ini", "ini.v1"}, k.ValueWithShadows())
 		})
+
+		t.Run("ignore empty shadow values", func(t *testing.T) {
+			k := f.Section("").Key("empty")
+			assert.NoError(t, k.AddShadow(""))
+			assert.NoError(t, k.AddShadow("ini"))
+			assert.Equal(t, []string{"ini"}, k.ValueWithShadows())
+		})
 	})
 
 	t.Run("allow duplicate shadowed values", func(t *testing.T) {
