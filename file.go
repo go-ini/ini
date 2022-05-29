@@ -344,7 +344,6 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
 	lastSectionIdx := len(f.sectionList) - 1
 	for i, sname := range f.sectionList {
-		isLastSection := i == lastSectionIdx
 		sec := f.SectionWithIndex(sname, f.sectionIndexes[i])
 		if len(sec.Comment) > 0 {
 			// Support multiline comments
@@ -373,6 +372,7 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 			}
 		}
 
+		isLastSection := i == lastSectionIdx
 		if sec.isRawSection {
 			if _, err := buf.WriteString(sec.rawBody); err != nil {
 				return nil, err
@@ -450,9 +450,7 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 				}
 
 				if key.isBooleanType {
-					if kname != sec.keyList[len(sec.keyList)-1] {
-						buf.WriteString(LineBreak)
-					}
+					buf.WriteString(LineBreak)
 					return true, nil
 				}
 

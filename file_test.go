@@ -108,7 +108,6 @@ AllowedIPs = 192.168.2.3/32
 [Peer]
 PublicKey  = <client3's publickey>
 AllowedIPs = 192.168.2.4/32
-
 `, str)
 	})
 
@@ -155,7 +154,6 @@ AllowedIPs = 192.168.2.2/32
 [Peer]
 PublicKey  = <client3's publickey>
 AllowedIPs = 192.168.2.4/32
-
 `, str)
 	})
 
@@ -373,7 +371,6 @@ func TestFile_DeleteSection(t *testing.T) {
 
 		assert.Equal(t, `[section1]
 key1 = value1
-
 `, buf.String())
 	})
 
@@ -456,7 +453,6 @@ domain = mydomain.com
 ; Multiline
 ; Comment
 test   = 
-
 `, buf.String())
 
 	})
@@ -476,7 +472,6 @@ bar3 = "  val ue3 "
 bar1 = "  val ue1 "
 bar2 = "  val ue2 "
 bar3 = "  val ue3 "
-
 `, buf.String())
 	})
 }
@@ -517,7 +512,6 @@ Populations -> 12345678,98765432
 Coordinates -> 192.168,10.11
 Flags       -> true,false
 Note        -> Hello world!
-
 `)
 	_, err = f.WriteTo(&actual)
 	require.NoError(t, err)
