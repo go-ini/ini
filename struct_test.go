@@ -169,7 +169,6 @@ AllowedIPs   = 10.2.0.2/32,fd00:2::2/128
 PublicKey    = pubClientKey2
 PresharedKey = psKey2
 AllowedIPs   = 10.2.0.3/32,fd00:2::3/128
-
 `
 
 type unsupport struct {
@@ -550,7 +549,6 @@ Populations = 12345678,98765432
 Coordinates = 192.168,10.11
 Flags       = true,false
 None        = 
-
 `,
 			buf.String(),
 		)
@@ -588,7 +586,6 @@ None        =
 			assert.Equal(t, `first_name = John
 last_name  = Doe
 omitempty  = 9
-
 `,
 				buf.String(),
 			)
@@ -623,7 +620,6 @@ enable = true
 type   = type
 addr   = address
 name   = name
-
 `,
 				buf.String(),
 			)
@@ -697,7 +693,6 @@ AllowedIPs   = 10.2.0.4/32,fd00:2::4/128
 PublicKey    = pubClientKey4
 PresharedKey = psKey4
 AllowedIPs   = 10.2.0.5/32,fd00:2::5/128
-
 `,
 			buf.String(),
 		)
@@ -723,7 +718,6 @@ PrivateKey = privServerKey
 PublicKey    = pubClientKey5
 PresharedKey = psKey5
 AllowedIPs   = 10.2.0.6/32,fd00:2::6/128
-
 `,
 			buf.String(),
 		)
@@ -759,7 +753,6 @@ path = /tmp/gpm-profiles/test1.profile`))
 		assert.Equal(t, `[include]
 path = /tmp/gpm-profiles/test5.profile
 path = /tmp/gpm-profiles/test1.profile
-
 `,
 			buf.String(),
 		)
@@ -823,7 +816,6 @@ Coordinates = 10.11
 Flags       = true
 Flags       = false
 None        = 
-
 `,
 				buf.String(),
 			)
@@ -913,7 +905,6 @@ Title = Staff II Engineer
 
 [Employer "EMC"]
 Title = Consultant Engineer
-
 `,
 			buf.String(),
 		)

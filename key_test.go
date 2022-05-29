@@ -604,7 +604,6 @@ region                = us-west-2
 s3                    = 
   max_concurrent_requests=10
   max_queue_size=1000
-
 `,
 			buf.String(),
 		)

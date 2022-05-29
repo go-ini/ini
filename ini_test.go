@@ -250,7 +250,6 @@ func TestInsensitiveLoad(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, `[author]
 e-mail = u@gogs.io
-
 `,
 				buf.String(),
 			)
@@ -305,7 +304,6 @@ func TestLoadSources(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, `[author]
 e-mail = u@gogs.io
-
 `,
 					buf.String(),
 				)
@@ -333,7 +331,6 @@ e-mail = u@gogs.io
 				require.NoError(t, err)
 				assert.Equal(t, `[author]
 E-MAIL = u@gogs.io
-
 `,
 					buf.String(),
 				)
@@ -361,7 +358,6 @@ E-MAIL = u@gogs.io
 				require.NoError(t, err)
 				assert.Equal(t, `[author]
 e-mail = u@gogs.io
-
 `,
 					buf.String(),
 				)
@@ -517,7 +513,6 @@ fetch = +refs/heads/*:refs/remotes/origin/*`))
 url   = https://github.com/Antergone/test1.git
 url   = https://github.com/Antergone/test2.git
 fetch = +refs/heads/*:refs/remotes/origin/*
-
 `,
 					buf.String(),
 				)
@@ -822,7 +817,8 @@ my lesson state data – 1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000 – end my lesson state data
 
 [COMMENTS]
-<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`))
+<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
+`))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -935,7 +931,6 @@ GITHUB = U;n;k;n;w;o;n
 				require.NoError(t, err)
 				assert.Equal(t, `[author]
 e-mail = u@gogs.io
-
 `,
 					buf.String(),
 				)
@@ -1070,7 +1065,6 @@ fetch = +refs/heads/*:refs/remotes/origin/*`))
 url   = https://github.com/Antergone/test1.git
 url   = https://github.com/Antergone/test2.git
 fetch = +refs/heads/*:refs/remotes/origin/*
-
 `,
 					buf.String(),
 				)
@@ -1261,7 +1255,8 @@ my lesson state data – 1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000 – end my lesson state data
 
 [COMMENTS]
-<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>`))
+<1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
+`))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1413,7 +1408,6 @@ GITHUB = U;n;k;n;w;o;n
 			require.NoError(t, err)
 			assert.Equal(t, `[author]
 E-MAIL = u@gogs.io
-
 `,
 				buf.String(),
 			)
@@ -1434,7 +1428,6 @@ E-MAIL = u@gogs.io
 			require.NoError(t, err)
 			assert.Equal(t, `[author]
 E-MAIL = u@gogs.io
-
 `,
 				buf.String(),
 			)
@@ -1451,7 +1444,6 @@ E-MAIL = u@gogs.io
 
 [author]
 E-MAIL = u@gogs.io
-
 `,
 				buf.String(),
 			)
