@@ -445,6 +445,8 @@ BiomeRarityScale: 100
 
 BiomeGroup(NormalBiomes, 3, 99, RoofedForestEnchanted, ForestSakura, FloatingJungle
 BiomeGroup(IceBiomes, 4, 85, Ice Plains)
+
+= RainForest
 `))
 			require.NoError(t, err)
 			require.NotNil(t, f)

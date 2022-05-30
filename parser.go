@@ -161,7 +161,7 @@ func readKeyName(delimiters string, in []byte) (string, int, error) {
 	}
 
 	endIdx = strings.IndexAny(line, delimiters)
-	if endIdx < 0 {
+	if endIdx <= 0 {
 		return "", -1, ErrDelimiterNotFound{line}
 	}
 	return strings.TrimSpace(line[0:endIdx]), endIdx + 1, nil
