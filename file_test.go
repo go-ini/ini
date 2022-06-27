@@ -457,6 +457,50 @@ test   =
 
 	})
 
+	t.Run("support inline comments (no require space before)", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{SpaceBeforeInlineComment: false}, []byte{})
+		require.NoError(t, err)
+		var buf bytes.Buffer
+
+		f.Section("").Key("test").SetValue("a#b")
+		_, err = f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Equal(t, "test = `a#b`\n", buf.String())
+	})
+
+	t.Run("support inline comments (no require space before)", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{SpaceBeforeInlineComment: false}, []byte{})
+		require.NoError(t, err)
+		var buf bytes.Buffer
+
+		f.Section("").Key("test").SetValue("a #b")
+		_, err = f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Equal(t, "test = `a #b`\n", buf.String())
+	})
+
+	t.Run("support inline comments (require space before)", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{SpaceBeforeInlineComment: true}, []byte{})
+		require.NoError(t, err)
+		var buf bytes.Buffer
+
+		f.Section("").Key("test").SetValue("a#b")
+		_, err = f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Equal(t, "test = a#b\n", buf.String())
+	})
+
+	t.Run("support inline comments (require space before)", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{SpaceBeforeInlineComment: true}, []byte{})
+		require.NoError(t, err)
+		var buf bytes.Buffer
+
+		f.Section("").Key("test").SetValue("a #b")
+		_, err = f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Equal(t, "test = `a #b`\n", buf.String())
+	})
+
 	t.Run("keep leading and trailing spaces in value", func(t *testing.T) {
 		f, _ := Load([]byte(`[foo]
 bar1 = '  val ue1 '

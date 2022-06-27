@@ -21,6 +21,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -46,6 +47,11 @@ type File struct {
 	NameMapper
 	ValueMapper
 }
+
+var (
+	commentMarker      = regexp.MustCompile(`[#;]`)
+	commentSpaceMarker = regexp.MustCompile(`\s+[#;]`)
+)
 
 // newFile initializes File object with given data sources.
 func newFile(dataSources []dataSource, opts LoadOptions) *File {
@@ -444,6 +450,15 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 				kname = `"""` + kname + `"""`
 			}
 
+			hasInlineComment := func(val string) bool {
+				if f.options.IgnoreInlineComment {
+					return false
+				}
+				if f.options.SpaceBeforeInlineComment {
+					return commentSpaceMarker.MatchString(val)
+				}
+				return commentMarker.MatchString(val)
+			}
 			writeKeyValue := func(val string) (bool, error) {
 				if _, err := buf.WriteString(kname); err != nil {
 					return false, err
@@ -462,7 +477,7 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 				// In case key value contains "\n", "`", "\"", "#" or ";"
 				if strings.ContainsAny(val, "\n`") {
 					val = `"""` + val + `"""`
-				} else if !f.options.IgnoreInlineComment && strings.ContainsAny(val, "#;") {
+				} else if hasInlineComment(val) {
 					val = "`" + val + "`"
 				} else if len(strings.TrimSpace(val)) != len(val) {
 					val = `"` + val + `"`
