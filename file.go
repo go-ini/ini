@@ -460,7 +460,7 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 				}
 
 				// In case key value contains "\n", "`", "\"", "#" or ";"
-				if strings.ContainsAny(val, "\n`") {
+				if !f.options.NoMultiLineSurroundingQuotes && strings.ContainsAny(val, "\n`") {
 					val = `"""` + val + `"""`
 				} else if !f.options.IgnoreInlineComment && strings.ContainsAny(val, "#;") {
 					val = "`" + val + "`"
