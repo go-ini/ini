@@ -15,6 +15,8 @@
 package ini
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,5 +75,35 @@ func TestBadLoad(t *testing.T) {
 			_, err := Load([]byte(`name="""Unknwon`))
 			require.Error(t, err)
 		})
+	})
+}
+
+func FuzzLoad(f *testing.F) {
+
+	files := []string{
+		"testdata/full.ini",
+		"testdata/minimal.ini",
+		"testdata/multiline_eof.ini",
+		"testdata/multiline.ini",
+		"testdata/TestFile_WriteTo.golden",
+		"testdata/UTF-16-BE-BOM.ini",
+		"testdata/UTF-16-LE-BOM.ini",
+		"testdata/UTF-8-BOM.ini",
+	}
+
+	for _, file := range files {
+		data, err := ioutil.ReadFile(file)
+		if err != nil {
+			f.Fatalf("failed to read file %s: %v", file, err)
+			os.Exit(1)
+		}
+		f.Add(data)
+	}
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		_, _ = Load(data)
+		_, _ = LooseLoad(data)
+		_, _ = InsensitiveLoad(data)
+		_, _ = ShadowLoad(data)
 	})
 }

@@ -5,6 +5,9 @@ build: vet bench
 test:
 	go test -v -cover -race
 
+fuzz:
+	go test -fuzz=FuzzLoad -fuzztime=600s .
+
 bench:
 	go test -v -cover -test.bench=. -test.benchmem
 
