@@ -1,7 +1,58 @@
+## Special files
+_*
+.*
+*~
+*.lock
+
+!.gitignore
+
+## Compiled source
+_obj/
+_test/
+target/
+
+[568vq].out
+*.[568vq]
+
+*.[ao]
+*.dll
+*.so
+
+*.cgo?.*
+*.exe
+*.prof
+*.test
+
+_testmain.go
+go.sum
+
+## Packages
+# It's better to unpack these files and commit the raw source.
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+## Data
+*.bin
+Icon?
+
+## Logs and databases
+*.db
+*.log
+*.sqlite
+#*.sql
+
+## Projects
+
+*.sublime-project
+*.sublime-workspace
+
+## * * *
+
 testdata/conf_out.ini
-ini.sublime-project
-ini.sublime-workspace
 testdata/conf_reflect.ini
-.idea
-/.vscode
-.DS_Store
