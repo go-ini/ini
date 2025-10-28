@@ -16,6 +16,7 @@ package ini
 
 import (
 	"bytes"
+	"encoding"
 	"errors"
 	"fmt"
 	"reflect"
@@ -26,6 +27,18 @@ import (
 
 // NameMapper represents a ini tag name mapper.
 type NameMapper func(string) string
+
+// Marshaler interface can be implemented to customize an INI tree
+// while encoding.
+type Marshaler interface {
+	MarshalINI(*Section) error
+}
+
+// Unmarshaler interface can be implemented to customize an INI tree
+// while decoding.
+type Unmarshaler interface {
+	UnmarshalINI(*Section) error
+}
 
 // Built-in name getters.
 var (
@@ -301,11 +314,12 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 		isStruct := tpField.Type.Kind() == reflect.Struct
 		isStructPtr := tpField.Type.Kind() == reflect.Ptr && tpField.Type.Elem().Kind() == reflect.Struct
 		isAnonymousPtr := tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous
+		isEmbedded := isAnonymousPtr || (isStruct && tpField.Anonymous)
 		if isAnonymousPtr {
 			field.Set(reflect.New(tpField.Type.Elem()))
 		}
 
-		if extends && (isAnonymousPtr || (isStruct && tpField.Anonymous)) {
+		if extends && isEmbedded {
 			if isStructPtr && field.IsNil() {
 				field.Set(reflect.New(tpField.Type.Elem()))
 			}
@@ -319,16 +333,39 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 			if err := fieldSection.mapToField(field, isStrict, sectionIndex, sectionName); err != nil {
 				return fmt.Errorf("map to field %q: %v", fieldName, err)
 			}
-		} else if isAnonymousPtr || isStruct || isStructPtr {
-			if secs, err := s.f.SectionsByName(fieldName); err == nil {
+		}
+		key, keyErr := s.GetKey(fieldName)
+		if !(extends && isEmbedded) && (isAnonymousPtr || isStruct || isStructPtr) {
+			secs, err := s.f.SectionsByName(fieldName)
+			if err == nil && len(secs) > sectionIndex {
+				if isStructPtr && field.IsNil() {
+					field.Set(reflect.New(tpField.Type.Elem())) // Will be processed anyway, no risk of no data non-nil struct
+				}
+				// Custom unmarshaling first
+				if u, ok := field.Addr().Interface().(Unmarshaler); ok {
+					if err := u.UnmarshalINI(secs[sectionIndex]); err != nil {
+						return wrapStrictError(err, isStrict)
+					}
+					continue
+				}
+			}
+			if keyErr == nil {
+				// Then TextUnmarshaler
+				if u, ok := field.Addr().Interface().(encoding.TextUnmarshaler); ok {
+					if isStructPtr && field.IsNil() {
+						field.Set(reflect.New(tpField.Type.Elem()))
+					}
+					if err := u.UnmarshalText([]byte(key.String())); err != nil {
+						return wrapStrictError(err, isStrict)
+					}
+					continue
+				}
+			}
+			if err == nil {
 				if len(secs) <= sectionIndex {
 					return fmt.Errorf("there are not enough sections (%d <= %d) for the field %q", len(secs), sectionIndex, fieldName)
 				}
-				// Only set the field to non-nil struct value if we have a section for it.
-				// Otherwise, we end up with a non-nil struct ptr even though there is no data.
-				if isStructPtr && field.IsNil() {
-					field.Set(reflect.New(tpField.Type.Elem()))
-				}
+				// Then regular struct unmarshaling
 				if err = secs[sectionIndex].mapToField(field, isStrict, sectionIndex, fieldName); err != nil {
 					return fmt.Errorf("map to field %q: %v", fieldName, err)
 				}
@@ -346,10 +383,9 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 			field.Set(newField)
 			continue
 		}
-
-		if key, err := s.GetKey(fieldName); err == nil {
+		if keyErr == nil {
 			delim := parseDelim(tpField.Tag.Get("delim"))
-			if err = setWithProperType(tpField.Type, key, field, delim, allowShadow, isStrict); err != nil {
+			if err := setWithProperType(tpField.Type, key, field, delim, allowShadow, isStrict); err != nil {
 				return fmt.Errorf("set field %q: %v", fieldName, err)
 			}
 		}
@@ -611,6 +647,33 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 				return fmt.Errorf("reflect from field %q: %v", fieldName, err)
 			}
 			continue
+		}
+
+		if tpField.Type.Kind() != reflect.Ptr || !field.IsNil() {
+			switch m := field.Addr().Interface().(type) {
+			case encoding.TextMarshaler:
+				text, err := m.MarshalText()
+				if err != nil {
+					return fmt.Errorf("marshal field %q: %v", fieldName, err)
+				}
+				key, err := s.GetKey(fieldName)
+				if err != nil {
+					key, _ = s.NewKey(fieldName, "")
+				}
+				key.SetValue(string(text))
+				continue
+			case Marshaler:
+				// Note: The only error here is section doesn't exist.
+				sec, err := s.f.GetSection(fieldName)
+				if err != nil {
+					// Note: fieldName can never be empty here, ignore error.
+					sec, _ = s.f.NewSection(fieldName)
+				}
+				if err := m.MarshalINI(sec); err != nil {
+					return fmt.Errorf("marshal field %q: %v", fieldName, err)
+				}
+				continue
+			}
 		}
 
 		if (tpField.Type.Kind() == reflect.Ptr && tpField.Type.Elem().Kind() == reflect.Struct) ||
