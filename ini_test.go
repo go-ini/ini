@@ -567,6 +567,21 @@ key = test value <span style="color: %s\; background: %s">more text</span>
 			assert.Equal(t, `test value <span style="color: %s; background: %s">more text</span>`, f.Section("").Key("key").String())
 		})
 
+		t.Run("unescape double quotes with backslash continuation", func(t *testing.T) {
+			f, err := LoadSources(LoadOptions{
+				UnescapeValueDoubleQuotes: true,
+			}, []byte(`hello = "!f() { \
+  echo "hello world"; \
+};f"`))
+			require.NoError(t, err)
+			require.NotNil(t, f)
+
+			expected := `!f() { \
+  echo "hello world"; \
+};f`
+			assert.Equal(t, expected, f.Section("").Key("hello").String())
+		})
+
 		t.Run("can parse small python-compatible INI files", func(t *testing.T) {
 			f, err := LoadSources(LoadOptions{
 				AllowPythonMultilineValues: true,
