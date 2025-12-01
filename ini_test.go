@@ -580,6 +580,16 @@ key = test value <span style="color: %s\; background: %s">more text</span>
   echo "hello world"; \
 };f`
 			assert.Equal(t, expected, f.Section("").Key("hello").String())
+
+			t.Run("inverse case", func(t *testing.T) {
+				_, err := LoadSources(LoadOptions{
+					UnescapeValueDoubleQuotes: true,
+					IgnoreContinuation:        true,
+				}, []byte(`hello = "!f() { \
+  echo "hello world"; \
+};f"`))
+				require.Error(t, err)
+			})
 		})
 
 		t.Run("can parse small python-compatible INI files", func(t *testing.T) {
