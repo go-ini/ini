@@ -17,8 +17,11 @@ package ini
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -534,4 +537,80 @@ v = 3
 
 	require.NoError(t, f.Reload())
 	assert.Equal(t, []string{"1", "2", "3"}, f.Section("slice").Key("v").ValueWithShadows())
+}
+
+// Ensures that LoadOptions are propagated with Empty()
+func TestEmptyWithOptions(t *testing.T) {
+	tests := []struct {
+		name       string
+		opts       LoadOptions
+		value      string
+		wantQuotes bool
+	}{
+		{
+			name:       "URL with fragment and IgnoreInlineComment",
+			opts:       LoadOptions{IgnoreInlineComment: true},
+			value:      "https://example.com/start#/",
+			wantQuotes: false,
+		},
+		{
+			name:       "URL with fragment without IgnoreInlineComment",
+			opts:       LoadOptions{IgnoreInlineComment: false},
+			value:      "https://example.com/start#/",
+			wantQuotes: true,
+		},
+		{
+			name:       "Regular value with #",
+			opts:       LoadOptions{IgnoreInlineComment: true},
+			value:      "value#comment",
+			wantQuotes: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test with Empty()
+			cfg1 := Empty(tt.opts)
+			section1, _ := cfg1.NewSection("test")
+			section1.Key("url").SetValue(tt.value)
+
+			tempFile1 := filepath.Join(os.TempDir(), "ini-test-1.tmp")
+			if err := cfg1.SaveToIndent(tempFile1, ""); err != nil {
+				t.Fatalf("Failed to save config 1: %v", err)
+			}
+
+			content1, err := os.ReadFile(tempFile1)
+			if err != nil {
+				t.Fatalf("Failed to read config 1: %v", err)
+			}
+			os.Remove(tempFile1)
+
+			hasQuotes1 := strings.Contains(string(content1), "`"+tt.value+"`")
+			if hasQuotes1 != tt.wantQuotes {
+				t.Errorf("Empty() quotation = %v, want %v", hasQuotes1, tt.wantQuotes)
+			}
+
+			// Compare with LoadSources for same behavior
+			cfg2, _ := LoadSources(tt.opts, []byte(""))
+			section2, _ := cfg2.NewSection("test")
+			section2.Key("url").SetValue(tt.value)
+
+			tempFile2 := filepath.Join(os.TempDir(), "ini-test-2.tmp")
+			if err := cfg2.SaveToIndent(tempFile2, ""); err != nil {
+				t.Fatalf("Failed to save config 2: %v", err)
+			}
+
+			content2, err := os.ReadFile(tempFile2)
+			if err != nil {
+				t.Fatalf("Failed to read config 2: %v", err)
+			}
+			os.Remove(tempFile2)
+
+			hasQuotes2 := strings.Contains(string(content2), "`"+tt.value+"`")
+			if hasQuotes1 != hasQuotes2 {
+				t.Errorf("Empty() and LoadSources behave differently: Empty=%v, LoadSources=%v",
+					hasQuotes1, hasQuotes2)
+			}
+		})
+	}
 }

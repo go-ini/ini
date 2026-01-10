@@ -74,8 +74,12 @@ func Empty(opts ...LoadOptions) *File {
 		opt = opts[0]
 	}
 
-	// Ignore error here, we are sure our data is good.
-	f, _ := LoadSources(opt, []byte(""))
+	// Create file with empty data source
+	f := newFile(nil, opt)
+
+	// Force a parse of empty data to ensure options are properly set
+	_ = f.parse(bytes.NewBuffer(nil))
+
 	return f
 }
 
