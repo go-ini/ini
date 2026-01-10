@@ -91,6 +91,16 @@ type testNonUniqueSectionsStruct struct {
 	Interface testInterface
 	Peer      []testPeer `ini:",nonunique"`
 }
+type testPeerPtr struct {
+	PublicKey    string
+	PresharedKey string
+	AllowedIPs   []*string `delim:","`
+}
+
+type testNonUniqueSectionsPtr struct {
+	Interface testInterface
+	Peer      []*testPeerPtr `ini:",nonunique"`
+}
 
 type BaseStruct struct {
 	Base bool
@@ -291,6 +301,15 @@ func Test_MapToStruct(t *testing.T) {
 			assert.Error(t, f.MapTo(testStruct{}))
 		})
 
+		t.Run("map to nil target pointer", func(t *testing.T) {
+			f, err := Load([]byte(confDataStruct))
+			require.NoError(t, err)
+			require.NotNil(t, f)
+
+			var ts *testStruct // nil pointer
+			assert.Error(t, f.MapTo(ts))
+		})
+
 		t.Run("map to unsupported type", func(t *testing.T) {
 			f, err := Load([]byte(confDataStruct))
 			require.NoError(t, err)
@@ -465,6 +484,102 @@ FieldInSection = 6
 
 			type File struct {
 				Sections []Section `ini:"Section,nonunique"`
+			}
+
+			f := new(File)
+			err = iniFile.MapTo(f)
+			require.NoError(t, err)
+
+			assert.Equal(t, "1", f.Sections[0].FieldInSubSection)
+			assert.Equal(t, "2", f.Sections[0].FieldInSubSection2)
+			assert.Equal(t, "3", f.Sections[0].FieldInSection)
+
+			assert.Equal(t, "4", f.Sections[1].FieldInSubSection)
+			assert.Equal(t, "5", f.Sections[1].FieldInSubSection2)
+			assert.Equal(t, "6", f.Sections[1].FieldInSection)
+		})
+	})
+}
+func Test_MapToStructNonUniquePtr(t *testing.T) {
+	t.Run("map to struct non unique", func(t *testing.T) {
+		t.Run("map file to struct non unique", func(t *testing.T) {
+			f, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
+			require.NoError(t, err)
+			ts := new(testNonUniqueSectionsPtr)
+
+			assert.NoError(t, f.MapTo(ts))
+
+			assert.Equal(t, "10.2.0.1/24", ts.Interface.Address)
+			assert.Equal(t, 34777, ts.Interface.ListenPort)
+			assert.Equal(t, "privServerKey", ts.Interface.PrivateKey)
+
+			assert.Equal(t, "pubClientKey", ts.Peer[0].PublicKey)
+			assert.Equal(t, "psKey", ts.Peer[0].PresharedKey)
+			assert.Equal(t, "10.2.0.2/32", *ts.Peer[0].AllowedIPs[0])
+			assert.Equal(t, "fd00:2::2/128", *ts.Peer[0].AllowedIPs[1])
+
+			assert.Equal(t, "pubClientKey2", ts.Peer[1].PublicKey)
+			assert.Equal(t, "psKey2", ts.Peer[1].PresharedKey)
+			assert.Equal(t, "10.2.0.3/32", *ts.Peer[1].AllowedIPs[0])
+			assert.Equal(t, "fd00:2::3/128", *ts.Peer[1].AllowedIPs[1])
+		})
+
+		t.Run("map non unique section to struct", func(t *testing.T) {
+			newPeer := new(testPeerPtr)
+			newPeerSlice := make([]testPeerPtr, 0)
+
+			f, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
+			require.NoError(t, err)
+
+			// try only first one
+			assert.NoError(t, f.Section("Peer").MapTo(newPeer))
+			assert.Equal(t, "pubClientKey", newPeer.PublicKey)
+			assert.Equal(t, "psKey", newPeer.PresharedKey)
+			assert.Equal(t, "10.2.0.2/32", *newPeer.AllowedIPs[0])
+			assert.Equal(t, "fd00:2::2/128", *newPeer.AllowedIPs[1])
+
+			// try all
+			assert.NoError(t, f.Section("Peer").MapTo(&newPeerSlice))
+			assert.Equal(t, "pubClientKey", newPeerSlice[0].PublicKey)
+			assert.Equal(t, "psKey", newPeerSlice[0].PresharedKey)
+			assert.Equal(t, "10.2.0.2/32", *newPeerSlice[0].AllowedIPs[0])
+			assert.Equal(t, "fd00:2::2/128", *newPeerSlice[0].AllowedIPs[1])
+
+			assert.Equal(t, "pubClientKey2", newPeerSlice[1].PublicKey)
+			assert.Equal(t, "psKey2", newPeerSlice[1].PresharedKey)
+			assert.Equal(t, "10.2.0.3/32", *newPeerSlice[1].AllowedIPs[0])
+			assert.Equal(t, "fd00:2::3/128", *newPeerSlice[1].AllowedIPs[1])
+		})
+
+		t.Run("map non unique sections with subsections to struct", func(t *testing.T) {
+			iniFile, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, strings.NewReader(`
+[Section]
+FieldInSubSection = 1
+FieldInSubSection2 = 2
+FieldInSection = 3
+
+[Section]
+FieldInSubSection = 4
+FieldInSubSection2 = 5
+FieldInSection = 6
+`))
+			require.NoError(t, err)
+
+			type SubSection struct {
+				FieldInSubSection string `ini:"FieldInSubSection"`
+			}
+			type SubSection2 struct {
+				FieldInSubSection2 string `ini:"FieldInSubSection2"`
+			}
+
+			type Section struct {
+				SubSection     `ini:"Section"`
+				SubSection2    `ini:"Section"`
+				FieldInSection string `ini:"FieldInSection"`
+			}
+
+			type File struct {
+				Sections []*Section `ini:"Section,nonunique"`
 			}
 
 			f := new(File)

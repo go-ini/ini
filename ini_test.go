@@ -17,7 +17,7 @@ package ini
 import (
 	"bytes"
 	"flag"
-	"io/ioutil"
+	"io"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -58,7 +58,7 @@ func TestLoad(t *testing.T) {
 			"testdata/minimal.ini",
 			[]byte("NAME = ini\nIMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s"),
 			bytes.NewReader([]byte(`VERSION = v1`)),
-			ioutil.NopCloser(bytes.NewReader([]byte("[author]\nNAME = Unknwon"))),
+			io.NopCloser(bytes.NewReader([]byte("[author]\nNAME = Unknwon"))),
 		)
 		require.NoError(t, err)
 		require.NotNil(t, f)
