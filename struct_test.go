@@ -243,7 +243,7 @@ func Test_MapToStruct(t *testing.T) {
 			assert.Equal(t, "[192.168 10.11]", fmt.Sprint(ts.Others.Coordinates))
 			assert.Equal(t, "[true false]", fmt.Sprint(ts.Others.Flags))
 			assert.Equal(t, "Hello world!", ts.Others.Note)
-			assert.Equal(t, 2.8, ts.TestEmbeded.GPA)
+			assert.Equal(t, 2.8, ts.GPA)
 
 			assert.Equal(t, "HangZhou,Boston", strings.Join(ts.OthersPtr.Cities, ","))
 			assert.Equal(t, ti.String(), ts.OthersPtr.Visits[0].String())

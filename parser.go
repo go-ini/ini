@@ -130,13 +130,14 @@ func readKeyName(delimiters string, in []byte) (string, int, error) {
 
 	// Check if key name surrounded by quotes.
 	var keyQuote string
-	if line[0] == '"' {
+	switch line[0] {
+	case '"':
 		if len(line) > 6 && line[0:3] == `"""` {
 			keyQuote = `"""`
 		} else {
 			keyQuote = `"`
 		}
-	} else if line[0] == '`' {
+	case '`':
 		keyQuote = "`"
 	}
 
@@ -253,7 +254,7 @@ func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 		}
 
 		if p.options.UnescapeValueDoubleQuotes && valQuote == `"` {
-			return strings.Replace(line[startIdx:pos+startIdx], `\"`, `"`, -1), nil
+			return strings.ReplaceAll(line[startIdx:pos+startIdx], `\"`, `"`), nil
 		}
 		return line[startIdx : pos+startIdx], nil
 	}
