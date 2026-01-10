@@ -1,7 +1,7 @@
 name: Go
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '**.go'
       - 'go.mod'
@@ -14,7 +14,7 @@ on:
       - '.golangci.yml'
       - '.github/workflows/go.yml'
 env:
-  GOPROXY: "https://proxy.golang.org"
+  GOPROXY: 'https://proxy.golang.org'
 
 jobs:
   lint:
@@ -22,39 +22,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Init Go Modules
-        run: |
-          go mod init github.com/go-ini/ini
-          go mod tidy
+        uses: actions/checkout@v6
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           args: --timeout=30m
-          skip-pkg-cache: true # Wrokaround of the "tar" problem: https://github.com/golangci/golangci-lint-action/issues/244
 
   test:
     name: Test
     strategy:
       matrix:
-        go-version: [ 1.13.x, 1.14.x, 1.15.x, 1.16.x, 1.17.x, 1.18.x ]
-        platform: [ ubuntu-latest, macos-latest, windows-latest ]
+        go-version: [1.24.x, 1.25.x]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - name: Install Go
-        uses: actions/setup-go@v2
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Setup Go
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
-      - name: Checkout code
-        uses: actions/checkout@v2
       - name: Run tests with coverage
         run: |
-          go mod init github.com/go-ini/ini
-          go mod tidy
-          go test -v -race -coverprofile=coverage -covermode=atomic ./...
-      - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v1.5.0
-        with:
-          file: ./coverage
-          flags: unittests
+          go test -v -race ./...
