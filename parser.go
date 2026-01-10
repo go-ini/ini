@@ -183,7 +183,7 @@ func (p *parser) readMultilines(line, val, valQuote string) (string, error) {
 		if pos > -1 {
 			// Check if the line ends with backslash continuation after the quote
 			restOfLine := strings.TrimRight(next[pos+len(valQuote):], "\r\n")
-			if !p.options.IgnoreContinuation && strings.HasSuffix(strings.TrimSpace(restOfLine), "\\") {
+			if !p.options.IgnoreContinuation && strings.HasSuffix(strings.TrimSpace(restOfLine), `\`) {
 				val += next
 				continue
 			}
