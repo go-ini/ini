@@ -15,6 +15,7 @@
 package ini
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -112,5 +113,38 @@ func Benchmark_Key_SetValue_VisSection(b *testing.B) {
 	sec := c.Section("")
 	for i := 0; i < b.N; i++ {
 		sec.Key("NAME").SetValue("10")
+	}
+}
+
+func Benchmark_NewKey_With_N_Keys(b *testing.B) {
+	for _, n := range []int{10, 100, 500, 1000} {
+		b.Run(fmt.Sprintf("keys=%d", n), func(b *testing.B) {
+			f := Empty()
+			sec, _ := f.NewSection("bench")
+			for i := 0; i < n; i++ {
+				sec.NewKey(fmt.Sprintf("key%d", i), "val")
+			}
+			target := fmt.Sprintf("key%d", n-1)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				sec.NewKey(target, "newval")
+			}
+		})
+	}
+}
+
+func Benchmark_NewSection_With_N_Sections(b *testing.B) {
+	for _, n := range []int{10, 100, 500, 1000} {
+		b.Run(fmt.Sprintf("sections=%d", n), func(b *testing.B) {
+			f := Empty()
+			for i := 0; i < n; i++ {
+				f.NewSection(fmt.Sprintf("sec%d", i))
+			}
+			target := fmt.Sprintf("sec%d", n-1)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				f.NewSection(target)
+			}
+		})
 	}
 }
