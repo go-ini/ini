@@ -388,6 +388,15 @@ func (s *Section) mapTo(v interface{}, isStrict bool) error {
 		return errors.New("not a pointer to a struct")
 	}
 
+	// Handle pointer-to-pointer: dereference again and check for nil
+	for val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			return errors.New("cannot map to a nil pointer")
+		}
+		typ = typ.Elem()
+		val = val.Elem()
+	}
+
 	if typ.Kind() == reflect.Slice {
 		newField, err := s.mapToSlice(s.name, val, isStrict)
 		if err != nil {
