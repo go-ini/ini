@@ -16,7 +16,7 @@ package ini
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"runtime"
 	"sort"
 	"testing"
@@ -421,10 +421,10 @@ func TestFile_WriteTo(t *testing.T) {
 
 		golden := "testdata/TestFile_WriteTo.golden"
 		if *update {
-			require.NoError(t, ioutil.WriteFile(golden, buf.Bytes(), 0644))
+			require.NoError(t, os.WriteFile(golden, buf.Bytes(), 0644))
 		}
 
-		expected, err := ioutil.ReadFile(golden)
+		expected, err := os.ReadFile(golden)
 		require.NoError(t, err)
 		assert.Equal(t, string(expected), buf.String())
 	})
