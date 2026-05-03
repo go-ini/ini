@@ -170,7 +170,7 @@ func (k *Key) transformValue(val string) string {
 		}
 
 		// Substitute by new value and take off leading '%(' and trailing ')s'.
-		val = strings.ReplaceAll(val, vr, nk.value)
+		val = strings.ReplaceAll(val, vr, nk.String())
 	}
 	return val
 }
