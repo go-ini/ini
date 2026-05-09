@@ -281,6 +281,9 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
+	if !val.IsValid() {
+		return fmt.Errorf("cannot map to nil pointer")
+	}
 	typ := val.Type()
 
 	for i := 0; i < typ.NumField(); i++ {

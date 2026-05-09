@@ -385,6 +385,18 @@ names=alice, bruce`))
 	})
 }
 
+// Regression test for https://github.com/go-ini/ini/issues/369:
+// MapTo with a nil pointer must return an error, not panic.
+func Test_MapToNilPointer(t *testing.T) {
+	f, err := Load([]byte("[section]\nkey = val\n"))
+	assert.NoError(t, err)
+
+	type S struct{ Key string }
+	var s *S
+	err = f.MapTo(&s)
+	assert.Error(t, err, "MapTo with nil pointer should return an error, not panic")
+}
+
 func Test_MapToStructNonUniqueSections(t *testing.T) {
 	t.Run("map to struct non unique", func(t *testing.T) {
 		t.Run("map file to struct non unique", func(t *testing.T) {
