@@ -385,16 +385,48 @@ names=alice, bruce`))
 	})
 }
 
-// Regression test for https://github.com/go-ini/ini/issues/369:
-// MapTo with a nil pointer must return an error, not panic.
+// Regression test for https://github.com/go-ini/ini/issues/370:
+// Mapping non-unique sections into a slice of struct pointers ([]*T) must
+// not panic.
+func Test_MapToSliceOfStructPointers(t *testing.T) {
+	const data = `[Peer]
+PublicKey = key1
+[Peer]
+PublicKey = key2
+`
+	type Peer struct {
+		PublicKey string `ini:"PublicKey"`
+	}
+	type Config struct {
+		Peers []*Peer `ini:"Peer,nonunique"`
+	}
+	f, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, []byte(data))
+	assert.NoError(t, err)
+	cfg := new(Config)
+	assert.NoError(t, f.MapTo(cfg))
+	assert.Len(t, cfg.Peers, 2)
+	if len(cfg.Peers) == 2 {
+		assert.Equal(t, "key1", cfg.Peers[0].PublicKey)
+		assert.Equal(t, "key2", cfg.Peers[1].PublicKey)
+	}
+}
+
+// Regression test for https://github.com/go-ini/ini/issues/369 and #370:
+// MapTo with a nil struct pointer must not panic; it should auto-initialize
+// the pointer (analogous to encoding/json behaviour) and populate the struct.
 func Test_MapToNilPointer(t *testing.T) {
-	f, err := Load([]byte("[section]\nkey = val\n"))
+	f, err := Load([]byte("user = alice\npass = secret\n"))
 	assert.NoError(t, err)
 
-	type S struct{ Key string }
+	type S struct {
+		User string `ini:"user"`
+		Pass string `ini:"pass"`
+	}
 	var s *S
-	err = f.MapTo(&s)
-	assert.Error(t, err, "MapTo with nil pointer should return an error, not panic")
+	assert.NoError(t, f.MapTo(&s), "MapTo with nil pointer should not return an error")
+	assert.NotNil(t, s, "nil pointer should have been initialized by MapTo")
+	assert.Equal(t, "alice", s.User)
+	assert.Equal(t, "secret", s.Pass)
 }
 
 func Test_MapToStructNonUniqueSections(t *testing.T) {
