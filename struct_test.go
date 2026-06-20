@@ -510,7 +510,8 @@ func Test_ReflectFromStruct(t *testing.T) {
 
 		ti, err := time.Parse(time.RFC3339, "1993-10-07T20:17:05Z")
 		require.NoError(t, err)
-		a := &Author{"Unknwon", true, nil, 21, 100, 2.8, ti, "", "ignored",
+		a := &Author{
+			"Unknwon", true, nil, 21, 100, 2.8, ti, "", "ignored",
 			&Embeded{
 				[]time.Time{ti, ti},
 				[]string{"HangZhou", "Boston"},
@@ -521,7 +522,8 @@ func Test_ReflectFromStruct(t *testing.T) {
 				[]float64{192.168, 10.11},
 				[]bool{true, false},
 				[]int{},
-			}}
+			},
+		}
 		cfg := Empty()
 		assert.NoError(t, ReflectFrom(cfg, a))
 
@@ -779,8 +781,10 @@ path = /tmp/gpm-profiles/test1.profile
 			shadow := &ShadowStruct{
 				StringArray: []string{"s1", "s2"},
 				Allowshadow: []string{"s3", "s4"},
-				Dates: []time.Time{time.Date(2020, 9, 12, 00, 00, 00, 651387237, time.UTC),
-					time.Date(2020, 9, 12, 00, 00, 00, 651387237, time.UTC)},
+				Dates: []time.Time{
+					time.Date(2020, 9, 12, 00, 00, 00, 651387237, time.UTC),
+					time.Date(2020, 9, 12, 00, 00, 00, 651387237, time.UTC),
+				},
 				Places:      []string{"HangZhou", "Boston"},
 				Years:       []int{1993, 1994},
 				Numbers:     []int64{10010, 10086},
@@ -857,6 +861,10 @@ func Test_Duration(t *testing.T) {
 	})
 }
 
+type Address struct {
+	Line1, Line2 string
+}
+
 type Employer struct {
 	Name  string
 	Title string
@@ -877,6 +885,7 @@ func Test_StructReflector(t *testing.T) {
 		p := &struct {
 			FirstName string
 			Employer  Employers
+			Address   Address
 		}{
 			FirstName: "Andrew",
 			Employer: []*Employer{
@@ -888,6 +897,10 @@ func Test_StructReflector(t *testing.T) {
 					Name:  `Employer "EMC"`,
 					Title: "Consultant Engineer",
 				},
+			},
+			Address: Address{
+				Line1: "123 Ini Drive",
+				Line2: "Section 1",
 			},
 		}
 
@@ -905,6 +918,10 @@ Title = Staff II Engineer
 
 [Employer "EMC"]
 Title = Consultant Engineer
+
+[Address]
+Line1 = 123 Ini Drive
+Line2 = Section 1
 `,
 			buf.String(),
 		)
