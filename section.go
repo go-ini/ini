@@ -48,6 +48,27 @@ func (s *Section) Name() string {
 	return s.name
 }
 
+// SetName changes section name.
+func (s *Section) SetName(name string) {
+	if s.f.BlockMode {
+		s.f.lock.Lock()
+		defer s.f.lock.Unlock()
+	}
+
+	buf := s.f.sections[s.name]
+	delete(s.f.sections, s.name)
+	s.f.sections[name] = buf
+
+	for i := range s.f.sectionList {
+		if s.f.sectionList[i] == s.name {
+			s.f.sectionList[i] = name
+			break
+		}
+	}
+
+	s.name = name
+}
+
 // Body returns rawBody of Section if the section was marked as unparseable.
 // It still follows the other rules of the INI format surrounding leading/trailing whitespace.
 func (s *Section) Body() string {
