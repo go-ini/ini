@@ -543,12 +543,11 @@ func (k *Key) Strings(delim string) []string {
 func (k *Key) StringsWithShadows(delim string) []string {
 	vals := k.ValueWithShadows()
 	results := make([]string, 0, len(vals)*2)
-	for i := range vals {
-		if len(vals) == 0 {
+	for _, v := range vals {
+		if v == "" {
 			continue
 		}
-
-		results = append(results, strings.Split(vals[i], delim)...)
+		results = append(results, strings.Split(v, delim)...)
 	}
 
 	for i := range results {
