@@ -476,6 +476,26 @@ bar3 = "  val ue3 "
 	})
 }
 
+func TestFile_WriteToIndentWithShadows(t *testing.T) {
+	f := Empty(LoadOptions{AllowShadows: true})
+	section, err := f.NewSection("FILTER")
+	require.NoError(t, err)
+	key, err := section.NewKey("whitelist_key", "_CMDLINE")
+	require.NoError(t, err)
+	require.NoError(t, key.AddShadow("_EXE"))
+	require.NoError(t, key.AddShadow("_HOSTNAME"))
+
+	var buf bytes.Buffer
+	_, err = f.WriteToIndent(&buf, "  ")
+	require.NoError(t, err)
+
+	want := "[FILTER]" + LineBreak +
+		"  whitelist_key = _CMDLINE" + LineBreak +
+		"  whitelist_key = _EXE" + LineBreak +
+		"  whitelist_key = _HOSTNAME" + LineBreak
+	assert.Equal(t, want, buf.String())
+}
+
 func TestFile_SaveTo(t *testing.T) {
 	f, err := Load(fullConf)
 	require.NoError(t, err)

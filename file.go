@@ -430,10 +430,6 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 				}
 			}
 
-			if len(indent) > 0 && sname != DefaultSection {
-				buf.WriteString(indent)
-			}
-
 			switch {
 			case key.isAutoIncrement:
 				kname = "-"
@@ -444,6 +440,9 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 			}
 
 			writeKeyValue := func(val string) (bool, error) {
+				if len(indent) > 0 && sname != DefaultSection {
+					buf.WriteString(indent)
+				}
 				if _, err := buf.WriteString(kname); err != nil {
 					return false, err
 				}
