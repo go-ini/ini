@@ -535,3 +535,70 @@ v = 3
 	require.NoError(t, f.Reload())
 	assert.Equal(t, []string{"1", "2", "3"}, f.Section("slice").Key("v").ValueWithShadows())
 }
+
+func TestFile_WriteTo_ValueRoundTrip(t *testing.T) {
+	t.Run("values survive the default reader byte-for-byte", func(t *testing.T) {
+		bt := "`"
+		cases := []struct {
+			name string
+			val  string
+		}{
+			// Surrounded by matching quotes: the reader would unquote these.
+			{"double-quoted", `"quoted"`},
+			{"single-quoted", `'quoted'`},
+			{"double-quoted empty", `""`},
+			{"single-quoted empty", `''`},
+			{"double-quoted spaces", `"a b"`},
+			{"single-quoted spaces", `'a b'`},
+			{"double-quoted number", `"123"`},
+			{"single-quoted number", `'123'`},
+			{"double-quoted equals", `"a=b"`},
+			// Leading/trailing spaces around an inner quote break "..." wrapping.
+			{"space then quote", ` "x" `},
+			{"quote then space", `"abc `},
+			// A value opening with """ would be read as a multi-line wrapper.
+			{"triple-quote wrapped", `"""abc"""`},
+			{"triple-quote prefix", `"""abc`},
+			{"four quotes", `""""`},
+			// No-regression: already-safe values must round-trip unchanged.
+			{"plain", "some value"},
+			{"inner quote", `a"b`},
+			{"quoted list", `"one", "two"`},
+			{"trailing space", "abc "},
+			{"three quotes", `"""`},
+			{"backtick", "a" + bt + "b"},
+		}
+		for _, c := range cases {
+			cfg := Empty()
+			cfg.Section("").Key("k").SetValue(c.val)
+			var buf bytes.Buffer
+			_, err := cfg.WriteTo(&buf)
+			require.NoError(t, err, c.name)
+
+			rc, err := Load(buf.Bytes())
+			require.NoError(t, err, "%s: reload of %q", c.name, buf.String())
+			got := rc.Section("").Key("k").String()
+			assert.Equal(t, c.val, got,
+				"%s: round-trip mismatch\n  in:  %q\n  ser: %q\n  out: %q",
+				c.name, c.val, buf.String(), got)
+		}
+	})
+
+	t.Run("safe values are not over-quoted", func(t *testing.T) {
+		bt := "`"
+		cases := map[string]string{
+			"some value":   "k = some value\n",
+			`a"b`:          "k = a\"b\n",
+			`"one", "two"`: "k = \"one\", \"two\"\n",
+			"a" + bt + "b": "k = \"\"\"a" + bt + "b\"\"\"\n",
+		}
+		for val, want := range cases {
+			cfg := Empty()
+			cfg.Section("").Key("k").SetValue(val)
+			var buf bytes.Buffer
+			_, err := cfg.WriteTo(&buf)
+			require.NoError(t, err, val)
+			assert.Equal(t, want, buf.String(), "value %q serialized form", val)
+		}
+	})
+}
