@@ -183,6 +183,7 @@ func TestKey_Helpers(t *testing.T) {
 					}
 					return in
 				}
+				t.Cleanup(func() { f.ValueMapper = nil })
 				assert.Equal(t, "github.com/go-ini/ini", sec.Key("IMPORT_PATH").String())
 			})
 		})
@@ -634,5 +635,23 @@ bar = %(missing)s
 		require.NotNil(t, f)
 
 		assert.Equal(t, "%(missing)s", f.Section("foo").Key("bar").String())
+	})
+
+	t.Run("ValueMapper applies to substituted reference value", func(t *testing.T) {
+		f, err := Load([]byte(`
+ACCOUNT_ID = ${LFSD_R2_ACCOUNT_ID}
+ENDPOINT = https://%(ACCOUNT_ID)s.r2.cloudflarestorage.com
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		f.ValueMapper = func(in string) string {
+			if in == "${LFSD_R2_ACCOUNT_ID}" {
+				return "abc123"
+			}
+			return in
+		}
+
+		assert.Equal(t, "https://abc123.r2.cloudflarestorage.com", f.Section("").Key("ENDPOINT").String())
 	})
 }

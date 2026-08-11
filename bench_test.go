@@ -146,5 +146,18 @@ func Benchmark_NewSection_With_N_Sections(b *testing.B) {
 				f.NewSection(target)
 			}
 		})
+  }
+}
+
+func Benchmark_Key_Strings_LargeArray(b *testing.B) {
+	c, err := Load("testdata/large_array.ini")
+	if err != nil {
+		b.Fatal(err)
+	}
+	key := c.Section("").Key("ARRAY")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = key.Strings(",")
 	}
 }
