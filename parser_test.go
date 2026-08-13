@@ -39,6 +39,14 @@ func TestBOM(t *testing.T) {
 
 		t.Run("UTF-16-BE-BOM", func(t *testing.T) {
 		})
+
+		t.Run("multiple UTF-8-BOM", func(t *testing.T) {
+			f, err := Load([]byte("\xef\xbb\xbf\xef\xbb\xbf[author]\nE-MAIL = example@email.com"))
+			require.NoError(t, err)
+			require.NotNil(t, f)
+
+			assert.Equal(t, "example@email.com", f.Section("author").Key("E-MAIL").String())
+		})
 	})
 }
 
