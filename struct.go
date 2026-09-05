@@ -366,13 +366,22 @@ func (s *Section) mapToSlice(secName string, val reflect.Value, isStrict bool) (
 	}
 
 	typ := val.Type().Elem()
+	isPtr := typ.Kind() == reflect.Ptr
 	for i, sec := range secs {
-		elem := reflect.New(typ)
+		elemTyp := typ
+		if isPtr {
+			elemTyp = typ.Elem()
+		}
+		elem := reflect.New(elemTyp)
 		if err = sec.mapToField(elem, isStrict, i, sec.name); err != nil {
 			return reflect.Value{}, fmt.Errorf("map to field from section %q: %v", secName, err)
 		}
 
-		val = reflect.Append(val, elem.Elem())
+		if isPtr {
+			val = reflect.Append(val, elem)
+		} else {
+			val = reflect.Append(val, elem.Elem())
+		}
 	}
 	return val, nil
 }
