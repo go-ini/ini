@@ -226,6 +226,10 @@ func (s *Section) KeysHash() map[string]string {
 
 // DeleteKey deletes a key from section.
 func (s *Section) DeleteKey(name string) {
+	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
+		name = strings.ToLower(name)
+	}
+
 	if s.f.BlockMode {
 		s.f.lock.Lock()
 		defer s.f.lock.Unlock()
