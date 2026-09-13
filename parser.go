@@ -233,6 +233,70 @@ func hasSurroundedQuote(in string, quote byte) bool {
 		strings.IndexByte(in[1:], quote) == len(in)-2
 }
 
+func isValueQuote(c byte) bool {
+	return c == '\'' || c == '"' || c == '`'
+}
+
+// indexOutsideQuotes is strings.Index for sep, skipping bytes inside quotes.
+func indexOutsideQuotes(line, sep string) int {
+	if sep == "" {
+		return 0
+	}
+	inQuote := byte(0)
+	n := len(sep)
+	for i := 0; i <= len(line)-n; i++ {
+		c := line[i]
+		if inQuote != 0 {
+			if c == inQuote {
+				inQuote = 0
+			}
+			continue
+		}
+		if isValueQuote(c) {
+			inQuote = c
+			continue
+		}
+		if line[i:i+n] == sep {
+			return i
+		}
+	}
+	return -1
+}
+
+func indexAnyOutsideQuotes(line, chars string) int {
+	inQuote := byte(0)
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		if inQuote != 0 {
+			if c == inQuote {
+				inQuote = 0
+			}
+			continue
+		}
+		if isValueQuote(c) {
+			inQuote = c
+			continue
+		}
+		if strings.IndexByte(chars, c) >= 0 {
+			return i
+		}
+	}
+	return -1
+}
+
+// indexInlineComment finds an inline comment, ignoring # and ; inside quotes.
+// SpaceBeforeInlineComment keeps the existing search order: " #" then " ;".
+func indexInlineComment(line string, spaceBefore bool) int {
+	if spaceBefore {
+		i := indexOutsideQuotes(line, " #")
+		if i == -1 {
+			i = indexOutsideQuotes(line, " ;")
+		}
+		return i
+	}
+	return indexAnyOutsideQuotes(line, "#;")
+}
+
 func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 
 	line := strings.TrimLeftFunc(string(in), unicode.IsSpace)
@@ -278,22 +342,11 @@ func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 
 	// Check if ignore inline comment
 	if !p.options.IgnoreInlineComment {
-		var i int
-		if p.options.SpaceBeforeInlineComment {
-			i = strings.Index(line, " #")
-			if i == -1 {
-				i = strings.Index(line, " ;")
-			}
-
-		} else {
-			i = strings.IndexAny(line, "#;")
-		}
-
+		i := indexInlineComment(line, p.options.SpaceBeforeInlineComment)
 		if i > -1 {
 			p.comment.WriteString(line[i:])
 			line = strings.TrimSpace(line[:i])
 		}
-
 	}
 
 	// Trim single and double quotes
