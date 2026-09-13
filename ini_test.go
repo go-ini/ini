@@ -102,6 +102,32 @@ func TestLoad(t *testing.T) {
 		assert.Equal(t, "U", githubValue)
 	})
 
+	t.Run("keep comment symbols inside quoted values", func(t *testing.T) {
+		f, err := Load([]byte(`
+[background]
+primary-color      = '#e18477'
+secondary-color    = "#000000"
+hash-in-backticks  = ` + "`" + `#e18477` + "`" + `
+semi-single        = 'foo;bar'
+semi-double        = "foo;bar"
+quoted-then-comment = '#e18477' ; trailing
+double-then-comment = "#000000" # trailing
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		sec := f.Section("background")
+		assert.Equal(t, "#e18477", sec.Key("primary-color").String())
+		assert.Equal(t, "#000000", sec.Key("secondary-color").String())
+		assert.Equal(t, "#e18477", sec.Key("hash-in-backticks").String())
+		assert.Equal(t, "foo;bar", sec.Key("semi-single").String())
+		assert.Equal(t, "foo;bar", sec.Key("semi-double").String())
+		assert.Equal(t, "#e18477", sec.Key("quoted-then-comment").String())
+		assert.Equal(t, "; trailing", sec.Key("quoted-then-comment").Comment)
+		assert.Equal(t, "#000000", sec.Key("double-then-comment").String())
+		assert.Equal(t, "# trailing", sec.Key("double-then-comment").Comment)
+	})
+
 	t.Run("cannot parse small python-compatible INI files", func(t *testing.T) {
 		f, err := Load([]byte(`
 [long]
