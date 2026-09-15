@@ -278,8 +278,17 @@ func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bo
 // mapToField maps the given value to the matching field of the given section.
 // The sectionIndex is the index (if non unique sections are enabled) to which the value should be added.
 func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int, sectionName string) error {
-	if val.Kind() == reflect.Pointer {
+	for val.Kind() == reflect.Pointer {
+		if val.IsNil() {
+			if !val.CanSet() {
+				return fmt.Errorf("cannot initialize nil pointer: value is not settable")
+			}
+			val.Set(reflect.New(val.Type().Elem()))
+		}
 		val = val.Elem()
+	}
+	if !val.IsValid() {
+		return fmt.Errorf("cannot map to invalid value")
 	}
 	typ := val.Type()
 
