@@ -66,6 +66,20 @@ func TestKey_AddShadow(t *testing.T) {
 		})
 	})
 
+	t.Run("preserve empty shadow values", func(t *testing.T) {
+		f := Empty(LoadOptions{
+			AllowShadows:         true,
+			PreserveEmptyShadows: true,
+		})
+		require.NotNil(t, f)
+
+		k, err := f.Section("").NewKey("Environment", "FOO=bar")
+		require.NoError(t, err)
+		require.NotNil(t, k)
+		assert.NoError(t, k.AddShadow(""))
+		assert.Equal(t, []string{"FOO=bar", ""}, k.ValueWithShadows())
+	})
+
 	t.Run("allow duplicate shadowed values", func(t *testing.T) {
 		f := Empty(LoadOptions{
 			AllowShadows:               true,
@@ -545,6 +559,31 @@ keyName = value2
 		k = f.Section("").Key("keyName")
 		require.NotNil(t, k)
 		assert.Equal(t, []string{"value1", "value2"}, k.ValueWithShadows())
+	})
+
+	t.Run("preserve empty assignments from file", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{
+			AllowShadows:         true,
+			PreserveEmptyShadows: true,
+		}, []byte(`
+[Service]
+Environment=FOO=bar
+Environment=
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+		assert.Equal(t, []string{"FOO=bar", ""}, f.Section("Service").Key("Environment").ValueWithShadows())
+	})
+
+	t.Run("default still drops empty assignments from file", func(t *testing.T) {
+		f, err := ShadowLoad([]byte(`
+[Service]
+Environment=FOO=bar
+Environment=
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+		assert.Equal(t, []string{"FOO=bar"}, f.Section("Service").Key("Environment").ValueWithShadows())
 	})
 }
 

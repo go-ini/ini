@@ -125,6 +125,10 @@ type LoadOptions struct {
 	AllowNonUniqueSections bool
 	// AllowDuplicateShadowValues indicates whether values for shadowed keys should be deduplicated.
 	AllowDuplicateShadowValues bool
+	// PreserveEmptyShadows indicates whether ValueWithShadows should keep empty
+	// assignments. Empty values are otherwise omitted (the historical default).
+	// systemd unit files use an empty assignment to reset prior values.
+	PreserveEmptyShadows bool
 }
 
 // DebugFunc is the type of function called to log parse events.
