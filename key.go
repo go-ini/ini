@@ -110,22 +110,23 @@ func (k *Key) Value() string {
 	return k.value
 }
 
-// ValueWithShadows returns raw values of key and its shadows if any. Shadow
-// keys with empty values are ignored from the returned list.
+// ValueWithShadows returns raw values of key and its shadows if any.
+// Empty values are omitted unless LoadOptions.PreserveEmptyShadows is set.
 func (k *Key) ValueWithShadows() []string {
+	keepEmpty := k.s != nil && k.s.f != nil && k.s.f.options.PreserveEmptyShadows
 	if len(k.shadows) == 0 {
-		if k.value == "" {
+		if k.value == "" && !keepEmpty {
 			return []string{}
 		}
 		return []string{k.value}
 	}
 
 	vals := make([]string, 0, len(k.shadows)+1)
-	if k.value != "" {
+	if k.value != "" || keepEmpty {
 		vals = append(vals, k.value)
 	}
 	for _, s := range k.shadows {
-		if s.value != "" {
+		if s.value != "" || keepEmpty {
 			vals = append(vals, s.value)
 		}
 	}
