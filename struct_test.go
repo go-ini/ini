@@ -871,12 +871,17 @@ func (es Employers) ReflectINIStruct(f *File) error {
 	return nil
 }
 
+type Address struct {
+	Line1, Line2 string
+}
+
 // Inspired by https://github.com/go-ini/ini/issues/199
 func Test_StructReflector(t *testing.T) {
 	t.Run("reflect with StructReflector interface", func(t *testing.T) {
 		p := &struct {
 			FirstName string
 			Employer  Employers
+			Address   Address
 		}{
 			FirstName: "Andrew",
 			Employer: []*Employer{
@@ -888,6 +893,10 @@ func Test_StructReflector(t *testing.T) {
 					Name:  `Employer "EMC"`,
 					Title: "Consultant Engineer",
 				},
+			},
+			Address: Address{
+				Line1: "123 Ini Drive",
+				Line2: "Section 1",
 			},
 		}
 
@@ -905,6 +914,10 @@ Title = Staff II Engineer
 
 [Employer "EMC"]
 Title = Consultant Engineer
+
+[Address]
+Line1 = 123 Ini Drive
+Line2 = Section 1
 `,
 			buf.String(),
 		)
