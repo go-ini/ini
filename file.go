@@ -479,7 +479,13 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 				}
 			}
 
-			for _, val := range shadows {
+			for i, val := range shadows {
+				// Indent is written once before the key. Repeat it for
+				// subsequent shadow keys so they keep the same indent
+				// (https://github.com/go-ini/ini/issues/367).
+				if i > 0 && len(indent) > 0 && sname != DefaultSection {
+					buf.WriteString(indent)
+				}
 				exitLoop, err := writeKeyValue(val)
 				if err != nil {
 					return nil, err
