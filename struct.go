@@ -79,6 +79,18 @@ var reflectTime = reflect.TypeOf(time.Now()).Kind()
 
 // setSliceWithProperType sets proper values to slice based on its type.
 func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowShadow, isStrict bool) error {
+	sliceOf := field.Type().Elem().Kind()
+	// []rune (and []int32) round-trip as a Unicode string, not a delimited list.
+	if sliceOf == reflect.Int32 {
+		runes := []rune(key.String())
+		slice := reflect.MakeSlice(field.Type(), len(runes), len(runes))
+		for i, r := range runes {
+			slice.Index(i).SetInt(int64(r))
+		}
+		field.Set(slice)
+		return nil
+	}
+
 	var strs []string
 	if allowShadow {
 		strs = key.StringsWithShadows(delim)
@@ -94,7 +106,6 @@ func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowSh
 	var vals interface{}
 	var err error
 
-	sliceOf := field.Type().Elem().Kind()
 	switch sliceOf {
 	case reflect.String:
 		vals = strs
@@ -462,6 +473,16 @@ func reflectSliceWithProperType(key *Key, field reflect.Value, delim string, all
 		return nil
 	}
 	sliceOf := field.Type().Elem().Kind()
+
+	// []rune / []int32: write the code points as a string so ReflectFrom/MapTo round-trip.
+	if sliceOf == reflect.Int32 {
+		runes := make([]rune, field.Len())
+		for i := 0; i < field.Len(); i++ {
+			runes[i] = rune(slice.Index(i).Int())
+		}
+		key.SetValue(string(runes))
+		return nil
+	}
 
 	if allowShadow {
 		var keyWithShadows *Key
