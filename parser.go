@@ -184,7 +184,7 @@ func (p *parser) readMultilines(line, val, valQuote string) (string, error) {
 		if pos > -1 {
 			// Check if the line ends with backslash continuation after the quote
 			restOfLine := strings.TrimRight(next[pos+len(valQuote):], "\r\n")
-			if !p.options.IgnoreContinuation && strings.HasSuffix(strings.TrimSpace(restOfLine), `\`) {
+			if !p.options.IgnoreContinuation && isLineContinuation(strings.TrimSpace(restOfLine)) {
 				val += next
 				continue
 			}
@@ -217,12 +217,23 @@ func (p *parser) readContinuationLines(val string) (string, error) {
 			break
 		}
 		val += next
-		if val[len(val)-1] != '\\' {
+		if !isLineContinuation(val) {
 			break
 		}
 		val = val[:len(val)-1]
 	}
 	return val, nil
+}
+
+// isLineContinuation reports whether s ends with an unescaped continuation
+// backslash. An even number of trailing backslashes is a literal value (for
+// example a Windows path Y:\\_1\\); only an odd count continues the next line.
+func isLineContinuation(s string) bool {
+	n := 0
+	for i := len(s) - 1; i >= 0 && s[i] == '\\'; i-- {
+		n++
+	}
+	return n%2 == 1
 }
 
 // hasSurroundedQuote check if and only if the first and last characters
@@ -269,10 +280,10 @@ func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 	lastChar := line[len(line)-1]
 	// Won't be able to reach here if value only contains whitespace
 	line = strings.TrimSpace(line)
-	trimmedLastChar := line[len(line)-1]
 
-	// Check continuation lines when desired
-	if !p.options.IgnoreContinuation && trimmedLastChar == '\\' {
+	// Check continuation lines when desired. Only an odd number of trailing
+	// backslashes is a continuation; even counts are a literal trailing '\'.
+	if !p.options.IgnoreContinuation && isLineContinuation(line) {
 		return p.readContinuationLines(line[:len(line)-1])
 	}
 
