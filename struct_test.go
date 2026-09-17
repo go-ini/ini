@@ -910,3 +910,33 @@ Title = Consultant Engineer
 		)
 	})
 }
+
+func Test_ReflectFromAndMapToRuneSlice(t *testing.T) {
+	type Example struct {
+		Prop1 []rune `ini:"prop.1"`
+	}
+
+	t.Run("reflect []rune as a string", func(t *testing.T) {
+		cfg := Empty()
+		require.NoError(t, ReflectFrom(cfg, &Example{Prop1: []rune("abc")}))
+		assert.Equal(t, "abc", cfg.Section("").Key("prop.1").String())
+
+		var buf bytes.Buffer
+		_, err := cfg.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Contains(t, buf.String(), "prop.1 = abc")
+	})
+
+	t.Run("map []rune from a string and round-trip", func(t *testing.T) {
+		cfg, err := Load([]byte("prop.1 = café"))
+		require.NoError(t, err)
+
+		got := new(Example)
+		require.NoError(t, cfg.MapTo(got))
+		assert.Equal(t, []rune("café"), got.Prop1)
+
+		out := Empty()
+		require.NoError(t, ReflectFrom(out, got))
+		assert.Equal(t, "café", out.Section("").Key("prop.1").String())
+	})
+}
