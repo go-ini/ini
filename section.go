@@ -24,10 +24,15 @@ import (
 type Section struct {
 	f        *File
 	Comment  string
-	name     string
-	keys     map[string]*Key
-	keyList  []string
-	keysHash map[string]string
+	// TrailingComment is comments after the last key of this section
+	// (or after a raw section body) through EOF. Comments that sit
+	// immediately before the next [section] still attach to that next
+	// section's Comment, matching existing parse behavior.
+	TrailingComment string
+	name            string
+	keys            map[string]*Key
+	keyList         []string
+	keysHash        map[string]string
 
 	isRawSection bool
 	rawBody      string
