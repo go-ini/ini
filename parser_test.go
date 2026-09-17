@@ -42,6 +42,43 @@ func TestBOM(t *testing.T) {
 	})
 }
 
+func TestEvenTrailingBackslashIsNotContinuation(t *testing.T) {
+	t.Run("windows path ending with even backslashes keeps the next key", func(t *testing.T) {
+		f, err := Load([]byte(`[dirs]
+cert   = Y:\\_1\\
+serial = 12345678
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, `Y:\\_1\\`, f.Section("dirs").Key("cert").String())
+		assert.Equal(t, "12345678", f.Section("dirs").Key("serial").String())
+	})
+
+	t.Run("odd trailing backslash still continues onto the next line", func(t *testing.T) {
+		f, err := Load([]byte(`
+key1=a\b\
+key2=c\d\
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, `a\bkey2=c\d`, f.Section("").Key("key1").String())
+	})
+
+	t.Run("single trailing backslash continues", func(t *testing.T) {
+		f, err := Load([]byte(`key=hello \
+world
+next=ok
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "hello world", f.Section("").Key("key").String())
+		assert.Equal(t, "ok", f.Section("").Key("next").String())
+	})
+}
+
 func TestBadLoad(t *testing.T) {
 	t.Run("load with bad data", func(t *testing.T) {
 		t.Run("bad section name", func(t *testing.T) {
