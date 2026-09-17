@@ -498,7 +498,7 @@ func reflectSliceWithProperType(key *Key, field reflect.Value, delim string, all
 	for i := 0; i < field.Len(); i++ {
 		switch sliceOf {
 		case reflect.String:
-			buf.WriteString(slice.Index(i).String())
+			buf.WriteString(escapeDelimited(slice.Index(i).String(), delim))
 		case reflect.Int, reflect.Int64:
 			fmt.Fprint(&buf, slice.Index(i).Int())
 		case reflect.Uint, reflect.Uint64:
