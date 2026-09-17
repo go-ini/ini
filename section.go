@@ -166,9 +166,12 @@ func (s *Section) HasValue(value string) bool {
 func (s *Section) Key(name string) *Key {
 	key, err := s.GetKey(name)
 	if err != nil {
-		// It's OK here because the only possible error is empty key name,
-		// but if it's empty, this piece of code won't be executed.
-		key, _ = s.NewKey(name, "")
+		key, err = s.NewKey(name, "")
+		if err != nil {
+			// NewKey rejects empty names. Still honor the zero-value
+			// contract so Key("") is not nil.
+			return newKey(s, name, "")
+		}
 		return key
 	}
 	return key
