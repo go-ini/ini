@@ -474,6 +474,31 @@ bar2 = "  val ue2 "
 bar3 = "  val ue3 "
 `, buf.String())
 	})
+
+	t.Run("indent shadow keys the same as the first key", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{
+			KeyValueDelimiters:       " ",
+			KeyValueDelimiterOnWrite: " ",
+			AllowShadows:             true,
+		}, []byte(`[FILTER]
+  whitelist_key   _CMDLINE
+  whitelist_key   _EXE
+  whitelist_key   _HOSTNAME
+  record          filename systemd
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		var buf bytes.Buffer
+		_, err = f.WriteToIndent(&buf, "  ")
+		require.NoError(t, err)
+		assert.Equal(t, `[FILTER]
+  whitelist_key   _CMDLINE
+  whitelist_key   _EXE
+  whitelist_key   _HOSTNAME
+  record          filename systemd
+`, buf.String())
+	})
 }
 
 func TestFile_SaveTo(t *testing.T) {
