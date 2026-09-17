@@ -125,6 +125,8 @@ type LoadOptions struct {
 	AllowNonUniqueSections bool
 	// AllowDuplicateShadowValues indicates whether values for shadowed keys should be deduplicated.
 	AllowDuplicateShadowValues bool
+	// TagName is the struct tag used by MapTo and ReflectFrom. Empty means "ini".
+	TagName string
 }
 
 // DebugFunc is the type of function called to log parse events.

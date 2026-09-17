@@ -44,6 +44,9 @@ type File struct {
 
 	NameMapper
 	ValueMapper
+
+	// tagNameOverride, when set, replaces LoadOptions.TagName for a MapTo call.
+	tagNameOverride string
 }
 
 // newFile initializes File object with given data sources.
