@@ -332,6 +332,25 @@ func (f *File) Append(source interface{}, others ...interface{}) error {
 	return f.Reload()
 }
 
+// quoteKeyNameOnWrite surrounds a key if writing it raw would be ambiguous
+// given the write-side delimiter. Parse-time extra delimiters (':' in the
+// default "=:" set) must not force quoting — keys like Samba's
+// "fruit:metadata" are valid when the write delimiter is "=".
+func (f *File) quoteKeyNameOnWrite(kname string) string {
+	writeDelim := f.options.KeyValueDelimiterOnWrite
+	if writeDelim == "" {
+		writeDelim = "="
+	}
+	switch {
+	case strings.Contains(kname, `"`) || strings.ContainsAny(kname, writeDelim):
+		return "`" + kname + "`"
+	case strings.Contains(kname, "`"):
+		return `"""` + kname + `"""`
+	default:
+		return kname
+	}
+}
+
 func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 	equalSign := DefaultFormatLeft + f.options.KeyValueDelimiterOnWrite + DefaultFormatRight
 
@@ -392,14 +411,7 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 		alignLength := 0
 		if PrettyFormat {
 			for _, kname := range sec.keyList {
-				keyLength := len(kname)
-				// First case will surround key by ` and second by """
-				if strings.Contains(kname, "\"") || strings.ContainsAny(kname, f.options.KeyValueDelimiters) {
-					keyLength += 2
-				} else if strings.Contains(kname, "`") {
-					keyLength += 6
-				}
-
+				keyLength := len(f.quoteKeyNameOnWrite(kname))
 				if keyLength > alignLength {
 					alignLength = keyLength
 				}
@@ -437,10 +449,8 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 			switch {
 			case key.isAutoIncrement:
 				kname = "-"
-			case strings.Contains(kname, "\"") || strings.ContainsAny(kname, f.options.KeyValueDelimiters):
-				kname = "`" + kname + "`"
-			case strings.Contains(kname, "`"):
-				kname = `"""` + kname + `"""`
+			default:
+				kname = f.quoteKeyNameOnWrite(kname)
 			}
 
 			writeKeyValue := func(val string) (bool, error) {

@@ -519,6 +519,26 @@ Note        -> Hello world!
 	assert.Equal(t, expected, actual.Bytes())
 }
 
+func TestFile_WriteKeyWithColonInName(t *testing.T) {
+	f := Empty()
+	sec, err := f.NewSection("global")
+	require.NoError(t, err)
+	_, err = sec.NewKey("vfs objects", "catia fruit streams_xattr")
+	require.NoError(t, err)
+	_, err = sec.NewKey("fruit:metadata", "stream")
+	require.NoError(t, err)
+	_, err = sec.NewKey("a=b", "quoted-because-write-delim")
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	_, err = f.WriteTo(&buf)
+	require.NoError(t, err)
+	out := buf.String()
+	assert.Contains(t, out, "fruit:metadata")
+	assert.NotContains(t, out, "`fruit:metadata`")
+	assert.Contains(t, out, "`a=b`")
+}
+
 // Inspired by https://github.com/go-ini/ini/issues/207
 func TestReloadAfterShadowLoad(t *testing.T) {
 	f, err := ShadowLoad([]byte(`
