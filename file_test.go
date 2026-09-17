@@ -16,9 +16,11 @@ package ini
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -397,6 +399,41 @@ NAME = Unknwon`)))
 		assert.Error(t, f.Append(123))
 		assert.Error(t, f.Append(minimalConf, 123))
 	})
+}
+
+type closeOnceReader struct {
+	r      *strings.Reader
+	closed bool
+}
+
+func (c *closeOnceReader) Read(p []byte) (int, error) {
+	if c.closed {
+		return 0, os.ErrClosed
+	}
+	return c.r.Read(p)
+}
+
+func (c *closeOnceReader) Close() error {
+	c.closed = true
+	return nil
+}
+
+func TestFile_AppendReadersTwice(t *testing.T) {
+	f := Empty()
+	require.NotNil(t, f)
+
+	r1 := &closeOnceReader{r: strings.NewReader("[one]\na = 1\n")}
+	require.NoError(t, f.Append(r1))
+	assert.Equal(t, "1", f.Section("one").Key("a").String())
+
+	r2 := io.NopCloser(strings.NewReader("[two]\nb = 2\n"))
+	require.NoError(t, f.Append(r2))
+	assert.Equal(t, "1", f.Section("one").Key("a").String())
+	assert.Equal(t, "2", f.Section("two").Key("b").String())
+
+	require.NoError(t, f.Reload())
+	assert.Equal(t, "1", f.Section("one").Key("a").String())
+	assert.Equal(t, "2", f.Section("two").Key("b").String())
 }
 
 func TestFile_WriteTo(t *testing.T) {

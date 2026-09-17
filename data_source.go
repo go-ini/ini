@@ -59,6 +59,21 @@ func (s *sourceReadCloser) ReadCloser() (io.ReadCloser, error) {
 	return s.reader, nil
 }
 
+func snapshotReader(r io.Reader, c io.Closer) (dataSource, error) {
+	data, err := io.ReadAll(r)
+	var cerr error
+	if c != nil {
+		cerr = c.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if cerr != nil {
+		return nil, cerr
+	}
+	return &sourceData{data}, nil
+}
+
 func parseDataSource(source interface{}) (dataSource, error) {
 	switch s := source.(type) {
 	case string:
@@ -66,9 +81,11 @@ func parseDataSource(source interface{}) (dataSource, error) {
 	case []byte:
 		return &sourceData{s}, nil
 	case io.ReadCloser:
-		return &sourceReadCloser{s}, nil
+		// Snapshot so Reload/Append can re-read after the original closer is
+		// consumed (io.Reader is not rewindable; Close made a second pass fail).
+		return snapshotReader(s, s)
 	case io.Reader:
-		return &sourceReadCloser{io.NopCloser(s)}, nil
+		return snapshotReader(s, nil)
 	default:
 		return nil, fmt.Errorf("error parsing data source: unknown type %q", s)
 	}
