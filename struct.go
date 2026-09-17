@@ -68,6 +68,49 @@ func (s *Section) parseFieldName(raw, actual string) string {
 	return raw
 }
 
+func (f *File) structTagName() string {
+	if f.tagNameOverride != "" {
+		return f.tagNameOverride
+	}
+	if f.options.TagName != "" {
+		return f.options.TagName
+	}
+	return "ini"
+}
+
+func (s *Section) fieldTag(tpField reflect.StructField) string {
+	return tpField.Tag.Get(s.f.structTagName())
+}
+
+// MapToOption configures a MapTo or StrictMapTo call.
+type MapToOption func(*mapToOptions)
+
+type mapToOptions struct {
+	tagName string
+}
+
+// WithMapToOptionTag uses a custom struct tag name instead of "ini".
+func WithMapToOptionTag(name string) MapToOption {
+	return func(o *mapToOptions) {
+		o.tagName = name
+	}
+}
+
+func (f *File) applyMapToOptions(opts []MapToOption) func() {
+	cfg := mapToOptions{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&cfg)
+		}
+	}
+	if cfg.tagName == "" {
+		return func() {}
+	}
+	prev := f.tagNameOverride
+	f.tagNameOverride = cfg.tagName
+	return func() { f.tagNameOverride = prev }
+}
+
 func parseDelim(actual string) string {
 	if len(actual) > 0 {
 		return actual
@@ -287,7 +330,7 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 		field := val.Field(i)
 		tpField := typ.Field(i)
 
-		tag := tpField.Tag.Get("ini")
+		tag := s.fieldTag(tpField)
 		if tag == "-" {
 			continue
 		}
@@ -413,13 +456,17 @@ func (s *Section) StrictMapTo(v interface{}) error {
 }
 
 // MapTo maps file to given struct.
-func (f *File) MapTo(v interface{}) error {
+func (f *File) MapTo(v interface{}, opts ...MapToOption) error {
+	restore := f.applyMapToOptions(opts)
+	defer restore()
 	return f.Section("").MapTo(v)
 }
 
 // StrictMapTo maps file to given struct in strict mode,
 // which returns all possible error including value parsing error.
-func (f *File) StrictMapTo(v interface{}) error {
+func (f *File) StrictMapTo(v interface{}, opts ...MapToOption) error {
+	restore := f.applyMapToOptions(opts)
+	defer restore()
 	return f.Section("").StrictMapTo(v)
 }
 
@@ -587,7 +634,7 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 		field := val.Field(i)
 		tpField := typ.Field(i)
 
-		tag := tpField.Tag.Get("ini")
+		tag := s.fieldTag(tpField)
 		if tag == "-" {
 			continue
 		}

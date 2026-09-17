@@ -910,3 +910,62 @@ Title = Consultant Engineer
 		)
 	})
 }
+
+func TestMapTo_CustomTagName(t *testing.T) {
+	const raw = `
+NAME = Unknwon
+age = 21
+`
+	cfg, err := Load([]byte(raw))
+	require.NoError(t, err)
+
+	type personJSON struct {
+		Name string `json:"NAME"`
+		Age  int    `json:"age"`
+	}
+	p := new(personJSON)
+	require.NoError(t, cfg.MapTo(p, WithMapToOptionTag("json")))
+	assert.Equal(t, "Unknwon", p.Name)
+	assert.Equal(t, 21, p.Age)
+
+	type personINI struct {
+		Name string `ini:"NAME"`
+		Age  int    `ini:"age"`
+	}
+	p2 := new(personINI)
+	require.NoError(t, cfg.MapTo(p2))
+	assert.Equal(t, "Unknwon", p2.Name)
+	assert.Equal(t, 21, p2.Age)
+}
+
+func TestMapTo_LoadOptionsTagName(t *testing.T) {
+	const raw = `
+NAME = Unknwon
+age = 21
+`
+	cfg, err := LoadSources(LoadOptions{TagName: "json"}, []byte(raw))
+	require.NoError(t, err)
+
+	type personJSON struct {
+		Name string `json:"NAME"`
+		Age  int    `json:"age"`
+	}
+	p := new(personJSON)
+	require.NoError(t, cfg.MapTo(p))
+	assert.Equal(t, "Unknwon", p.Name)
+	assert.Equal(t, 21, p.Age)
+}
+
+func TestReflectFrom_LoadOptionsTagName(t *testing.T) {
+	type personJSON struct {
+		Name string `json:"NAME"`
+		Age  int    `json:"age"`
+	}
+	cfg := Empty(LoadOptions{TagName: "json"})
+	require.NoError(t, cfg.ReflectFrom(&personJSON{Name: "Unknwon", Age: 21}))
+
+	var buf bytes.Buffer
+	_, err := cfg.WriteTo(&buf)
+	require.NoError(t, err)
+	assert.Equal(t, "NAME = Unknwon\nage  = 21\n", buf.String())
+}
