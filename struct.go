@@ -358,21 +358,33 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 }
 
 // mapToSlice maps all sections with the same name and returns the new value.
-// The type of the Value must be a slice.
+// The type of the Value must be a slice of structs or pointers to structs.
 func (s *Section) mapToSlice(secName string, val reflect.Value, isStrict bool) (reflect.Value, error) {
 	secs, err := s.f.SectionsByName(secName)
 	if err != nil {
 		return reflect.Value{}, err
 	}
 
-	typ := val.Type().Elem()
+	elemType := val.Type().Elem()
+	isPtr := elemType.Kind() == reflect.Pointer
+	structType := elemType
+	if isPtr {
+		if elemType.Elem().Kind() != reflect.Struct {
+			return reflect.Value{}, fmt.Errorf("slice of pointers to non-struct type %s", elemType)
+		}
+		structType = elemType.Elem()
+	}
+
 	for i, sec := range secs {
-		elem := reflect.New(typ)
+		elem := reflect.New(structType)
 		if err = sec.mapToField(elem, isStrict, i, sec.name); err != nil {
 			return reflect.Value{}, fmt.Errorf("map to field from section %q: %v", secName, err)
 		}
-
-		val = reflect.Append(val, elem.Elem())
+		if isPtr {
+			val = reflect.Append(val, elem)
+		} else {
+			val = reflect.Append(val, elem.Elem())
+		}
 	}
 	return val, nil
 }

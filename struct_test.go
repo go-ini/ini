@@ -436,6 +436,38 @@ func Test_MapToStructNonUniqueSections(t *testing.T) {
 			assert.Equal(t, "fd00:2::3/128", newPeerSlice[1].AllowedIPs[1])
 		})
 
+		t.Run("map non unique section to slice of struct pointers", func(t *testing.T) {
+			type Config struct {
+				Peers []*testPeer `ini:"Peer,nonunique"`
+			}
+
+			f, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
+			require.NoError(t, err)
+
+			cfg := new(Config)
+			require.NoError(t, f.MapTo(cfg))
+			require.Len(t, cfg.Peers, 2)
+			require.NotNil(t, cfg.Peers[0])
+			require.NotNil(t, cfg.Peers[1])
+
+			assert.Equal(t, "pubClientKey", cfg.Peers[0].PublicKey)
+			assert.Equal(t, "psKey", cfg.Peers[0].PresharedKey)
+			assert.Equal(t, "10.2.0.2/32", cfg.Peers[0].AllowedIPs[0])
+			assert.Equal(t, "fd00:2::2/128", cfg.Peers[0].AllowedIPs[1])
+
+			assert.Equal(t, "pubClientKey2", cfg.Peers[1].PublicKey)
+			assert.Equal(t, "psKey2", cfg.Peers[1].PresharedKey)
+			assert.Equal(t, "10.2.0.3/32", cfg.Peers[1].AllowedIPs[0])
+			assert.Equal(t, "fd00:2::3/128", cfg.Peers[1].AllowedIPs[1])
+
+			ptrSlice := make([]*testPeer, 0)
+			require.NoError(t, f.Section("Peer").MapTo(&ptrSlice))
+			require.Len(t, ptrSlice, 2)
+			require.NotNil(t, ptrSlice[0])
+			assert.Equal(t, "pubClientKey", ptrSlice[0].PublicKey)
+			assert.Equal(t, "pubClientKey2", ptrSlice[1].PublicKey)
+		})
+
 		t.Run("map non unique sections with subsections to struct", func(t *testing.T) {
 			iniFile, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, strings.NewReader(`
 [Section]
