@@ -1676,3 +1676,15 @@ key2 =
 		assert.Equal(t, "value3", f.Section("section2").Key("key3").String())
 	})
 }
+
+func TestInlineCommentSymbolsInsideQuotedValues(t *testing.T) {
+	f, err := LoadSources(LoadOptions{}, []byte(`[background]
+primary-color = '#e18477' # single-quoted value
+secondary-color = "#000000" ; double-quoted value
+`))
+	require.NoError(t, err)
+
+	sec := f.Section("background")
+	assert.Equal(t, "#e18477", sec.Key("primary-color").String())
+	assert.Equal(t, "#000000", sec.Key("secondary-color").String())
+}
