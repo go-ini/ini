@@ -278,15 +278,38 @@ func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 
 	// Check if ignore inline comment
 	if !p.options.IgnoreInlineComment {
-		var i int
-		if p.options.SpaceBeforeInlineComment {
-			i = strings.Index(line, " #")
-			if i == -1 {
-				i = strings.Index(line, " ;")
+		i := -1
+		var quote byte
+		escaped := false
+		for pos := 0; pos < len(line); pos++ {
+			char := line[pos]
+			if quote != 0 {
+				if escaped {
+					escaped = false
+					continue
+				}
+				if char == '\\' && quote == '"' {
+					escaped = true
+					continue
+				}
+				if char == quote {
+					quote = 0
+				}
+				continue
 			}
 
-		} else {
-			i = strings.IndexAny(line, "#;")
+			if pos == 0 && (char == '\'' || char == '"') {
+				quote = char
+				continue
+			}
+			if char != '#' && char != ';' {
+				continue
+			}
+			if p.options.SpaceBeforeInlineComment && (pos == 0 || line[pos-1] != ' ') {
+				continue
+			}
+			i = pos
+			break
 		}
 
 		if i > -1 {
