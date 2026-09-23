@@ -233,6 +233,40 @@ func hasSurroundedQuote(in string, quote byte) bool {
 		strings.IndexByte(in[1:], quote) == len(in)-2
 }
 
+// inlineCommentIndex finds the first comment marker outside quoted text.
+// With SpaceBeforeInlineComment, the space belongs to the comment, as before.
+func inlineCommentIndex(line string, spaceBefore bool) int {
+	var quote byte
+	escaped := false
+	for i := 0; i < len(line); i++ {
+		b := line[i]
+		if quote != 0 {
+			if b == '\\' && !escaped {
+				escaped = true
+				continue
+			}
+			if b == quote && !escaped {
+				quote = 0
+			}
+			escaped = false
+			continue
+		}
+		if (b == '\'' || b == '"') && (i == 0 || line[i-1] == ' ' || line[i-1] == '\t' || line[i-1] == '=') {
+			quote = b
+			continue
+		}
+		if b == '#' || b == ';' {
+			if !spaceBefore {
+				return i
+			}
+			if i > 0 && line[i-1] == ' ' {
+				return i - 1
+			}
+		}
+	}
+	return -1
+}
+
 func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 
 	line := strings.TrimLeftFunc(string(in), unicode.IsSpace)
@@ -278,22 +312,10 @@ func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 
 	// Check if ignore inline comment
 	if !p.options.IgnoreInlineComment {
-		var i int
-		if p.options.SpaceBeforeInlineComment {
-			i = strings.Index(line, " #")
-			if i == -1 {
-				i = strings.Index(line, " ;")
-			}
-
-		} else {
-			i = strings.IndexAny(line, "#;")
-		}
-
-		if i > -1 {
+		if i := inlineCommentIndex(line, p.options.SpaceBeforeInlineComment); i > -1 {
 			p.comment.WriteString(line[i:])
 			line = strings.TrimSpace(line[:i])
 		}
-
 	}
 
 	// Trim single and double quotes

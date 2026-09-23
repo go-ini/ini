@@ -75,3 +75,23 @@ func TestBadLoad(t *testing.T) {
 		})
 	})
 }
+
+func TestInlineCommentMarkersInsideQuotedValues(t *testing.T) {
+	f, err := Load([]byte("[background]\nprimary = '#e18477'\nsecondary = \"#000000\"\nurl = 'https://example.test/#fragment' ; trailing comment\nplain = value # actual comment\n"))
+	require.NoError(t, err)
+	section := f.Section("background")
+	assert.Equal(t, "#e18477", section.Key("primary").String())
+	assert.Equal(t, "#000000", section.Key("secondary").String())
+	assert.Equal(t, "https://example.test/#fragment", section.Key("url").String())
+	assert.Equal(t, "value", section.Key("plain").String())
+}
+
+func TestInlineCommentIndexRespectsQuoteAndSpaceOptions(t *testing.T) {
+	assert.Equal(t, -1, inlineCommentIndex(`'#a;b'`, false))
+	assert.Equal(t, 7, inlineCommentIndex(`'#a;b' # trailing`, false))
+	assert.Equal(t, 6, inlineCommentIndex(`'#a;b' # trailing`, true))
+	assert.Equal(t, -1, inlineCommentIndex(`value#literal`, true))
+	assert.Equal(t, 5, inlineCommentIndex(`value#comment`, false))
+	assert.Equal(t, 5, inlineCommentIndex(`value ; comment`, true))
+	assert.Equal(t, 5, inlineCommentIndex(`don't # comment`, true))
+}
