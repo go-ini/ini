@@ -140,6 +140,10 @@ func (k *Key) NestedValues() []string {
 
 // transformValue takes a raw value and transforms to its final string.
 func (k *Key) transformValue(val string) string {
+	return k.transformValueWithVisited(val, map[*Key]bool{k: true})
+}
+
+func (k *Key) transformValueWithVisited(val string, visited map[*Key]bool) string {
 	if k.s.f.ValueMapper != nil {
 		val = k.s.f.ValueMapper(val)
 	}
@@ -169,8 +173,17 @@ func (k *Key) transformValue(val string) string {
 			}
 		}
 
+		// A reference back to a key already being resolved is left intact,
+		// just like a direct self-reference.
+		if visited[nk] {
+			break
+		}
+		visited[nk] = true
+		replacement := nk.transformValueWithVisited(nk.value, visited)
+		delete(visited, nk)
+
 		// Substitute by new value and take off leading '%(' and trailing ')s'.
-		val = strings.ReplaceAll(val, vr, nk.String())
+		val = strings.ReplaceAll(val, vr, replacement)
 	}
 	return val
 }

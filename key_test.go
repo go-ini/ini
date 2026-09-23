@@ -626,6 +626,19 @@ expires = %(expires)s`))
 		assert.Equal(t, "yes", f.Section("package").Key("expires").String())
 	})
 
+	t.Run("mutually recursive keys remain unresolved", func(t *testing.T) {
+		f, err := Load([]byte("[s]\na = %(b)s\nb = %(a)s\n"))
+		require.NoError(t, err)
+		assert.Equal(t, "%(a)s", f.Section("s").Key("a").String())
+		assert.Equal(t, "%(b)s", f.Section("s").Key("b").String())
+	})
+
+	t.Run("longer reference cycle remains unresolved", func(t *testing.T) {
+		f, err := Load([]byte("[s]\na = %(b)s\nb = %(c)s\nc = %(a)s\n"))
+		require.NoError(t, err)
+		assert.Equal(t, "%(a)s", f.Section("s").Key("a").String())
+	})
+
 	t.Run("recursive value with no target found", func(t *testing.T) {
 		f, err := Load([]byte(`
 [foo]
