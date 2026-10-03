@@ -231,6 +231,42 @@ func (p *parser) readContinuationLines(val string) (string, error) {
 	return val, nil
 }
 
+func inlineCommentIndex(line string, spaceBefore bool) int {
+	var quote byte
+	escaped := false
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
+		if quote != 0 {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if quote == '"' && ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == quote {
+				quote = 0
+			}
+			continue
+		}
+		if i == 0 && (ch == '\'' || ch == '"') {
+			quote = ch
+			continue
+		}
+		if ch != '#' && ch != ';' {
+			continue
+		}
+		if !spaceBefore {
+			return i
+		}
+		if i > 0 && line[i-1] == ' ' {
+			return i - 1
+		}
+	}
+	return -1
+}
+
 // hasSurroundedQuote check if and only if the first and last characters
 // are quotes \" or \'.
 // It returns false if any other parts also contain same kind of quotes.
@@ -282,35 +318,13 @@ func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 		return p.readContinuationLines(line[:len(line)-1])
 	}
 
-	// Check if ignore inline comment
+	// Check for inline comments only outside a value's surrounding quotes.
 	if !p.options.IgnoreInlineComment {
-		var i int
-		if p.options.SpaceBeforeInlineComment {
-			// Cut at the earlier of " #" and " ;". Looking for " #" first
-			// and only then " ;" left a later " #" to hide an earlier " ;".
-			iHash := strings.Index(line, " #")
-			iSemi := strings.Index(line, " ;")
-			switch {
-			case iHash == -1:
-				i = iSemi
-			case iSemi == -1:
-				i = iHash
-			default:
-				if iHash < iSemi {
-					i = iHash
-				} else {
-					i = iSemi
-				}
-			}
-		} else {
-			i = strings.IndexAny(line, "#;")
-		}
-
+		i := inlineCommentIndex(line, p.options.SpaceBeforeInlineComment)
 		if i > -1 {
 			p.comment.WriteString(line[i:])
 			line = strings.TrimSpace(line[:i])
 		}
-
 	}
 
 	// Trim single and double quotes
