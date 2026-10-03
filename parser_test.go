@@ -75,3 +75,16 @@ func TestBadLoad(t *testing.T) {
 		})
 	})
 }
+
+func TestInlineCommentMarkersInQuotedValues(t *testing.T) {
+	f, err := Load([]byte(`[background]
+primary-color = '#e18477'
+secondary-color = "#000000"
+accent-color = '#ffffff' # trailing comment
+`))
+	require.NoError(t, err)
+	assert.Equal(t, "#e18477", f.Section("background").Key("primary-color").String())
+	assert.Equal(t, "#000000", f.Section("background").Key("secondary-color").String())
+	assert.Equal(t, "#ffffff", f.Section("background").Key("accent-color").String())
+	assert.Equal(t, "# trailing comment", f.Section("background").Key("accent-color").Comment)
+}
