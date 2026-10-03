@@ -115,6 +115,8 @@ type LoadOptions struct {
 	KeyValueDelimiterOnWrite string
 	// ChildSectionDelimiter is the delimiter that is used to separate child sections. By default, it is ".".
 	ChildSectionDelimiter string
+	// NoMultiLineSurroundingQuotes indicates whether to add surrounding triple quotes to multi-line values.
+	NoMultiLineSurroundingQuotes bool
 	// PreserveSurroundedQuote indicates whether to preserve surrounded quote (single and double quotes).
 	PreserveSurroundedQuote bool
 	// DebugFunc is called to collect debug information (currently only useful to debug parsing Python-style multiline values).
