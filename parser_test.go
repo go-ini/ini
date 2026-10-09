@@ -75,3 +75,135 @@ func TestBadLoad(t *testing.T) {
 		})
 	})
 }
+
+func Test_findInlineComment(t *testing.T) {
+	tests := []struct {
+		name        string
+		line        string
+		spaceBefore bool
+		expected    int
+	}{
+		{
+			name:        "no comment",
+			line:        "hello world",
+			spaceBefore: false,
+			expected:    -1,
+		},
+		{
+			name:        "hash comment without space requirement",
+			line:        "hello#world",
+			spaceBefore: false,
+			expected:    5,
+		},
+		{
+			name:        "hash comment with space before",
+			line:        "hello #world",
+			spaceBefore: true,
+			expected:    5,
+		},
+		{
+			name:        "hash without space when space required",
+			line:        "hello#world",
+			spaceBefore: true,
+			expected:    -1,
+		},
+		{
+			name:        "semicolon comment without space requirement",
+			line:        "hello;world",
+			spaceBefore: false,
+			expected:    5,
+		},
+		{
+			name:        "semicolon comment with space before",
+			line:        "hello ;world",
+			spaceBefore: true,
+			expected:    5,
+		},
+		{
+			name:        "hash inside single quotes",
+			line:        "'#e18477'",
+			spaceBefore: false,
+			expected:    -1,
+		},
+		{
+			name:        "hash inside double quotes",
+			line:        `"#e18477"`,
+			spaceBefore: false,
+			expected:    -1,
+		},
+		{
+			name:        "semicolon inside single quotes",
+			line:        "'val;ue'",
+			spaceBefore: false,
+			expected:    -1,
+		},
+		{
+			name:        "semicolon inside double quotes",
+			line:        `"val;ue"`,
+			spaceBefore: false,
+			expected:    -1,
+		},
+		{
+			name:        "comment after single quoted string",
+			line:        "'#e18477' # comment",
+			spaceBefore: false,
+			expected:    10,
+		},
+		{
+			name:        "comment after single quoted string with space required",
+			line:        "'#e18477' # comment",
+			spaceBefore: true,
+			expected:    9,
+		},
+		{
+			name:        "comment after double quoted string",
+			line:        `"#e18477" ; comment`,
+			spaceBefore: false,
+			expected:    10,
+		},
+		{
+			name:        "comment after double quoted string with space required",
+			line:        `"#e18477" ; comment`,
+			spaceBefore: true,
+			expected:    9,
+		},
+		{
+			name:        "multiple quoted strings with comment",
+			line:        `'#123', "#456" # comment`,
+			spaceBefore: false,
+			expected:    15,
+		},
+		{
+			name:        "escaped quote inside quotes",
+			line:        `"hello \"#\" world" # real comment`,
+			spaceBefore: false,
+			expected:    20,
+		},
+		{
+			name:        "apostrophe in word followed by comment",
+			line:        "don't touch # comment",
+			spaceBefore: false,
+			expected:    12,
+		},
+		{
+			name:        "unclosed quote falls back to scanning",
+			line:        `"unclosed # comment`,
+			spaceBefore: false,
+			expected:    10,
+		},
+		{
+			name:        "escaped comment symbol outside quotes",
+			line:        `value\#not_comment # real`,
+			spaceBefore: false,
+			expected:    19,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := findInlineComment(tt.line, tt.spaceBefore)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+

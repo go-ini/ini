@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 const minReaderBufferSize = 4096
@@ -233,6 +234,57 @@ func hasSurroundedQuote(in string, quote byte) bool {
 		strings.IndexByte(in[1:], quote) == len(in)-2
 }
 
+func isWordChar(prefix string) bool {
+	if len(prefix) == 0 {
+		return false
+	}
+	r, _ := utf8.DecodeLastRuneInString(prefix)
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
+}
+
+// findInlineComment returns the index of the inline comment delimiter in line,
+// or -1 if no inline comment exists outside of quoted string literals.
+func findInlineComment(line string, spaceBefore bool) int {
+	for j := 0; j < len(line); j++ {
+		ch := line[j]
+		if ch == '\\' {
+			j++
+			continue
+		}
+
+		if (ch == '"' || ch == '\'') && (j == 0 || !isWordChar(line[:j])) {
+			quote := ch
+			closed := false
+			k := j + 1
+			for ; k < len(line); k++ {
+				if line[k] == '\\' {
+					k++
+					continue
+				}
+				if line[k] == quote {
+					closed = true
+					break
+				}
+			}
+			if closed {
+				j = k
+				continue
+			}
+		}
+
+		if spaceBefore {
+			if ch == ' ' && j+1 < len(line) && (line[j+1] == '#' || line[j+1] == ';') {
+				return j
+			}
+		} else {
+			if ch == '#' || ch == ';' {
+				return j
+			}
+		}
+	}
+	return -1
+}
+
 func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 
 	line := strings.TrimLeftFunc(string(in), unicode.IsSpace)
@@ -278,22 +330,11 @@ func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 
 	// Check if ignore inline comment
 	if !p.options.IgnoreInlineComment {
-		var i int
-		if p.options.SpaceBeforeInlineComment {
-			i = strings.Index(line, " #")
-			if i == -1 {
-				i = strings.Index(line, " ;")
-			}
-
-		} else {
-			i = strings.IndexAny(line, "#;")
-		}
-
+		i := findInlineComment(line, p.options.SpaceBeforeInlineComment)
 		if i > -1 {
 			p.comment.WriteString(line[i:])
 			line = strings.TrimSpace(line[:i])
 		}
-
 	}
 
 	// Trim single and double quotes

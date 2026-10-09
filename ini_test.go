@@ -1676,3 +1676,110 @@ key2 =
 		assert.Equal(t, "value3", f.Section("section2").Key("key3").String())
 	})
 }
+
+func TestQuotedInlineComments(t *testing.T) {
+	t.Run("single and double quoted values with comment symbols inside quotes", func(t *testing.T) {
+		f, err := Load([]byte(`
+[background]
+primary-color      = '#e18477'
+secondary-color    = '#000000'
+accent-color       = "#123456"
+symbol-hash        = '#'
+symbol-semi        = ';'
+symbol-hash-double = "#"
+symbol-semi-double = ";"
+
+[urls]
+endpoint-single = 'http://example.com/api;v=1'
+endpoint-double = "http://example.com/api;v=1"
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		bg := f.Section("background")
+		assert.Equal(t, "#e18477", bg.Key("primary-color").String())
+		assert.Equal(t, "#000000", bg.Key("secondary-color").String())
+		assert.Equal(t, "#123456", bg.Key("accent-color").String())
+		assert.Equal(t, "#", bg.Key("symbol-hash").String())
+		assert.Equal(t, ";", bg.Key("symbol-semi").String())
+		assert.Equal(t, "#", bg.Key("symbol-hash-double").String())
+		assert.Equal(t, ";", bg.Key("symbol-semi-double").String())
+
+		urls := f.Section("urls")
+		assert.Equal(t, "http://example.com/api;v=1", urls.Key("endpoint-single").String())
+		assert.Equal(t, "http://example.com/api;v=1", urls.Key("endpoint-double").String())
+	})
+
+	t.Run("quoted values with comment symbols followed by real comments", func(t *testing.T) {
+		f, err := Load([]byte(`
+[background]
+primary-color   = '#e18477' # primary color comment
+secondary-color = "#000000" ; secondary color comment
+mixed           = 'val # 1' ; comment with # and ; symbols
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		bg := f.Section("background")
+		assert.Equal(t, "#e18477", bg.Key("primary-color").String())
+		assert.Equal(t, "# primary color comment", bg.Key("primary-color").Comment)
+		assert.Equal(t, "#000000", bg.Key("secondary-color").String())
+		assert.Equal(t, "; secondary color comment", bg.Key("secondary-color").Comment)
+		assert.Equal(t, "val # 1", bg.Key("mixed").String())
+		assert.Equal(t, "; comment with # and ; symbols", bg.Key("mixed").Comment)
+	})
+
+	t.Run("quoted values with PreserveSurroundedQuote", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{
+			PreserveSurroundedQuote: true,
+		}, []byte(`
+[background]
+primary-color   = '#e18477'
+secondary-color = "#000000"
+with-comment    = '#e18477' # color
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		bg := f.Section("background")
+		assert.Equal(t, "'#e18477'", bg.Key("primary-color").String())
+		assert.Equal(t, `"#000000"`, bg.Key("secondary-color").String())
+		assert.Equal(t, "'#e18477'", bg.Key("with-comment").String())
+		assert.Equal(t, "# color", bg.Key("with-comment").Comment)
+	})
+
+	t.Run("quoted values with SpaceBeforeInlineComment", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{
+			SpaceBeforeInlineComment: true,
+		}, []byte(`
+[colors]
+with-space    = '#e18477' # has space
+without-space = '#e18477'#no space
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		sec := f.Section("colors")
+		assert.Equal(t, "#e18477", sec.Key("with-space").String())
+		assert.Equal(t, "# has space", sec.Key("with-space").Comment)
+		assert.Equal(t, `'#e18477'#no space`, sec.Key("without-space").String())
+		assert.Equal(t, "", sec.Key("without-space").Comment)
+	})
+
+	t.Run("unquoted apostrophe and escaped quotes", func(t *testing.T) {
+		f, err := Load([]byte(`
+[notes]
+apostrophe = don't drop this # important note
+escaped    = 'it\'s #value' # real comment
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		sec := f.Section("notes")
+		assert.Equal(t, "don't drop this", sec.Key("apostrophe").String())
+		assert.Equal(t, "# important note", sec.Key("apostrophe").Comment)
+		assert.Equal(t, `'it\'s #value'`, sec.Key("escaped").String())
+		assert.Equal(t, "# real comment", sec.Key("escaped").Comment)
+	})
+}
+
