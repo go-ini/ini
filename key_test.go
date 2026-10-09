@@ -654,4 +654,74 @@ ENDPOINT = https://%(ACCOUNT_ID)s.r2.cloudflarestorage.com
 
 		assert.Equal(t, "https://abc123.r2.cloudflarestorage.com", f.Section("").Key("ENDPOINT").String())
 	})
+
+	t.Run("self-reference in default section", func(t *testing.T) {
+		f, err := Load([]byte("a = %(a)s\n"))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "%(a)s", f.Section("").Key("a").String())
+	})
+
+	t.Run("self-reference in section", func(t *testing.T) {
+		f, err := Load([]byte("[s]\na = %(a)s\n"))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "%(a)s", f.Section("s").Key("a").String())
+	})
+
+	t.Run("mutual reference between keys in section", func(t *testing.T) {
+		f, err := Load([]byte("[s]\na = %(b)s\nb = %(a)s\n"))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "%(b)s", f.Section("s").Key("a").String())
+		assert.Equal(t, "%(a)s", f.Section("s").Key("b").String())
+	})
+
+	t.Run("mutual reference between keys in default section", func(t *testing.T) {
+		f, err := Load([]byte("a = %(b)s\nb = %(a)s\n"))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "%(b)s", f.Section("").Key("a").String())
+		assert.Equal(t, "%(a)s", f.Section("").Key("b").String())
+	})
+
+	t.Run("multi-key cyclic reference", func(t *testing.T) {
+		f, err := Load([]byte("[s]\na = %(b)s\nb = %(c)s\nc = %(a)s\n"))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "%(b)s", f.Section("s").Key("a").String())
+		assert.Equal(t, "%(c)s", f.Section("s").Key("b").String())
+		assert.Equal(t, "%(a)s", f.Section("s").Key("c").String())
+	})
+
+	t.Run("partial cycle with valid reference", func(t *testing.T) {
+		f, err := Load([]byte("[s]\nvalid = hello\na = %(valid)s %(b)s\nb = %(a)s\n"))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "hello %(b)s", f.Section("s").Key("a").String())
+	})
+
+	t.Run("diamond reference without cycle", func(t *testing.T) {
+		f, err := Load([]byte("[s]\nd = leaf\nb = %(d)s\nc = %(d)s\na = %(b)s and %(c)s\n"))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "leaf and leaf", f.Section("s").Key("a").String())
+	})
+
+	t.Run("shadows with cyclic references", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{AllowShadows: true}, []byte("[s]\na = %(b)s\na = %(a)s\nb = %(a)s\n"))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		vals := f.Section("s").Key("a").ValueWithShadows()
+		require.Len(t, vals, 2)
+		assert.Equal(t, "%(b)s", f.Section("s").Key("a").String())
+	})
 }
