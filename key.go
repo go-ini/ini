@@ -191,18 +191,26 @@ func (k *Key) Validate(fn func(string) string) string {
 // It accepts 1, t, T, TRUE, true, True, YES, yes, Yes, y, ON, on, On,
 // 0, f, F, FALSE, false, False, NO, no, No, n, OFF, off, Off.
 // Any other value returns an error.
-func parseBool(str string) (value bool, err error) {
+func parseBool(str string, customParseBool ...func(string) (bool, error)) (value bool, err error) {
+	if len(customParseBool) > 0 && customParseBool[0] != nil {
+		return customParseBool[0](str)
+	}
+
 	switch str {
 	case "1", "t", "T", "true", "TRUE", "True", "YES", "yes", "Yes", "y", "ON", "on", "On":
 		return true, nil
 	case "0", "f", "F", "false", "FALSE", "False", "NO", "no", "No", "n", "OFF", "off", "Off":
 		return false, nil
 	}
+
 	return false, fmt.Errorf("parsing \"%s\": invalid syntax", str)
 }
 
 // Bool returns bool type value.
 func (k *Key) Bool() (bool, error) {
+	if k != nil && k.s != nil && k.s.f != nil {
+		return parseBool(k.String(), k.s.f.options.ParseBool)
+	}
 	return parseBool(k.String())
 }
 
@@ -248,6 +256,13 @@ func (k *Key) Time() (time.Time, error) {
 	return k.TimeFormat(time.RFC3339)
 }
 
+func (k *Key) formatBool(value bool) string {
+	if k != nil && k.s != nil && k.s.f != nil && k.s.f.options.FormatBool != nil {
+		return k.s.f.options.FormatBool(value)
+	}
+	return strconv.FormatBool(value)
+}
+
 // MustString returns default value if key value is empty.
 func (k *Key) MustString(defaultVal string) string {
 	val := k.String()
@@ -263,7 +278,7 @@ func (k *Key) MustString(defaultVal string) string {
 func (k *Key) MustBool(defaultVal ...bool) bool {
 	val, err := k.Bool()
 	if len(defaultVal) > 0 && err != nil {
-		k.value = strconv.FormatBool(defaultVal[0])
+		k.value = k.formatBool(defaultVal[0])
 		return defaultVal[0]
 	}
 	return val
@@ -704,8 +719,12 @@ func (k *Key) StrictTimes(delim string) ([]time.Time, error) {
 // parseBools transforms strings to bools.
 func (k *Key) parseBools(strs []string, addInvalid, returnOnInvalid bool) ([]bool, error) {
 	vals := make([]bool, 0, len(strs))
+	var customParseBool func(string) (bool, error)
+	if k != nil && k.s != nil && k.s.f != nil {
+		customParseBool = k.s.f.options.ParseBool
+	}
 	parser := func(str string) (interface{}, error) {
-		val, err := parseBool(str)
+		val, err := parseBool(str, customParseBool)
 		return val, err
 	}
 	rawVals, err := k.doParse(strs, addInvalid, returnOnInvalid, parser)

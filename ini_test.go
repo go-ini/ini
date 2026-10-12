@@ -487,6 +487,78 @@ key3`))
 			})
 		})
 
+		t.Run("custom bool handling", func(t *testing.T) {
+			parseBool := func(value string) (bool, error) {
+				switch value {
+				case "enabled":
+					return true, nil
+				case "disabled":
+					return false, nil
+				default:
+					return false, assert.AnError
+				}
+			}
+			formatBool := func(value bool) string {
+				if value {
+					return "enabled"
+				}
+				return "disabled"
+			}
+
+			f, err := LoadSources(LoadOptions{
+				ParseBool:  parseBool,
+				FormatBool: formatBool,
+			}, []byte(`
+feature = enabled
+disabled_feature = disabled
+feature_list = enabled,disabled,enabled
+invalid_feature = unknown
+invalid_feature_false = unknown
+invalid_feature_list = enabled,unknown`))
+			require.NoError(t, err)
+			require.NotNil(t, f)
+
+			t.Run("parse single true bool", func(t *testing.T) {
+				value, err := f.Section("").Key("feature").Bool()
+				require.NoError(t, err)
+				assert.True(t, value)
+			})
+
+			t.Run("parse single false bool", func(t *testing.T) {
+				value, err := f.Section("").Key("disabled_feature").Bool()
+				require.NoError(t, err)
+				assert.False(t, value)
+			})
+
+			t.Run("parse bool slice", func(t *testing.T) {
+				assert.Equal(t, []bool{true, false, true}, f.Section("").Key("feature_list").Bools(","))
+			})
+
+			t.Run("fail to parse invalid bool", func(t *testing.T) {
+				value, err := f.Section("").Key("invalid_feature").Bool()
+				assert.Error(t, err)
+				assert.False(t, value)
+			})
+
+			t.Run("fail to parse invalid bool slice", func(t *testing.T) {
+				values, err := f.Section("").Key("invalid_feature_list").StrictBools(",")
+				assert.Empty(t, values)
+				assert.Error(t, err)
+			})
+
+			t.Run("format fallback true bool default", func(t *testing.T) {
+				key := f.Section("").Key("invalid_feature")
+				assert.True(t, key.MustBool(true))
+				assert.Equal(t, "enabled", key.String())
+			})
+
+			t.Run("format fallback false bool default", func(t *testing.T) {
+				key := f.Section("").Key("invalid_feature_false")
+				assert.False(t, key.MustBool(false))
+				assert.Equal(t, "disabled", key.String())
+			})
+		})
+
 		t.Run("allow shadow keys", func(t *testing.T) {
 			f, err := LoadSources(LoadOptions{AllowShadows: true, AllowPythonMultilineValues: true}, []byte(`
 [remote "origin"]

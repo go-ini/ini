@@ -529,6 +529,100 @@ func TestKey_Helpers(t *testing.T) {
 	})
 }
 
+func TestKey_FormatBool(t *testing.T) {
+	formatBool := func(value bool) string {
+		if value {
+			return "enabled"
+		}
+		return "disabled"
+	}
+
+	t.Run("must bool falls back to strconv format when formatter is nil", func(t *testing.T) {
+		f := Empty()
+		require.NotNil(t, f)
+
+		key, err := f.Section("").NewKey("BOOL", "not-a-bool")
+		require.NoError(t, err)
+		require.NotNil(t, key)
+
+		assert.True(t, key.MustBool(true))
+		assert.Equal(t, "true", key.String())
+	})
+
+	t.Run("must bool uses custom formatter when configured", func(t *testing.T) {
+		f := Empty(LoadOptions{FormatBool: formatBool})
+		require.NotNil(t, f)
+
+		key, err := f.Section("").NewKey("BOOL", "not-a-bool")
+		require.NoError(t, err)
+		require.NotNil(t, key)
+
+		assert.True(t, key.MustBool(true))
+		assert.Equal(t, "enabled", key.String())
+	})
+}
+
+func TestKey_ParseBool(t *testing.T) {
+	parseBool := func(value string) (bool, error) {
+		switch value {
+		case "enabled":
+			return true, nil
+		case "disabled":
+			return false, nil
+		default:
+			return false, fmt.Errorf("parsing %q: invalid syntax", value)
+		}
+	}
+
+	t.Run("bool parses custom text", func(t *testing.T) {
+		f := Empty(LoadOptions{ParseBool: parseBool})
+		require.NotNil(t, f)
+
+		t.Run("success", func(t *testing.T) {
+			key, err := f.Section("").NewKey("BOOL", "enabled")
+			require.NoError(t, err)
+			require.NotNil(t, key)
+
+			value, err := key.Bool()
+			require.NoError(t, err)
+			assert.True(t, value)
+		})
+
+		t.Run("failure", func(t *testing.T) {
+			key, err := f.Section("").NewKey("BOOL_INVALID", "unknown")
+			require.NoError(t, err)
+			require.NotNil(t, key)
+
+			value, err := key.Bool()
+			assert.Error(t, err)
+			assert.False(t, value)
+		})
+	})
+
+	t.Run("bool slices parse custom text", func(t *testing.T) {
+		f := Empty(LoadOptions{ParseBool: parseBool})
+		require.NotNil(t, f)
+
+		t.Run("success", func(t *testing.T) {
+			key, err := f.Section("").NewKey("BOOLS", "enabled,disabled,enabled")
+			require.NoError(t, err)
+			require.NotNil(t, key)
+
+			boolsEqual(t, key.Bools(","), true, false, true)
+		})
+
+		t.Run("failure", func(t *testing.T) {
+			invalidKey, err := f.Section("").NewKey("BOOLS_INVALID", "enabled,unknown")
+			require.NoError(t, err)
+			require.NotNil(t, invalidKey)
+
+			vals, err := invalidKey.StrictBools(",")
+			assert.Empty(t, vals)
+			assert.Error(t, err)
+		})
+	})
+}
+
 func TestKey_ValueWithShadows(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		f, err := ShadowLoad([]byte(`

@@ -477,7 +477,7 @@ func reflectSliceWithProperType(key *Key, field reflect.Value, delim string, all
 			case reflect.Float64:
 				val = fmt.Sprint(slice.Index(i).Float())
 			case reflect.Bool:
-				val = fmt.Sprint(slice.Index(i).Bool())
+				val = key.formatBool(slice.Index(i).Bool())
 			case reflectTime:
 				val = slice.Index(i).Interface().(time.Time).Format(time.RFC3339)
 			default:
@@ -506,7 +506,7 @@ func reflectSliceWithProperType(key *Key, field reflect.Value, delim string, all
 		case reflect.Float64:
 			fmt.Fprint(&buf, slice.Index(i).Float())
 		case reflect.Bool:
-			fmt.Fprint(&buf, slice.Index(i).Bool())
+			buf.WriteString(key.formatBool(slice.Index(i).Bool()))
 		case reflectTime:
 			buf.WriteString(slice.Index(i).Interface().(time.Time).Format(time.RFC3339))
 		default:
@@ -524,7 +524,7 @@ func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim 
 	case reflect.String:
 		key.SetValue(field.String())
 	case reflect.Bool:
-		key.SetValue(fmt.Sprint(field.Bool()))
+		key.SetValue(key.formatBool(field.Bool()))
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		key.SetValue(fmt.Sprint(field.Int()))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:

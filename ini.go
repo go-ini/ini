@@ -125,6 +125,10 @@ type LoadOptions struct {
 	AllowNonUniqueSections bool
 	// AllowDuplicateShadowValues indicates whether values for shadowed keys should be deduplicated.
 	AllowDuplicateShadowValues bool
+	// ParseBool is a function that parses boolean strings. When nil, the built-in boolean parser is used.
+	ParseBool func(string) (bool, error)
+	// FormatBool is a function that formats boolean values as strings. When nil, strconv.FormatBool is used.
+	FormatBool func(bool) string
 }
 
 // DebugFunc is the type of function called to log parse events.
