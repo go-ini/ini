@@ -297,8 +297,24 @@ func (f *File) reload(s dataSource) error {
 	return f.parse(r)
 }
 
-// Reload reloads and parses all data sources.
-func (f *File) Reload() (err error) {
+// Reload reloads and parses all data sources. Sections and keys that are no
+// longer in any data source are removed, and changes made in memory are
+// discarded.
+func (f *File) Reload() error {
+	if f.BlockMode {
+		f.lock.Lock()
+	}
+	f.sectionList = nil
+	f.sectionIndexes = nil
+	f.sections = make(map[string][]*Section)
+	if f.BlockMode {
+		f.lock.Unlock()
+	}
+	return f.loadSources()
+}
+
+// loadSources parses all data sources on top of the sections already in f.
+func (f *File) loadSources() (err error) {
 	for _, s := range f.dataSources {
 		if err = f.reload(s); err != nil {
 			// In loose mode, we create an empty default section for nonexistent files.
@@ -329,7 +345,7 @@ func (f *File) Append(source interface{}, others ...interface{}) error {
 		}
 		f.dataSources = append(f.dataSources, ds)
 	}
-	return f.Reload()
+	return f.loadSources()
 }
 
 func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {

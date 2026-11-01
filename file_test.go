@@ -17,6 +17,7 @@ package ini
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"testing"
@@ -534,4 +535,35 @@ v = 3
 
 	require.NoError(t, f.Reload())
 	assert.Equal(t, []string{"1", "2", "3"}, f.Section("slice").Key("v").ValueWithShadows())
+}
+
+// Inspired by https://github.com/go-ini/ini/issues/418
+func TestReloadDropsRemovedKeysAndSections(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.ini")
+	require.NoError(t, os.WriteFile(path, []byte("[app]\nold = 1\nkeep = 2\n[gone]\nk = v\n"), 0600))
+
+	f, err := Load(path)
+	require.NoError(t, err)
+	require.True(t, f.Section("app").HasKey("old"))
+
+	require.NoError(t, os.WriteFile(path, []byte("[app]\nkeep = 3\n"), 0600))
+	require.NoError(t, f.Reload())
+
+	assert.Equal(t, map[string]string{"keep": "3"}, f.Section("app").KeysHash())
+	assert.False(t, f.Section("app").HasKey("old"))
+	assert.Equal(t, []string{DefaultSection, "app"}, f.SectionStrings())
+}
+
+func TestReloadDoesNotDuplicateNonUniqueSections(t *testing.T) {
+	f, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, []byte(`
+[peer]
+name = a
+[peer]
+name = b
+`))
+	require.NoError(t, err)
+	require.Len(t, f.SectionStrings(), 3)
+
+	require.NoError(t, f.Reload())
+	assert.Equal(t, []string{DefaultSection, "peer", "peer"}, f.SectionStrings())
 }
