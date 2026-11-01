@@ -75,3 +75,28 @@ func TestBadLoad(t *testing.T) {
 		})
 	})
 }
+
+func TestParserInlineCommentInsideQuotedValue(t *testing.T) {
+	cases := []struct {
+		src  string
+		want string
+	}{
+		{"name = \"value with # inside\"", "value with # inside"},
+		{"name = 'value with; inside'", "value with; inside"},
+		{"name = \"#hash\"", "#hash"},
+		{"name = value # comment", "value"},
+	}
+	for _, c := range cases {
+		f, err := Load([]byte(c.src))
+		require.NoError(t, err, c.src)
+		assert.Equal(t, c.want, f.Section("").Key("name").String(), c.src)
+	}
+
+	f, err := LoadSources(LoadOptions{SpaceBeforeInlineComment: true}, []byte("name = a#b"))
+	require.NoError(t, err)
+	assert.Equal(t, "a#b", f.Section("").Key("name").String())
+
+	f, err = LoadSources(LoadOptions{SpaceBeforeInlineComment: true}, []byte("name = a #b"))
+	require.NoError(t, err)
+	assert.Equal(t, "a", f.Section("").Key("name").String())
+}
