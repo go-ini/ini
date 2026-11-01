@@ -125,6 +125,40 @@ func cleanComment(in []byte) ([]byte, bool) {
 	return in[i:], true
 }
 
+// indexInlineComment returns the index of the first comment symbol (# or ;)
+// that is not inside a quoted portion of line, or -1 when the line holds no
+// comment. A quote only opens a quoted portion when it is closed later in the
+// same line, so apostrophes and stray quotes still let a comment through.
+// When spaceBefore is true, a comment symbol only starts a comment after a
+// space, and the index of that space is returned.
+func indexInlineComment(line string, spaceBefore bool) int {
+	var quote byte
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		if quote != 0 {
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		if (c == 0x22 || c == 0x27 || c == 0x60) && strings.IndexByte(line[i+1:], c) > -1 {
+			quote = c
+			continue
+		}
+		if c != 0x23 && c != 0x3b {
+			continue
+		}
+		if spaceBefore {
+			if i == 0 || line[i-1] != 0x20 {
+				continue
+			}
+			return i - 1
+		}
+		return i
+	}
+	return -1
+}
+
 func readKeyName(delimiters string, in []byte) (string, int, error) {
 	line := string(in)
 
@@ -278,22 +312,11 @@ func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 
 	// Check if ignore inline comment
 	if !p.options.IgnoreInlineComment {
-		var i int
-		if p.options.SpaceBeforeInlineComment {
-			i = strings.Index(line, " #")
-			if i == -1 {
-				i = strings.Index(line, " ;")
-			}
-
-		} else {
-			i = strings.IndexAny(line, "#;")
-		}
-
+		i := indexInlineComment(line, p.options.SpaceBeforeInlineComment)
 		if i > -1 {
 			p.comment.WriteString(line[i:])
 			line = strings.TrimSpace(line[:i])
 		}
-
 	}
 
 	// Trim single and double quotes
