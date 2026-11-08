@@ -620,6 +620,9 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 			if err != nil {
 				// Note: fieldName can never be empty here, ignore error.
 				sec, _ = s.f.NewSection(fieldName)
+			} else if sec.name == s.name {
+				// Keep fields in the current occurrence of a non-unique section.
+				sec = s
 			}
 
 			// Add comment from comment tag
