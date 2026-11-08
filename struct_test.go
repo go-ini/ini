@@ -172,17 +172,17 @@ AllowedIPs   = 10.2.0.3/32,fd00:2::3/128
 `
 
 type unsupport struct {
-	Byte byte
+	Byte complex64
 }
 
 type unsupport2 struct {
 	Others struct {
-		Cities byte
+		Cities complex64
 	}
 }
 
 type Unsupport3 struct {
-	Cities byte
+	Cities complex64
 }
 
 type unsupport4 struct {
@@ -909,4 +909,43 @@ Title = Consultant Engineer
 			buf.String(),
 		)
 	})
+}
+
+func TestMapToUint8(t *testing.T) {
+	type count uint8
+	type config struct {
+		Value        uint8
+		Byte         byte
+		Named        count
+		Pointer      *uint8
+		NamedPointer *count
+	}
+	for _, value := range []uint8{0, 90, 255} {
+		for _, strict := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%d/strict=%t", value, strict), func(t *testing.T) {
+				source := fmt.Sprintf("[mysection]\nValue=%d\nByte=%d\nNamed=%d\nPointer=%d\nNamedPointer=%d\n", value, value, value, value, value)
+				cfg, err := Load([]byte(source))
+				require.NoError(t, err)
+				var got config
+				if strict {
+					err = cfg.Section("mysection").StrictMapTo(&got)
+				} else {
+					err = cfg.Section("mysection").MapTo(&got)
+				}
+				require.NoError(t, err)
+				assert.Equal(t, value, got.Value)
+				assert.Equal(t, value, got.Byte)
+				assert.Equal(t, count(value), got.Named)
+				require.NotNil(t, got.Pointer)
+				assert.Equal(t, value, *got.Pointer)
+				require.NotNil(t, got.NamedPointer)
+				assert.Equal(t, count(value), *got.NamedPointer)
+				reflected := Empty()
+				require.NoError(t, reflected.Section("mysection").ReflectFrom(&got))
+				var roundtrip config
+				require.NoError(t, reflected.Section("mysection").StrictMapTo(&roundtrip))
+				assert.Equal(t, got, roundtrip)
+			})
+		}
+	}
 }
