@@ -910,3 +910,28 @@ Title = Consultant Engineer
 		)
 	})
 }
+
+func TestMapToWithMapperPreservesEmbeddedPointerDefaults(t *testing.T) {
+	type Options struct {
+		Name string
+		Port int
+	}
+	type Config struct {
+		*Options
+	}
+	for _, source := range []string{"", "[options]\nname = configured\n"} {
+		t.Run(source, func(t *testing.T) {
+			defaults := &Options{Name: "default", Port: 1234}
+			got := Config{Options: defaults}
+			err := MapToWithMapper(&got, TitleUnderscore, []byte(source))
+			require.NoError(t, err)
+			require.Same(t, defaults, got.Options)
+			assert.Equal(t, 1234, got.Port)
+			if source == "" {
+				assert.Equal(t, "default", got.Name)
+			} else {
+				assert.Equal(t, "configured", got.Name)
+			}
+		})
+	}
+}
