@@ -301,7 +301,7 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 		isStruct := tpField.Type.Kind() == reflect.Struct
 		isStructPtr := tpField.Type.Kind() == reflect.Pointer && tpField.Type.Elem().Kind() == reflect.Struct
 		isAnonymousPtr := tpField.Type.Kind() == reflect.Pointer && tpField.Anonymous
-		if isAnonymousPtr {
+		if isAnonymousPtr && field.IsNil() {
 			field.Set(reflect.New(tpField.Type.Elem()))
 		}
 
