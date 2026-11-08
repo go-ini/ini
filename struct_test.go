@@ -628,6 +628,39 @@ name   = name
 }
 
 func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
+	t.Run("reflect embedded structs into their own non unique sections", func(t *testing.T) {
+		type BaseSlot struct {
+			Id int `ini:",nonunique"`
+		}
+		type BigSlot struct {
+			*BaseSlot `ini:"big_slot,nonunique"`
+			Color     string
+		}
+		type IniFile struct {
+			BigSlots []BigSlot `ini:"big_slot,nonunique"`
+		}
+
+		cfg := Empty(LoadOptions{AllowNonUniqueSections: true})
+		require.NoError(t, ReflectFrom(cfg, &IniFile{
+			BigSlots: []BigSlot{
+				{BaseSlot: &BaseSlot{Id: 3}, Color: "blue"},
+				{BaseSlot: &BaseSlot{Id: 4}, Color: "red"},
+			},
+		}))
+
+		var buf bytes.Buffer
+		_, err := cfg.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Equal(t, `[big_slot]
+Id    = 3
+Color = blue
+
+[big_slot]
+Id    = 4
+Color = red
+`, buf.String())
+	})
+
 	t.Run("reflect from struct with non unique sections", func(t *testing.T) {
 		nonUnique := &testNonUniqueSectionsStruct{
 			Interface: testInterface{
