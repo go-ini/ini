@@ -1,4 +1,4 @@
-module gopkg.in/ini.v2
+module unknwon.dev/ini/v2
 
 go 1.22
 

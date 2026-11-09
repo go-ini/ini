@@ -1,6 +1,6 @@
 # INI
 
-[![GoDoc](https://img.shields.io/badge/GoDoc-Reference-blue?style=for-the-badge&logo=go)](https://pkg.go.dev/gopkg.in/ini.v2?tab=doc)
+[![GoDoc](https://img.shields.io/badge/GoDoc-Reference-blue?style=for-the-badge&logo=go)](https://pkg.go.dev/unknwon.dev/ini/v2?tab=doc)
 
 ![](https://avatars0.githubusercontent.com/u/10216035?v=3&s=200)
 
@@ -24,7 +24,7 @@ Package ini provides INI file read and write functionality in Go.
 The minimum requirement of Go is **1.22**.
 
 ```sh
-$ go get gopkg.in/ini.v2@latest
+$ go get unknwon.dev/ini/v2@latest
 ```
 
 ## Migrating from v1
@@ -33,6 +33,7 @@ Without options, v2 parses every input exactly as v1's `Load` does. The parity t
 
 | v1 | v2 |
 |---|---|
+| `import "gopkg.in/ini.v1"` | `import "unknwon.dev/ini/v2"` (package name is still `ini`) |
 | `Load(a, b)` | `LoadSources([]any{a, b})`; `Load(a)` is unchanged |
 | `LoadSources(LoadOptions{AllowShadows: true}, a)` | `Load(a, ini.AllowShadows())` |
 | `LooseLoad`, `InsensitiveLoad`, `ShadowLoad` | `ini.Loose()`, `ini.Insensitive()`, `ini.AllowShadows()` |
