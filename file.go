@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -341,21 +342,93 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		if symbols == "" {
 			return "", errors.New("cannot write comment: no comment symbols set")
 		}
+		if trim {
+			line = strings.TrimSpace(line)
+		}
 		if !startsWithAny(line, symbols) {
-			if trim {
-				line = strings.TrimSpace(line)
-			}
 			return commentPrefix + " " + line, nil
 		}
 		_, n := utf8.DecodeRuneInString(line)
 		return line[:n] + " " + strings.TrimSpace(line[n:]), nil
 	}
 
+	// keyLine returns the line that writes val as a value of key, written as
+	// form, or key itself for a boolean key, followed by nested values.
+	// v1's quoting comes first; when the lexer reads that back differently,
+	// other quotings and a bare delimiter are tried, and when none reads
+	// back, it's an error rather than a file that loads differently. A file
+	// read with delimiters that don't include the written one is meant for
+	// other readers, and is written as v1 did.
+	verify := strings.ContainsAny(o.keyValueDelimiter, f.options.KeyValueDelimiters)
+	keyLine := func(key *Key, boolean bool, name, form, eq, val string, nested []string) (string, error) {
+		var after string
+		for _, nv := range nested {
+			after += indent + "  " + nv + lineBreak
+		}
+		var line string
+		switch {
+		case boolean:
+			line = form + lineBreak
+			if !f.options.AllowBooleanKeys {
+				return line, nil
+			}
+		case strings.ContainsAny(val, "\n`"):
+			line = form + eq + `"""` + val + `"""` + lineBreak
+		case !f.options.IgnoreInlineComment && strings.ContainsAny(val, symbols):
+			line = form + eq + "`" + val + "`" + lineBreak
+		case len(strings.TrimSpace(val)) != len(val):
+			line = form + eq + `"` + val + `"` + lineBreak
+		default:
+			line = form + eq + val + lineBreak
+		}
+		if !verify || f.readsBack(line+after, boolean, name, val, nested) {
+			return line + after, nil
+		}
+
+		quotings := func(s string) []string {
+			q := []string{s, "`" + s + "`", `"""` + s + `"""`, `"` + s + `"`}
+			if f.options.UnescapeValueDoubleQuotes {
+				q = append(q, `"`+strings.ReplaceAll(s, `"`, `\"`)+`"`)
+			}
+			return q
+		}
+		forms := []string{"-"}
+		if !key.isAutoIncrement {
+			forms = quotings(name)
+		}
+		if boolean {
+			for _, k := range forms {
+				if line = k + lineBreak; f.readsBack(line, boolean, name, "", nil) {
+					return line, nil
+				}
+			}
+		} else {
+			for _, e := range []string{eq, o.keyValueDelimiter} {
+				for _, k := range forms {
+					for _, v := range quotings(val) {
+						if line = k + e + v + lineBreak + after; f.readsBack(line, boolean, name, val, nested) {
+							return line, nil
+						}
+					}
+				}
+			}
+		}
+		return "", fmt.Errorf("cannot write key %q with value %q in section %q so that it reads back", key.name, val, key.s.name)
+	}
+
 	// Use buffer to make sure target is safe until finish encoding.
 	buf := bytes.NewBuffer(nil)
+	// Per-key buffers, reused for every key.
+	var vals, lines []string
+	var empty []bool
 	lastSectionIdx := len(f.sectionList) - 1
 	for i, sname := range f.sectionList {
-		sec := f.SectionWithIndex(sname, f.sectionIndexes[i])
+		// Not SectionWithIndex: with Insensitive, a "[DEFAULT]" header makes a
+		// section that lookups by name don't find.
+		sec := f.sections[sname][f.sectionIndexes[i]]
+		if strings.Contains(sname, "\n") {
+			return nil, fmt.Errorf("cannot write section %q: its name has a line break", sname)
+		}
 		if len(sec.Comment) > 0 {
 			// Support multiline comments
 			lines := strings.Split(sec.Comment, lineBreak)
@@ -375,7 +448,8 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		// upper case, so a renamed default section keeps its header. It is
 		// skipped like any default section when it has no keys.
 		emptyDefault := i == 0 && len(sec.keyList) == 0 && strings.EqualFold(sec.name, f.options.DefaultSection)
-		if i > 0 || o.defaultHeader || (strings.ToUpper(sec.name) != f.options.DefaultSection && !emptyDefault) {
+		// A comment needs the header to stay on the section.
+		if i > 0 || o.defaultHeader || len(sec.Comment) > 0 || (strings.ToUpper(sec.name) != f.options.DefaultSection && !emptyDefault) {
 			if _, err := buf.WriteString("[" + sname + "]" + lineBreak); err != nil {
 				return nil, err
 			}
@@ -390,6 +464,10 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		if sec.isRawSection {
 			if _, err := buf.WriteString(sec.rawBody); err != nil {
 				return nil, err
+			}
+			if !isLastSection && sec.rawBody != "" && !strings.HasSuffix(sec.rawBody, "\n") {
+				// The next section header starts on its own line.
+				buf.WriteString(lineBreak)
 			}
 
 			if o.prettySection && !isLastSection {
@@ -422,91 +500,136 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		}
 		alignSpaces := bytes.Repeat([]byte(" "), alignLength)
 
-	KeyList:
+		keyIndent := ""
+		if sname != f.options.DefaultSection {
+			keyIndent = indent
+		}
+		// swallows is set when the lexer would read an indented line as part
+		// of the last value: always in Python multiline values, and after an
+		// empty value with nested values.
+		swallows := false
+		writeIndented := func(line string) error {
+			if keyIndent != "" && swallows {
+				return fmt.Errorf("cannot indent line %q in section %q: it would be read as part of the value before it", line, sname)
+			}
+			buf.WriteString(keyIndent + line)
+			return nil
+		}
+
 		for _, kname := range sec.keyList {
 			key := sec.Key(kname)
-			if len(key.Comment) > 0 {
-				if len(indent) > 0 && sname != f.options.DefaultSection {
-					buf.WriteString(indent)
-				}
-
-				// Support multiline comments
-				lines := strings.Split(key.Comment, lineBreak)
-				for i := range lines {
-					var err error
-					if lines[i], err = formatComment(lines[i], true); err != nil {
-						return nil, err
-					}
-
-					if _, err := buf.WriteString(lines[i] + lineBreak); err != nil {
-						return nil, err
-					}
-				}
-			}
-
-			if len(indent) > 0 && sname != f.options.DefaultSection {
-				buf.WriteString(indent)
-			}
-
+			name, form := kname, kname
 			switch {
 			case key.isAutoIncrement:
-				kname = "-"
+				name, form = "-", "-"
 			case strings.Contains(kname, "\"") || strings.ContainsAny(kname, f.options.KeyValueDelimiters):
-				kname = "`" + kname + "`"
+				form = "`" + kname + "`"
 			case strings.Contains(kname, "`"):
-				kname = `"""` + kname + `"""`
+				form = `"""` + kname + `"""`
 			}
 
-			writeKeyValue := func(val string) (bool, error) {
-				if _, err := buf.WriteString(kname); err != nil {
-					return false, err
+			pad := ""
+			if o.prettyFormat {
+				pad = string(alignSpaces[:max(0, alignLength-len(form))])
+			}
+			// lines are the lines of the key, each with the nested values
+			// that follow it, and empty tells whether its value is empty.
+			lines, empty = lines[:0], empty[:0]
+			addLine := func(boolean bool, val string, nested []string) error {
+				eq := pad + equalSign
+				if boolean {
+					eq = ""
 				}
-
-				if key.isBooleanType {
-					buf.WriteString(lineBreak)
-					return true, nil
-				}
-
-				// Write out alignment spaces before "=" sign
-				if o.prettyFormat {
-					buf.Write(alignSpaces[:alignLength-len(kname)])
-				}
-
-				// In case key value contains "\n", "`", "\"", "#" or ";"
-				if strings.ContainsAny(val, "\n`") {
-					val = `"""` + val + `"""`
-				} else if !f.options.IgnoreInlineComment && strings.ContainsAny(val, symbols) {
-					val = "`" + val + "`"
-				} else if len(strings.TrimSpace(val)) != len(val) {
-					val = `"` + val + `"`
-				}
-				if _, err := buf.WriteString(equalSign + val + lineBreak); err != nil {
-					return false, err
-				}
-				return false, nil
+				line, err := keyLine(key, boolean, name, form, eq, val, nested)
+				lines = append(lines, line)
+				empty = append(empty, !boolean && val == "")
+				return err
 			}
 
-			shadows := key.ValueWithShadows()
-			if len(shadows) == 0 {
-				if _, err := writeKeyValue(""); err != nil {
+			// All values are written, empty ones too: an empty value resets
+			// the values before it in systemd units, and nested values
+			// follow an empty value.
+			vals = append(vals[:0], key.value)
+			for _, s := range key.shadows {
+				vals = append(vals, s.value)
+			}
+
+			// regular are the values written on key lines. A boolean line
+			// after a key of the same name makes it a boolean key with the
+			// value "true" added; a value set after the boolean line
+			// replaces "true".
+			regular, boolFirst := vals, false
+			if key.isBooleanType {
+				switch {
+				case !f.options.AllowBooleanKeys:
+					regular = nil
+				case len(key.shadows) > 0:
+					if vals[len(vals)-1] == "true" {
+						regular = vals[:len(vals)-1]
+					}
+				case key.value != "true":
+					boolFirst = true
+				default:
+					regular = nil
+				}
+			}
+			if len(key.nestedValues) > 0 && !slices.Contains(regular, "") {
+				// Nested values only follow an empty value. Without shadows
+				// the value after it still wins.
+				regular = append([]string{""}, regular...)
+			}
+
+			if key.isBooleanType && boolFirst {
+				if err := addLine(true, "", nil); err != nil {
+					return nil, err
+				}
+			}
+			nested := key.nestedValues
+			for _, val := range regular {
+				if val != "" {
+					if err := addLine(false, val, nil); err != nil {
+						return nil, err
+					}
+					continue
+				}
+				if err := addLine(false, val, nested); err != nil {
+					return nil, err
+				}
+				nested = nil
+			}
+			if key.isBooleanType && !boolFirst {
+				if err := addLine(true, "", nil); err != nil {
 					return nil, err
 				}
 			}
 
-			for _, val := range shadows {
-				exitLoop, err := writeKeyValue(val)
-				if err != nil {
-					return nil, err
-				} else if exitLoop {
-					continue KeyList
-				}
-			}
-
-			for _, val := range key.nestedValues {
-				if _, err := buf.WriteString(indent + "  " + val + lineBreak); err != nil {
+			// The lexer gives a key the comment before its last line, so a
+			// key written on several lines has its comment there.
+			last := len(lines) - 1
+			for i, line := range lines[:last] {
+				if err := writeIndented(line); err != nil {
 					return nil, err
 				}
+				swallows = f.options.AllowPythonMultilineValues || (f.options.AllowNestedValues && empty[i])
 			}
+			if len(key.Comment) > 0 {
+				if err := writeIndented(""); err != nil {
+					return nil, err
+				}
+				// Support multiline comments
+				comments := strings.Split(key.Comment, lineBreak)
+				for i := range comments {
+					var err error
+					if comments[i], err = formatComment(comments[i], true); err != nil {
+						return nil, err
+					}
+					buf.WriteString(comments[i] + lineBreak)
+				}
+			}
+			if err := writeIndented(lines[last]); err != nil {
+				return nil, err
+			}
+			swallows = f.options.AllowPythonMultilineValues || (f.options.AllowNestedValues && empty[last])
 		}
 
 		if o.prettySection && !isLastSection {
@@ -518,6 +641,31 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 	}
 
 	return buf, nil
+}
+
+// readsBack reports whether the lexer reads text as one key, or boolean key,
+// named name with value val and no comment, followed by nested values.
+func (f *File) readsBack(text string, boolean bool, name, val string, nested []string) bool {
+	// A byte order mark is skipped at the start of a file.
+	l := lexer{src: skipBOM(text), opts: &f.options}
+	tok, err := l.next()
+	if err != nil {
+		return false
+	}
+	kind := tokKey
+	if boolean {
+		kind = tokBooleanKey
+	}
+	if tok.kind != kind || tok.name != name || tok.value != val || tok.comment != "" {
+		return false
+	}
+	for _, nv := range nested {
+		if tok, err = l.next(); err != nil || tok.kind != tokNestedValue || tok.value != nv {
+			return false
+		}
+	}
+	tok, err = l.next()
+	return err == nil && tok.kind == tokEOF && len(l.comment) == 0
 }
 
 // Write writes the file to w, formatted by opts.

@@ -52,6 +52,7 @@ New in v2:
 - `ini.CommentSymbols(s)` sets the comment characters.
 - `ini.KeepEmptyShadowValues()` keeps empty values of shadow keys.
 - `Key.IsBooleanType()`, and `ini.Marshal`/`ini.Unmarshal`.
+- `File.Write` writes files that load back to the same sections, keys, values and comments: it picks a quoting the parser reads back, writes empty shadow values, and returns an error instead of writing a file that loads differently.
 - Loading is O(n) in the number of keys; a 10,000-key section loads in about 6 ms instead of about 150 ms with v1.67.3.
 
 ## Getting Help

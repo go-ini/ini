@@ -245,7 +245,10 @@ func newWriteOptions(opts []WriteOption) writeOptions {
 }
 
 // Indent puts indent before the keys and comments of every section except
-// the default one.
+// the default one. Write returns an error when an indented line would read
+// back as part of the value before it: after any value with
+// AllowPythonMultilineValues, and after an empty value with
+// AllowNestedValues.
 func Indent(indent string) WriteOption { return func(o *writeOptions) { o.indent = indent } }
 
 // LineBreak sets the line break to write. The default is "\r\n" on Windows
