@@ -49,11 +49,15 @@ func (s *Section) Name() string {
 // Body returns rawBody of Section if the section was marked as unparseable.
 // It still follows the other rules of the INI format surrounding leading/trailing whitespace.
 func (s *Section) Body() string {
+	s.f.rlock()
+	defer s.f.runlock()
 	return strings.TrimSpace(s.rawBody)
 }
 
 // SetBody updates body content only if section is raw.
 func (s *Section) SetBody(body string) {
+	s.f.wlock()
+	defer s.f.wunlock()
 	if !s.isRawSection {
 		return
 	}
@@ -62,15 +66,17 @@ func (s *Section) SetBody(body string) {
 
 // NewKey creates a new key to given section.
 func (s *Section) NewKey(name, val string) (*Key, error) {
+	s.f.wlock()
+	defer s.f.wunlock()
+	return s.addKey(name, val)
+}
+
+// addKey is NewKey for a caller that holds the lock.
+func (s *Section) addKey(name, val string) (*Key, error) {
 	if len(name) == 0 {
 		return nil, errors.New("error creating new key: empty key name")
 	} else if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
 		name = strings.ToLower(name)
-	}
-
-	if s.f.BlockMode {
-		s.f.lock.Lock()
-		defer s.f.lock.Unlock()
 	}
 
 	if _, ok := s.keys[name]; ok {
@@ -92,7 +98,14 @@ func (s *Section) NewKey(name, val string) (*Key, error) {
 
 // NewBooleanKey creates a new boolean type key to given section.
 func (s *Section) NewBooleanKey(name string) (*Key, error) {
-	key, err := s.NewKey(name, "true")
+	s.f.wlock()
+	defer s.f.wunlock()
+	return s.addBooleanKey(name)
+}
+
+// addBooleanKey is NewBooleanKey for a caller that holds the lock.
+func (s *Section) addBooleanKey(name string) (*Key, error) {
+	key, err := s.addKey(name, "true")
 	if err != nil {
 		return nil, err
 	}
@@ -174,9 +187,11 @@ func (s *Section) Key(name string) *Key {
 
 // Keys returns list of keys of section.
 func (s *Section) Keys() []*Key {
+	s.f.rlock()
+	defer s.f.runlock()
 	keys := make([]*Key, len(s.keyList))
-	for i := range s.keyList {
-		keys[i] = s.Key(s.keyList[i])
+	for i, name := range s.keyList {
+		keys[i] = s.keys[name]
 	}
 	return keys
 }
@@ -203,6 +218,8 @@ func (s *Section) ParentKeys() []*Key {
 
 // KeyStrings returns list of key names of section.
 func (s *Section) KeyStrings() []string {
+	s.f.rlock()
+	defer s.f.runlock()
 	list := make([]string, len(s.keyList))
 	copy(list, s.keyList)
 	return list
@@ -245,6 +262,8 @@ func (s *Section) DeleteKey(name string) {
 // For example, "[parent.child1]" and "[parent.child12]" are child sections
 // of section "[parent]".
 func (s *Section) ChildSections() []*Section {
+	s.f.rlock()
+	defer s.f.runlock()
 	prefix := s.name + s.f.options.ChildSectionDelimiter
 	children := make([]*Section, 0, 3)
 	for i, name := range s.f.sectionList {

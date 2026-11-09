@@ -371,7 +371,8 @@ func skipBOM(src string) string {
 	return src
 }
 
-// parse reads all of reader and adds its sections and keys to f.
+// parse reads all of reader and adds its sections and keys to f. The caller
+// holds the lock, or f isn't shared yet.
 func (f *File) parse(reader io.Reader) error {
 	var b strings.Builder
 	if _, err := io.Copy(&b, reader); err != nil {
@@ -384,7 +385,7 @@ func (f *File) parse(reader io.Reader) error {
 	if f.options.Insensitive || f.options.InsensitiveSections {
 		name = strings.ToLower(name)
 	}
-	section, _ := f.NewSection(name)
+	section, _ := f.addSection(name)
 
 	var lastRegularKey *Key
 	count := 1 // Counter for auto-increment key names ("-"), per section.
@@ -399,7 +400,7 @@ func (f *File) parse(reader io.Reader) error {
 			return nil
 
 		case tokSection:
-			if section, err = f.NewSection(tok.name); err != nil {
+			if section, err = f.addSection(tok.name); err != nil {
 				return tok.errorf(err)
 			}
 			section.Comment = tok.comment
@@ -415,7 +416,7 @@ func (f *File) parse(reader io.Reader) error {
 			}
 
 		case tokBooleanKey:
-			key, err := section.NewBooleanKey(tok.name)
+			key, err := section.addBooleanKey(tok.name)
 			if err != nil {
 				return tok.errorf(err)
 			}
@@ -427,7 +428,7 @@ func (f *File) parse(reader io.Reader) error {
 				name = "#" + strconv.Itoa(count)
 				count++
 			}
-			key, err := section.NewKey(name, tok.value)
+			key, err := section.addKey(name, tok.value)
 			if err != nil {
 				return tok.errorf(err)
 			}

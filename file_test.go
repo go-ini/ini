@@ -16,12 +16,16 @@ package ini
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -647,4 +651,83 @@ func TestFile_EdgeCases(t *testing.T) {
 		assert.Equal(t, "1", children[0].Key("x").String())
 		assert.Equal(t, "2", children[1].Key("x").String())
 	})
+}
+
+// With BlockMode, the default, a File can be read while other goroutines
+// change it. Run with -race.
+func TestFile_Concurrency(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "app.ini")
+	require.NoError(t, os.WriteFile(path, []byte("name = %(base)s/x\nbase = /srv\n[s]\nk = a\nk = b\n[s.child]\nc = 1\n[raw]\nbody\n"), 0o600))
+	f, err := Load(path, AllowShadows(), UnparseableSections("raw"))
+	require.NoError(t, err)
+
+	type cfg struct {
+		Name string `ini:"name"`
+		S    struct {
+			K []string `ini:"k,,allowshadow"`
+		} `ini:"s"`
+	}
+
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	run := func(fn func(i int)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; ; i++ {
+				select {
+				case <-stop:
+					return
+				default:
+					fn(i)
+				}
+			}
+		}()
+	}
+
+	// Readers.
+	run(func(int) {
+		for _, sec := range f.Sections() {
+			_ = sec.Body()
+			_ = sec.KeyStrings()
+			_ = sec.KeysHash()
+			_ = sec.ChildSections()
+			for _, k := range sec.Keys() {
+				_ = k.String()
+				_ = k.Value()
+				_ = k.ValueWithShadows()
+				_ = k.IsBooleanType()
+				_ = k.NestedValues()
+			}
+		}
+	})
+	run(func(int) {
+		_, _ = f.Write(io.Discard)
+		_ = f.SectionStrings()
+		var c cfg
+		_ = f.MapTo(&c)
+	})
+
+	// Writers.
+	run(func(int) { _ = f.Reload() })
+	run(func(i int) {
+		sec := f.Section("s")
+		sec.Key("k").SetValue(strconv.Itoa(i))
+		_ = sec.Key("k").AddShadow("z")
+		_ = sec.Key("m").MustInt(3)
+		_, _ = f.Section("new").NewKey("n", "v")
+		f.Section("new").DeleteKey("n")
+		f.DeleteSection("new")
+		f.Section("raw").SetBody("other")
+		_ = f.ReflectFrom(&cfg{Name: "n"})
+	})
+	run(func(i int) {
+		if i%50 == 0 {
+			_ = f.Append([]byte("[more]\nx = 1\n"))
+		}
+	})
+
+	time.Sleep(time.Second)
+	close(stop)
+	wg.Wait()
 }

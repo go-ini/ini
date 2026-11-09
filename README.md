@@ -64,6 +64,8 @@ New in v2:
   - Nil pointer fields aren't written.
   - Fields after an empty `nonunique` slice or a `StructReflector` field are written.
   - A `nonunique` field with no sections is left empty instead of failing.
+- With `BlockMode` (the default) a `File` can be read from many goroutines while others call `Reload`, `Append`, `SetValue`, `NewKey`, `NewSection`, the delete methods, `ReflectFrom` or `Write`; v1 locked only some writes. `Comment` fields are plain fields: set them before sharing the `File`.
+- `Unmarshal` reads what `Marshal` writes, including `allowshadow` slices with repeated, empty or delimiter-containing elements and `nonunique` sections.
 - Loading is O(n) in the number of keys; a 10,000-key section loads in about 6 ms instead of about 150 ms with v1.67.3.
 
 ## Getting Help

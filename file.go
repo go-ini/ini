@@ -80,19 +80,48 @@ func (f *File) defaultSectionName() string {
 	return f.options.DefaultSection
 }
 
+// The lock helpers guard the file's sections, keys and values when
+// BlockMode is set. Unexported methods that change them expect the caller to
+// hold the lock, or the file not to be shared yet, as while parsing.
+func (f *File) rlock() {
+	if f.BlockMode {
+		f.lock.RLock()
+	}
+}
+
+func (f *File) runlock() {
+	if f.BlockMode {
+		f.lock.RUnlock()
+	}
+}
+
+func (f *File) wlock() {
+	if f.BlockMode {
+		f.lock.Lock()
+	}
+}
+
+func (f *File) wunlock() {
+	if f.BlockMode {
+		f.lock.Unlock()
+	}
+}
+
 // NewSection creates a new section.
 func (f *File) NewSection(name string) (*Section, error) {
+	f.wlock()
+	defer f.wunlock()
+	return f.addSection(name)
+}
+
+// addSection is NewSection for a caller that holds the lock.
+func (f *File) addSection(name string) (*Section, error) {
 	if len(name) == 0 {
 		return nil, errors.New("empty section name")
 	}
 
 	if (f.options.Insensitive || f.options.InsensitiveSections) && name != f.options.DefaultSection {
 		name = strings.ToLower(name)
-	}
-
-	if f.BlockMode {
-		f.lock.Lock()
-		defer f.lock.Unlock()
 	}
 
 	if _, ok := f.sections[name]; ok && !f.options.AllowNonUniqueSections {
@@ -113,7 +142,9 @@ func (f *File) NewSection(name string) (*Section, error) {
 
 // NewRawSection creates a new section with an unparseable body.
 func (f *File) NewRawSection(name, body string) (*Section, error) {
-	section, err := f.NewSection(name)
+	f.wlock()
+	defer f.wunlock()
+	section, err := f.addSection(name)
 	if err != nil {
 		return nil, err
 	}
@@ -135,12 +166,21 @@ func (f *File) NewSections(names ...string) (err error) {
 
 // GetSection returns section by given name.
 func (f *File) GetSection(name string) (*Section, error) {
-	secs, err := f.SectionsByName(name)
+	return f.sectionWithIndex(name, 0)
+}
+
+// sectionWithIndex returns the index-th section with the given name.
+func (f *File) sectionWithIndex(name string, index int) (*Section, error) {
+	f.rlock()
+	defer f.runlock()
+	secs, err := f.sectionsByName(name)
 	if err != nil {
 		return nil, err
 	}
-
-	return secs[0], err
+	if index < 0 || index >= len(secs) {
+		return nil, fmt.Errorf("section %q has no index %d", name, index)
+	}
+	return secs[index], nil
 }
 
 // HasSection returns true if the file contains a section with given name.
@@ -151,6 +191,15 @@ func (f *File) HasSection(name string) bool {
 
 // SectionsByName returns all sections with given name.
 func (f *File) SectionsByName(name string) ([]*Section, error) {
+	f.rlock()
+	defer f.runlock()
+	secs, err := f.sectionsByName(name)
+	// A copy, as deleting a section shifts the ones after it in place.
+	return slices.Clone(secs), err
+}
+
+// sectionsByName is SectionsByName for a caller that holds the lock.
+func (f *File) sectionsByName(name string) ([]*Section, error) {
 	if len(name) == 0 {
 		name = f.options.DefaultSection
 	}
@@ -158,16 +207,10 @@ func (f *File) SectionsByName(name string) ([]*Section, error) {
 		name = strings.ToLower(name)
 	}
 
-	if f.BlockMode {
-		f.lock.RLock()
-		defer f.lock.RUnlock()
-	}
-
 	secs := f.sections[name]
 	if len(secs) == 0 {
 		return nil, fmt.Errorf("section %q does not exist", name)
 	}
-
 	return secs, nil
 }
 
@@ -190,13 +233,12 @@ func (f *File) SectionWithIndex(name string, index int) *Section {
 	if name == "" {
 		name = f.defaultSectionName()
 	}
-	secs, err := f.SectionsByName(name)
-	if err != nil || index < 0 || len(secs) <= index {
+	sec, err := f.sectionWithIndex(name, index)
+	if err != nil {
 		newSec, _ := f.NewSection(name)
 		return newSec
 	}
-
-	return secs[index]
+	return sec
 }
 
 // Sections returns a list of Section stored in the current instance.
@@ -220,6 +262,8 @@ func (f *File) ChildSections(name string) []*Section {
 
 // SectionStrings returns list of section names.
 func (f *File) SectionStrings() []string {
+	f.rlock()
+	defer f.runlock()
 	list := make([]string, len(f.sectionList))
 	copy(list, f.sectionList)
 	return list
@@ -310,33 +354,40 @@ func (f *File) reload(s dataSource) error {
 // same values, so pointers to them see the new contents. On error the file
 // is unchanged.
 func (f *File) Reload() error {
+	f.rlock()
+	sources := f.dataSources
+	f.runlock()
 	next := &File{options: f.options, sections: make(map[string][]*Section)}
-	if err := next.load(f.dataSources); err != nil {
+	if err := next.load(sources); err != nil {
 		return err
 	}
 
-	if f.BlockMode {
-		f.lock.Lock()
-		defer f.lock.Unlock()
-	}
+	f.wlock()
+	defer f.wunlock()
 	for name, secs := range next.sections {
 		for i, sec := range secs {
 			if old := f.sections[name]; i < len(old) {
-				// Keep the section and keys callers may hold.
+				// Keep the section and keys callers may hold. Their s and
+				// f stay, as readers use them to find the lock.
 				o := old[i]
 				for kname, k := range sec.keys {
 					if ok := o.keys[kname]; ok != nil {
-						*ok = *k
+						ok.Comment, ok.value, ok.hashValue = k.Comment, k.value, k.hashValue
+						ok.isAutoIncrement, ok.isBooleanType = k.isAutoIncrement, k.isBooleanType
+						ok.shadows, ok.nestedValues = k.shadows, k.nestedValues
 						sec.keys[kname] = ok
 					}
 				}
 				o.Comment, o.keys, o.keyList = sec.Comment, sec.keys, sec.keyList
 				o.isRawSection, o.rawBody = sec.isRawSection, sec.rawBody
 				secs[i], sec = o, o
+			} else {
+				sec.f = f
 			}
-			sec.f = f
 			for _, k := range sec.keys {
-				k.s = sec
+				if k.s != sec {
+					k.s = sec
+				}
 				for _, s := range k.shadows {
 					s.s = sec
 				}
@@ -377,15 +428,20 @@ func (f *File) Append(source any, others ...any) error {
 		}
 		sources = append(sources, ds)
 	}
+	f.wlock()
 	f.dataSources = append(f.dataSources, sources...)
 	if f.options.ShortCircuit {
+		f.wunlock()
 		// Only the first source that loads counts.
 		return f.Reload()
 	}
+	defer f.wunlock()
 	return f.load(sources)
 }
 
 func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
+	f.rlock()
+	defer f.runlock()
 	o := newWriteOptions(opts)
 	indent, lineBreak := o.indent, o.lineBreak
 	equalSign := o.formatLeft + o.keyValueDelimiter + o.formatRight
@@ -583,7 +639,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		}
 
 		for _, kname := range sec.keyList {
-			key := sec.Key(kname)
+			key := sec.keys[kname]
 			name, form := kname, kname
 			switch {
 			case key.isAutoIncrement:

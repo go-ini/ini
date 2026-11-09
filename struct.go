@@ -192,6 +192,15 @@ func formatValue(v reflect.Value) string {
 	return ""
 }
 
+// defaultComment sets *c to comment if it is empty, under the file's lock.
+func (f *File) defaultComment(c *string, comment string) {
+	f.wlock()
+	defer f.wunlock()
+	if *c == "" {
+		*c = comment
+	}
+}
+
 // tooDeep reports whether path, the struct types being mapped or reflected
 // from the outermost one, already holds t twice. Section names are not
 // nested, so a recursive struct type would use the same sections forever: it
@@ -215,7 +224,21 @@ func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowSh
 
 	var strs []string
 	if allowShadow {
-		strs = key.StringsWithShadows(delim)
+		// Each value is split as Key.Strings splits one, so that escaped
+		// elements read back as Marshal wrote them. An empty value, kept
+		// with KeepEmptyShadowValues, is an empty element, unless it is the
+		// only one: an empty slice is written as one empty value.
+		vals := key.ValueWithShadows()
+		if len(vals) == 1 && vals[0] == "" {
+			vals = nil
+		}
+		for _, v := range vals {
+			if v == "" {
+				strs = append(strs, "")
+				continue
+			}
+			strs = append(strs, splitList(key.transformValue(v), delim)...)
+		}
 	} else {
 		strs = key.Strings(delim)
 	}
@@ -527,20 +550,20 @@ func reflectSliceWithProperType(key *Key, field reflect.Value, delim string, all
 		vals[i] = formatValue(field.Index(i))
 	}
 
+	for i := range vals {
+		vals[i] = escapeSliceElem(vals[i], delim)
+	}
 	if allowShadow {
 		keyWithShadows := newKey(key.s, key.name, vals[0])
-		keyWithShadows.Comment = key.Comment
 		for _, val := range vals[1:] {
 			if err := keyWithShadows.AddShadow(val); err != nil {
 				return err
 			}
 		}
-		*key = *keyWithShadows
+		key.s.f.wlock()
+		key.value, key.hashValue, key.shadows = keyWithShadows.value, keyWithShadows.hashValue, keyWithShadows.shadows
+		key.s.f.wunlock()
 		return nil
-	}
-
-	for i := range vals {
-		vals[i] = escapeSliceElem(vals[i], delim)
 	}
 	key.SetValue(strings.Join(vals, delim))
 	return nil
@@ -688,9 +711,7 @@ func (s *Section) reflectFrom(val reflect.Value, path []reflect.Type) error {
 			}
 
 			// Add comment from comment tag
-			if len(sec.Comment) == 0 {
-				sec.Comment = tpField.Tag.Get("comment")
-			}
+			s.f.defaultComment(&sec.Comment, tpField.Tag.Get("comment"))
 
 			if err = sec.reflectFrom(field, path); err != nil {
 				return fmt.Errorf("reflect from field %q: %v", fieldName, err)
@@ -725,9 +746,7 @@ func (s *Section) reflectFrom(val reflect.Value, path []reflect.Type) error {
 				}
 
 				// Add comment from comment tag
-				if len(sec.Comment) == 0 {
-					sec.Comment = tpField.Tag.Get("comment")
-				}
+				s.f.defaultComment(&sec.Comment, tpField.Tag.Get("comment"))
 
 				if err := sec.reflectFrom(elem, path); err != nil {
 					return fmt.Errorf("reflect from field %q: %v", fieldName, err)
@@ -743,9 +762,7 @@ func (s *Section) reflectFrom(val reflect.Value, path []reflect.Type) error {
 		}
 
 		// Add comment from comment tag
-		if len(key.Comment) == 0 {
-			key.Comment = tpField.Tag.Get("comment")
-		}
+		s.f.defaultComment(&key.Comment, tpField.Tag.Get("comment"))
 
 		delim := parseDelim(tpField.Tag.Get("delim"))
 		if err = reflectWithProperType(tpField.Type, key, field, delim, allowShadow); err != nil {
@@ -827,9 +844,40 @@ func ReflectFrom(cfg *File, v interface{}) error {
 }
 
 // Unmarshal parses INI data with opts and maps it to the struct v points to,
-// as File.MapTo does.
+// as File.MapTo does. It reads what Marshal writes: when v has allowshadow
+// fields it loads with AllowShadows, AllowDuplicateShadowValues and
+// KeepEmptyShadowValues, and when it has nonunique fields with
+// AllowNonUniqueSections, as those tags need.
 func Unmarshal(data []byte, v any, opts ...LoadOption) error {
+	if v != nil {
+		shadows, nonUnique := tagOptions(reflect.TypeOf(v), map[reflect.Type]bool{})
+		if shadows {
+			opts = append([]LoadOption{AllowShadows(), AllowDuplicateShadowValues(), KeepEmptyShadowValues()}, opts...)
+		}
+		if nonUnique {
+			opts = append([]LoadOption{AllowNonUniqueSections()}, opts...)
+		}
+	}
 	return MapTo(v, data, opts...)
+}
+
+// tagOptions reports whether t, or a struct type it holds, has allowshadow
+// or nonunique fields.
+func tagOptions(t reflect.Type, seen map[reflect.Type]bool) (shadows, nonUnique bool) {
+	for t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice {
+		t = t.Elem()
+	}
+	if !isStructType(t) || seen[t] {
+		return false, false
+	}
+	seen[t] = true
+	for i := 0; i < t.NumField(); i++ {
+		_, _, allowShadow, allowNonUnique, _ := parseTagOptions(t.Field(i).Tag.Get("ini"))
+		s, n := tagOptions(t.Field(i).Type, seen)
+		shadows = shadows || allowShadow || s
+		nonUnique = nonUnique || allowNonUnique || n
+	}
+	return shadows, nonUnique
 }
 
 // Marshal returns the INI encoding of v, a struct or a pointer to one, as
@@ -842,7 +890,7 @@ func Marshal(v any, opts ...WriteOption) ([]byte, error) {
 	}
 	// Shadows and non-unique sections let allowshadow and nonunique fields
 	// write all their values.
-	f := Empty(AllowShadows(), AllowNonUniqueSections())
+	f := Empty(AllowShadows(), AllowDuplicateShadowValues(), AllowNonUniqueSections())
 	if err := f.ReflectFrom(v); err != nil {
 		return nil, err
 	}

@@ -1308,3 +1308,17 @@ func TestMapTo_EmbeddedPointerKeepsValues(t *testing.T) {
 	require.NoError(t, MapTo(&nilBase, []byte("X = 1\n")))
 	assert.NotNil(t, nilBase.Base, "a nil embedded pointer is still allocated")
 }
+
+func TestMarshalUnmarshal_AllowShadowElements(t *testing.T) {
+	type cfg struct {
+		Sh []string `ini:"sh,,allowshadow"`
+		N  []int    `ini:"n,,allowshadow"`
+	}
+	in := cfg{Sh: []string{"a", "a", "b,c", "", `d\`}, N: []int{1, 1, 2}}
+	data, err := Marshal(in)
+	require.NoError(t, err)
+
+	var out cfg
+	require.NoError(t, Unmarshal(data, &out))
+	assert.Equal(t, in, out, "written: %q", data)
+}

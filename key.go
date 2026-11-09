@@ -83,6 +83,8 @@ func (k *Key) AddShadow(val string) error {
 	if !k.s.f.options.AllowShadows {
 		return errors.New("shadow key is not allowed")
 	}
+	k.s.f.wlock()
+	defer k.s.f.wunlock()
 	return k.addShadow(val)
 }
 
@@ -100,6 +102,8 @@ func (k *Key) AddNestedValue(val string) error {
 	if !k.s.f.options.AllowNestedValues {
 		return errors.New("nested value is not allowed")
 	}
+	k.s.f.wlock()
+	defer k.s.f.wunlock()
 	return k.addNestedValue(val)
 }
 
@@ -113,13 +117,22 @@ func (k *Key) Name() string {
 
 // Value returns raw value of key for performance purpose.
 func (k *Key) Value() string {
-	return k.value
+	f := k.s.f
+	if !f.BlockMode {
+		return k.value
+	}
+	f.lock.RLock()
+	v := k.value
+	f.lock.RUnlock()
+	return v
 }
 
 // ValueWithShadows returns raw values of key and its shadows if any. Empty
 // values are left out, unless the file was loaded with
 // KeepEmptyShadowValues.
 func (k *Key) ValueWithShadows() []string {
+	k.s.f.rlock()
+	defer k.s.f.runlock()
 	keepEmpty := k.s.f.options.KeepEmptyShadowValues
 	vals := make([]string, 0, len(k.shadows)+1)
 	if keepEmpty || k.value != "" {
@@ -136,12 +149,16 @@ func (k *Key) ValueWithShadows() []string {
 // IsBooleanType reports whether the key was read as a boolean key, a line
 // without a delimiter loaded with AllowBooleanKeys.
 func (k *Key) IsBooleanType() bool {
+	k.s.f.rlock()
+	defer k.s.f.runlock()
 	return k.isBooleanType
 }
 
 // NestedValues returns nested values stored in the key.
 // It is possible returned value is nil if no nested values stored in the key.
 func (k *Key) NestedValues() []string {
+	k.s.f.rlock()
+	defer k.s.f.runlock()
 	return k.nestedValues
 }
 
@@ -193,7 +210,7 @@ func (k *Key) expand(val string, depth int, e *expansion) string {
 		}
 
 		e.substitutions++
-		sub := nk.expand(nk.value, depth+1, e)
+		sub := nk.expand(nk.Value(), depth+1, e)
 		n := len(val) + strings.Count(val, vr)*(len(sub)-len(vr))
 		if e.bytes+n > maxExpandedLen {
 			break
@@ -206,7 +223,15 @@ func (k *Key) expand(val string, depth int, e *expansion) string {
 
 // String returns string representation of value.
 func (k *Key) String() string {
-	return k.transformValue(k.value)
+	return k.transformValue(k.Value())
+}
+
+// setDefault sets the value a Must method falls back to. Unlike SetValue,
+// it leaves KeysHash as it was, as in v1.
+func (k *Key) setDefault(v string) {
+	k.s.f.wlock()
+	defer k.s.f.wunlock()
+	k.value = v
 }
 
 // Validate accepts a validate function which can
@@ -281,7 +306,7 @@ func (k *Key) Time() (time.Time, error) {
 func (k *Key) MustString(defaultVal string) string {
 	val := k.String()
 	if len(val) == 0 {
-		k.value = defaultVal
+		k.setDefault(defaultVal)
 		return defaultVal
 	}
 	return val
@@ -292,7 +317,7 @@ func (k *Key) MustString(defaultVal string) string {
 func (k *Key) MustBool(defaultVal ...bool) bool {
 	val, err := k.Bool()
 	if len(defaultVal) > 0 && err != nil {
-		k.value = strconv.FormatBool(defaultVal[0])
+		k.setDefault(strconv.FormatBool(defaultVal[0]))
 		return defaultVal[0]
 	}
 	return val
@@ -303,7 +328,7 @@ func (k *Key) MustBool(defaultVal ...bool) bool {
 func (k *Key) MustFloat64(defaultVal ...float64) float64 {
 	val, err := k.Float64()
 	if len(defaultVal) > 0 && err != nil {
-		k.value = strconv.FormatFloat(defaultVal[0], 'f', -1, 64)
+		k.setDefault(strconv.FormatFloat(defaultVal[0], 'f', -1, 64))
 		return defaultVal[0]
 	}
 	return val
@@ -314,7 +339,7 @@ func (k *Key) MustFloat64(defaultVal ...float64) float64 {
 func (k *Key) MustInt(defaultVal ...int) int {
 	val, err := k.Int()
 	if len(defaultVal) > 0 && err != nil {
-		k.value = strconv.FormatInt(int64(defaultVal[0]), 10)
+		k.setDefault(strconv.FormatInt(int64(defaultVal[0]), 10))
 		return defaultVal[0]
 	}
 	return val
@@ -325,7 +350,7 @@ func (k *Key) MustInt(defaultVal ...int) int {
 func (k *Key) MustInt64(defaultVal ...int64) int64 {
 	val, err := k.Int64()
 	if len(defaultVal) > 0 && err != nil {
-		k.value = strconv.FormatInt(defaultVal[0], 10)
+		k.setDefault(strconv.FormatInt(defaultVal[0], 10))
 		return defaultVal[0]
 	}
 	return val
@@ -336,7 +361,7 @@ func (k *Key) MustInt64(defaultVal ...int64) int64 {
 func (k *Key) MustUint(defaultVal ...uint) uint {
 	val, err := k.Uint()
 	if len(defaultVal) > 0 && err != nil {
-		k.value = strconv.FormatUint(uint64(defaultVal[0]), 10)
+		k.setDefault(strconv.FormatUint(uint64(defaultVal[0]), 10))
 		return defaultVal[0]
 	}
 	return val
@@ -347,7 +372,7 @@ func (k *Key) MustUint(defaultVal ...uint) uint {
 func (k *Key) MustUint64(defaultVal ...uint64) uint64 {
 	val, err := k.Uint64()
 	if len(defaultVal) > 0 && err != nil {
-		k.value = strconv.FormatUint(defaultVal[0], 10)
+		k.setDefault(strconv.FormatUint(defaultVal[0], 10))
 		return defaultVal[0]
 	}
 	return val
@@ -358,7 +383,7 @@ func (k *Key) MustUint64(defaultVal ...uint64) uint64 {
 func (k *Key) MustDuration(defaultVal ...time.Duration) time.Duration {
 	val, err := k.Duration()
 	if len(defaultVal) > 0 && err != nil {
-		k.value = defaultVal[0].String()
+		k.setDefault(defaultVal[0].String())
 		return defaultVal[0]
 	}
 	return val
@@ -369,7 +394,7 @@ func (k *Key) MustDuration(defaultVal ...time.Duration) time.Duration {
 func (k *Key) MustTimeFormat(format string, defaultVal ...time.Time) time.Time {
 	val, err := k.TimeFormat(format)
 	if len(defaultVal) > 0 && err != nil {
-		k.value = defaultVal[0].Format(format)
+		k.setDefault(defaultVal[0].Format(format))
 		return defaultVal[0]
 	}
 	return val
@@ -519,7 +544,12 @@ func (k *Key) RangeTime(defaultVal, min, max time.Time) time.Time {
 
 // Strings returns list of string divided by given delimiter.
 func (k *Key) Strings(delim string) []string {
-	str := k.String()
+	return splitList(k.String(), delim)
+}
+
+// splitList splits str at delim into trimmed elements. A backslash escapes
+// delim and another backslash; before anything else it is kept.
+func splitList(str, delim string) []string {
 	if len(str) == 0 {
 		return []string{}
 	}
