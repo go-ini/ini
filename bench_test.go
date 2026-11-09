@@ -23,8 +23,11 @@ import (
 )
 
 func newTestFile(block bool) *File {
-	c, _ := Load([]byte(confData))
-	c.BlockMode = block
+	var opts []LoadOption
+	if !block {
+		opts = append(opts, NoLocking())
+	}
+	c, _ := Load([]byte(confData), opts...)
 	return c
 }
 

@@ -51,7 +51,7 @@ func TestFile_NewSection(t *testing.T) {
 	require.NotNil(t, sec)
 	assert.Equal(t, "author", sec.Name())
 
-	assert.Equal(t, []string{DefaultSection, "author"}, f.SectionStrings())
+	assert.Equal(t, []string{DefaultSection, "author"}, f.SectionNames())
 
 	t.Run("with duplicated name", func(t *testing.T) {
 		sec, err := f.NewSection("author")
@@ -59,7 +59,7 @@ func TestFile_NewSection(t *testing.T) {
 		require.NotNil(t, sec)
 
 		// Does nothing if section already exists
-		assert.Equal(t, []string{DefaultSection, "author"}, f.SectionStrings())
+		assert.Equal(t, []string{DefaultSection, "author"}, f.SectionNames())
 	})
 
 	t.Run("with empty string", func(t *testing.T) {
@@ -164,9 +164,9 @@ AllowedIPs = 192.168.2.4/32
 		require.NotNil(t, f)
 
 		_ = f.NewSections("Interface", "Peer", "Peer")
-		assert.Equal(t, []string{DefaultSection, "Interface", "Peer", "Peer"}, f.SectionStrings())
+		assert.Equal(t, []string{DefaultSection, "Interface", "Peer", "Peer"}, f.SectionNames())
 		f.DeleteSection("Peer")
-		assert.Equal(t, []string{DefaultSection, "Interface"}, f.SectionStrings())
+		assert.Equal(t, []string{DefaultSection, "Interface"}, f.SectionNames())
 	})
 }
 
@@ -180,7 +180,7 @@ func TestFile_NewRawSection(t *testing.T) {
 	require.NotNil(t, sec)
 	assert.Equal(t, "comments", sec.Name())
 
-	assert.Equal(t, []string{DefaultSection, "comments"}, f.SectionStrings())
+	assert.Equal(t, []string{DefaultSection, "comments"}, f.SectionNames())
 	assert.Equal(t, `1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000`, f.Section("comments").Body())
 
@@ -188,7 +188,7 @@ func TestFile_NewRawSection(t *testing.T) {
 		sec, err := f.NewRawSection("comments", `1111111111111111111000000000000000001110000`)
 		require.NoError(t, err)
 		require.NotNil(t, sec)
-		assert.Equal(t, []string{DefaultSection, "comments"}, f.SectionStrings())
+		assert.Equal(t, []string{DefaultSection, "comments"}, f.SectionNames())
 
 		// Overwrite previous existed section
 		assert.Equal(t, `1111111111111111111000000000000000001110000`, f.Section("comments").Body())
@@ -205,13 +205,13 @@ func TestFile_NewSections(t *testing.T) {
 	require.NotNil(t, f)
 
 	assert.NoError(t, f.NewSections("package", "author"))
-	assert.Equal(t, []string{DefaultSection, "package", "author"}, f.SectionStrings())
+	assert.Equal(t, []string{DefaultSection, "package", "author"}, f.SectionNames())
 
 	t.Run("with duplicated name", func(t *testing.T) {
 		assert.NoError(t, f.NewSections("author", "features"))
 
 		// Ignore section already exists
-		assert.Equal(t, []string{DefaultSection, "package", "author", "features"}, f.SectionStrings())
+		assert.Equal(t, []string{DefaultSection, "package", "author", "features"}, f.SectionNames())
 	})
 
 	t.Run("with empty string", func(t *testing.T) {
@@ -270,7 +270,7 @@ func TestFile_Section(t *testing.T) {
 		f, err := Load([]byte(`
 [default]
 NAME = ini
-VERSION = v1`), Insensitive())
+VERSION = v1`), CaseInsensitive())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -285,7 +285,7 @@ VERSION = v1`), Insensitive())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
-		sectionNames := f.SectionStrings()
+		sectionNames := f.SectionNames()
 		sort.Strings(sectionNames)
 		assert.Equal(t, []string{DefaultSection, "RANDOM"}, sectionNames)
 
@@ -342,7 +342,7 @@ func TestFile_SectionStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
-	assert.Equal(t, []string{DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"}, f.SectionStrings())
+	assert.Equal(t, []string{DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"}, f.SectionNames())
 }
 
 func TestFile_DeleteSection(t *testing.T) {
@@ -353,7 +353,7 @@ func TestFile_DeleteSection(t *testing.T) {
 		_ = f.NewSections("author", "package", "features")
 		f.DeleteSection("features")
 		f.DeleteSection("")
-		assert.Equal(t, []string{"author", "package"}, f.SectionStrings())
+		assert.Equal(t, []string{"author", "package"}, f.SectionNames())
 	})
 
 	t.Run("delete default section", func(t *testing.T) {
@@ -363,7 +363,7 @@ func TestFile_DeleteSection(t *testing.T) {
 		f.Section("").Key("foo").SetValue("bar")
 		f.Section("section1").Key("key1").SetValue("value1")
 		f.DeleteSection("")
-		assert.Equal(t, []string{"section1"}, f.SectionStrings())
+		assert.Equal(t, []string{"section1"}, f.SectionNames())
 
 		var buf bytes.Buffer
 		_, err := f.WriteTo(&buf)
@@ -374,14 +374,14 @@ key1 = value1
 `, buf.String())
 	})
 
-	t.Run("delete a section with InsensitiveSections", func(t *testing.T) {
-		f := Empty(InsensitiveSections())
+	t.Run("delete a section with CaseInsensitiveSections", func(t *testing.T) {
+		f := Empty(CaseInsensitiveSections())
 		require.NotNil(t, f)
 
 		_ = f.NewSections("author", "package", "features")
 		f.DeleteSection("FEATURES")
 		f.DeleteSection("")
-		assert.Equal(t, []string{"author", "package"}, f.SectionStrings())
+		assert.Equal(t, []string{"author", "package"}, f.SectionNames())
 	})
 }
 
@@ -511,7 +511,7 @@ Coordinates -> 192.168,10.11
 Flags       -> true,false
 Note        -> Hello world!
 `)
-	_, err = f.Write(&actual, KeyValueDelimiterOnWrite("->"))
+	_, err = f.Write(&actual, WriteDelimiter("->"))
 	require.NoError(t, err)
 
 	assert.Equal(t, expected, actual.Bytes())
@@ -528,10 +528,10 @@ v = 3
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
-	assert.Equal(t, []string{"1", "2", "3"}, f.Section("slice").Key("v").ValueWithShadows())
+	assert.Equal(t, []string{"1", "2", "3"}, f.Section("slice").Key("v").Values())
 
 	require.NoError(t, f.Reload())
-	assert.Equal(t, []string{"1", "2", "3"}, f.Section("slice").Key("v").ValueWithShadows())
+	assert.Equal(t, []string{"1", "2", "3"}, f.Section("slice").Key("v").Values())
 }
 
 func TestFile_Reload(t *testing.T) {
@@ -549,7 +549,7 @@ func TestFile_Reload(t *testing.T) {
 		require.NoError(t, f.Reload())
 		assert.False(t, f.Section("app").HasKey("old"))
 		assert.False(t, f.HasSection("gone"))
-		assert.Equal(t, map[string]string{"keep": "3"}, f.Section("app").KeysHash())
+		assert.Equal(t, map[string]string{"keep": "3"}, f.Section("app").KeyValues())
 		// Pointers taken before the reload see the new contents.
 		assert.Equal(t, "3", key.String())
 		assert.Same(t, sec, f.Section("app"))
@@ -563,7 +563,7 @@ func TestFile_Reload(t *testing.T) {
 
 		write("[log]\nlevel = debug\n")
 		require.NoError(t, f.Reload())
-		assert.Equal(t, []string{"debug"}, f.Section("log").Key("level").ValueWithShadows())
+		assert.Equal(t, []string{"debug"}, f.Section("log").Key("level").Values())
 	})
 
 	t.Run("error leaves the file unchanged", func(t *testing.T) {
@@ -619,7 +619,7 @@ func TestFile_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("default section after deleting it, case-insensitive", func(t *testing.T) {
-		f, err := Load([]byte("a = 1\n"), Insensitive(), AllowNonUniqueSections())
+		f, err := Load([]byte("a = 1\n"), CaseInsensitive(), AllowNonUniqueSections())
 		require.NoError(t, err)
 		f.DeleteSection("")
 		f.Section("").Key("k").SetValue("v")
@@ -628,8 +628,8 @@ func TestFile_EdgeCases(t *testing.T) {
 	})
 
 	// https://github.com/go-ini/ini/issues/340
-	t.Run("DeleteKey with Insensitive", func(t *testing.T) {
-		f, err := Load([]byte("TestKey = 1\n"), Insensitive())
+	t.Run("DeleteKey with CaseInsensitive", func(t *testing.T) {
+		f, err := Load([]byte("TestKey = 1\n"), CaseInsensitive())
 		require.NoError(t, err)
 		f.Section("").DeleteKey("TestKey")
 		assert.False(t, f.Section("").HasKey("TestKey"))
@@ -653,12 +653,12 @@ func TestFile_EdgeCases(t *testing.T) {
 	})
 }
 
-// With BlockMode, the default, a File can be read while other goroutines
+// Unless loaded with NoLocking, a File can be read while other goroutines
 // change it. Run with -race.
 func TestFile_Concurrency(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "app.ini")
 	require.NoError(t, os.WriteFile(path, []byte("name = %(base)s/x\nbase = /srv\n[s]\nk = a\nk = b\n[s.child]\nc = 1\n[raw]\nbody\n"), 0o600))
-	f, err := Load(path, AllowShadows(), UnparseableSections("raw"))
+	f, err := Load(path, AllowShadows(), RawSections("raw"))
 	require.NoError(t, err)
 
 	type cfg struct {
@@ -689,21 +689,21 @@ func TestFile_Concurrency(t *testing.T) {
 	run(func(int) {
 		for _, sec := range f.Sections() {
 			_ = sec.Body()
-			_ = sec.KeyStrings()
-			_ = sec.KeysHash()
+			_ = sec.KeyNames()
+			_ = sec.KeyValues()
 			_ = sec.ChildSections()
 			for _, k := range sec.Keys() {
 				_ = k.String()
 				_ = k.Value()
-				_ = k.ValueWithShadows()
-				_ = k.IsBooleanType()
+				_ = k.Values()
+				_ = k.IsBoolean()
 				_ = k.NestedValues()
 			}
 		}
 	})
 	run(func(int) {
 		_, _ = f.Write(io.Discard)
-		_ = f.SectionStrings()
+		_ = f.SectionNames()
 		var c cfg
 		_ = f.MapTo(&c)
 	})

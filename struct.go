@@ -30,8 +30,8 @@ type NameMapper func(string) string
 
 // Built-in name getters.
 var (
-	// SnackCase converts to format SNACK_CASE.
-	SnackCase NameMapper = func(raw string) string {
+	// SnakeCase converts to format SNAKE_CASE.
+	SnakeCase NameMapper = func(raw string) string {
 		newstr := make([]rune, 0, len(raw))
 		for i, chr := range raw {
 			if isUpper := 'A' <= chr && chr <= 'Z'; isUpper {
@@ -215,8 +215,8 @@ func tooDeep(path []reflect.Type, t reflect.Type) bool {
 	return n >= 2
 }
 
-// setSliceWithProperType sets proper values to slice based on its type.
-func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowShadow, isStrict bool) error {
+// decodeSlice sets proper values to slice based on its type.
+func decodeSlice(key *Key, field reflect.Value, delim string, allowShadow, isStrict bool) error {
 	elemType := field.Type().Elem()
 	if !isSliceElemType(elemType) {
 		return fmt.Errorf("unsupported type '[]%s'", elemType)
@@ -228,7 +228,7 @@ func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowSh
 		// elements read back as Marshal wrote them. An empty value, kept
 		// with KeepEmptyShadowValues, is an empty element, unless it is the
 		// only one: an empty slice is written as one empty value.
-		vals := key.ValueWithShadows()
+		vals := key.Values()
 		if len(vals) == 1 && vals[0] == "" {
 			vals = nil
 		}
@@ -237,7 +237,7 @@ func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowSh
 				strs = append(strs, "")
 				continue
 			}
-			strs = append(strs, splitList(key.transformValue(v), delim)...)
+			strs = append(strs, splitList(key.expandValue(v), delim)...)
 		}
 	} else {
 		strs = key.Strings(delim)
@@ -271,12 +271,12 @@ func wrapStrictError(err error, isStrict bool) error {
 	return nil
 }
 
-// setWithProperType sets proper value to field based on its type,
+// decodeValue sets proper value to field based on its type,
 // but it does not return error for failing parsing,
 // because we want to use default value that is already assigned to struct.
-func setWithProperType(t reflect.Type, key *Key, field reflect.Value, delim string, allowShadow, isStrict bool) error {
+func decodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, allowShadow, isStrict bool) error {
 	if t.Kind() == reflect.Slice {
-		return setSliceWithProperType(key, field, delim, allowShadow, isStrict)
+		return decodeSlice(key, field, delim, allowShadow, isStrict)
 	}
 
 	vt := t
@@ -318,10 +318,10 @@ func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bo
 	return rawName, omitEmpty, allowShadow, allowNonUnique, extends
 }
 
-// mapToField maps the given value to the matching field of the given section.
+// decodeStruct maps the given value to the matching field of the given section.
 // The sectionIndex is the index (if non unique sections are enabled) to which the value should be added.
 // The path holds the struct types being mapped, see tooDeep.
-func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int, sectionName string, path []reflect.Type) error {
+func (s *Section) decodeStruct(val reflect.Value, isStrict bool, sectionIndex int, sectionName string, path []reflect.Type) error {
 	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
@@ -365,7 +365,7 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 					fieldSection = secs[sectionIndex]
 				}
 			}
-			if err := fieldSection.mapToField(field, isStrict, sectionIndex, sectionName, path); err != nil {
+			if err := fieldSection.decodeStruct(field, isStrict, sectionIndex, sectionName, path); err != nil {
 				return fmt.Errorf("map to field %q: %v", fieldName, err)
 			}
 			continue
@@ -382,7 +382,7 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 				if isStructPtr && field.IsNil() {
 					field.Set(reflect.New(structType))
 				}
-				if err = secs[sectionIndex].mapToField(field, isStrict, sectionIndex, fieldName, path); err != nil {
+				if err = secs[sectionIndex].decodeStruct(field, isStrict, sectionIndex, fieldName, path); err != nil {
 					return fmt.Errorf("map to field %q: %v", fieldName, err)
 				}
 				continue
@@ -391,7 +391,7 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 
 		// Map non-unique sections
 		if allowNonUnique && tpField.Type.Kind() == reflect.Slice {
-			newField, err := s.mapToSlice(fieldName, field, isStrict, path)
+			newField, err := s.decodeSections(fieldName, field, isStrict, path)
 			if err != nil {
 				return fmt.Errorf("map to slice %q: %v", fieldName, err)
 			}
@@ -402,7 +402,7 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 
 		if key, err := s.GetKey(fieldName); err == nil {
 			delim := parseDelim(tpField.Tag.Get("delim"))
-			if err = setWithProperType(tpField.Type, key, field, delim, allowShadow, isStrict); err != nil {
+			if err = decodeValue(tpField.Type, key, field, delim, allowShadow, isStrict); err != nil {
 				return fmt.Errorf("set field %q: %v", fieldName, err)
 			}
 		}
@@ -410,9 +410,9 @@ func (s *Section) mapToField(val reflect.Value, isStrict bool, sectionIndex int,
 	return nil
 }
 
-// mapToSlice maps all sections with the same name and returns the new value.
+// decodeSections maps all sections with the same name and returns the new value.
 // The type of the Value must be a slice of structs or of pointers to structs.
-func (s *Section) mapToSlice(secName string, val reflect.Value, isStrict bool, path []reflect.Type) (reflect.Value, error) {
+func (s *Section) decodeSections(secName string, val reflect.Value, isStrict bool, path []reflect.Type) (reflect.Value, error) {
 	elemType := val.Type().Elem()
 	isPtr := elemType.Kind() == reflect.Pointer
 	structType := elemType
@@ -431,7 +431,7 @@ func (s *Section) mapToSlice(secName string, val reflect.Value, isStrict bool, p
 
 	for i, sec := range secs {
 		elem := reflect.New(structType)
-		if err = sec.mapToField(elem, isStrict, i, sec.name, path); err != nil {
+		if err = sec.decodeStruct(elem, isStrict, i, sec.name, path); err != nil {
 			return reflect.Value{}, fmt.Errorf("map to field from section %q: %v", secName, err)
 		}
 		if !isPtr {
@@ -443,7 +443,7 @@ func (s *Section) mapToSlice(secName string, val reflect.Value, isStrict bool, p
 }
 
 // mapTo maps a section to object v.
-func (s *Section) mapTo(v interface{}, isStrict bool) error {
+func (s *Section) mapTo(v any, isStrict bool) error {
 	val := reflect.ValueOf(v)
 	if val.Kind() != reflect.Pointer || val.IsNil() {
 		return errors.New("not a pointer to a struct")
@@ -466,7 +466,7 @@ func (s *Section) mapTo(v interface{}, isStrict bool) error {
 	}
 
 	if typ.Kind() == reflect.Slice {
-		newField, err := s.mapToSlice(s.name, val, isStrict, nil)
+		newField, err := s.decodeSections(s.name, val, isStrict, nil)
 		if err != nil {
 			return err
 		}
@@ -475,68 +475,54 @@ func (s *Section) mapTo(v interface{}, isStrict bool) error {
 		return nil
 	}
 
-	return s.mapToField(val, isStrict, 0, s.name, nil)
+	return s.decodeStruct(val, isStrict, 0, s.name, nil)
 }
 
 // MapTo maps section to given struct.
-func (s *Section) MapTo(v interface{}) error {
+func (s *Section) MapTo(v any) error {
 	return s.mapTo(v, false)
 }
 
 // StrictMapTo maps section to given struct in strict mode,
 // which returns all possible error including value parsing error.
-func (s *Section) StrictMapTo(v interface{}) error {
+func (s *Section) StrictMapTo(v any) error {
 	return s.mapTo(v, true)
 }
 
 // MapTo maps file to given struct.
-func (f *File) MapTo(v interface{}) error {
+func (f *File) MapTo(v any) error {
 	return f.Section("").MapTo(v)
 }
 
 // StrictMapTo maps file to given struct in strict mode,
 // which returns all possible error including value parsing error.
-func (f *File) StrictMapTo(v interface{}) error {
+func (f *File) StrictMapTo(v any) error {
 	return f.Section("").StrictMapTo(v)
 }
 
-// MapToWithMapper loads a data source with opts and maps it to the given
-// struct with the name mapper.
-func MapToWithMapper(v any, mapper NameMapper, source any, opts ...LoadOption) error {
-	cfg, err := Load(source, opts...)
-	if err != nil {
-		return err
-	}
-	cfg.NameMapper = mapper
-	return cfg.MapTo(v)
-}
-
-// StrictMapToWithMapper loads a data source with opts and maps it to the
-// given struct with the name mapper in strict mode, which returns all
-// possible error including value parsing error.
-func StrictMapToWithMapper(v any, mapper NameMapper, source any, opts ...LoadOption) error {
-	cfg, err := Load(source, opts...)
-	if err != nil {
-		return err
-	}
-	cfg.NameMapper = mapper
-	return cfg.StrictMapTo(v)
-}
-
 // MapTo loads a data source with opts and maps it to the given struct.
+// NameMapping sets how field names map to section and key names.
 func MapTo(v, source any, opts ...LoadOption) error {
-	return MapToWithMapper(v, nil, source, opts...)
+	cfg, err := Load(source, opts...)
+	if err != nil {
+		return err
+	}
+	return cfg.MapTo(v)
 }
 
 // StrictMapTo loads a data source with opts and maps it to the given struct
 // in strict mode, which returns all possible error including value parsing
 // error.
 func StrictMapTo(v, source any, opts ...LoadOption) error {
-	return StrictMapToWithMapper(v, nil, source, opts...)
+	cfg, err := Load(source, opts...)
+	if err != nil {
+		return err
+	}
+	return cfg.StrictMapTo(v)
 }
 
-// reflectSliceWithProperType does the opposite thing as setSliceWithProperType.
-func reflectSliceWithProperType(key *Key, field reflect.Value, delim string, allowShadow bool) error {
+// encodeSlice does the opposite thing as decodeSlice.
+func encodeSlice(key *Key, field reflect.Value, delim string, allowShadow bool) error {
 	if field.Len() == 0 {
 		return nil
 	}
@@ -593,14 +579,14 @@ func escapeSliceElem(s, delim string) string {
 	return b.String()
 }
 
-// reflectWithProperType does the opposite thing as setWithProperType.
-func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim string, allowShadow bool) error {
+// encodeValue does the opposite thing as decodeValue.
+func encodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, allowShadow bool) error {
 	switch {
 	case t.Kind() == reflect.Slice:
-		return reflectSliceWithProperType(key, field, delim, allowShadow)
+		return encodeSlice(key, field, delim, allowShadow)
 	case t.Kind() == reflect.Pointer:
 		if !field.IsNil() {
-			return reflectWithProperType(t.Elem(), key, field.Elem(), delim, allowShadow)
+			return encodeValue(t.Elem(), key, field.Elem(), delim, allowShadow)
 		}
 	case isValueType(t):
 		key.SetValue(formatValue(field))
@@ -638,9 +624,9 @@ type StructReflector interface {
 	ReflectINIStruct(*File) error
 }
 
-// reflectFrom reflects the section from val. The path holds the struct types
+// encodeStruct reflects the section from val. The path holds the struct types
 // being reflected from, see tooDeep.
-func (s *Section) reflectFrom(val reflect.Value, path []reflect.Type) error {
+func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
@@ -693,7 +679,7 @@ func (s *Section) reflectFrom(val reflect.Value, path []reflect.Type) error {
 			if tooDeep(path, structType) {
 				continue
 			}
-			if err := s.reflectFrom(field, path); err != nil {
+			if err := s.encodeStruct(field, path); err != nil {
 				return fmt.Errorf("reflect from field %q: %v", fieldName, err)
 			}
 			continue
@@ -713,7 +699,7 @@ func (s *Section) reflectFrom(val reflect.Value, path []reflect.Type) error {
 			// Add comment from comment tag
 			s.f.defaultComment(&sec.Comment, tpField.Tag.Get("comment"))
 
-			if err = sec.reflectFrom(field, path); err != nil {
+			if err = sec.encodeStruct(field, path); err != nil {
 				return fmt.Errorf("reflect from field %q: %v", fieldName, err)
 			}
 			continue
@@ -748,7 +734,7 @@ func (s *Section) reflectFrom(val reflect.Value, path []reflect.Type) error {
 				// Add comment from comment tag
 				s.f.defaultComment(&sec.Comment, tpField.Tag.Get("comment"))
 
-				if err := sec.reflectFrom(elem, path); err != nil {
+				if err := sec.encodeStruct(elem, path); err != nil {
 					return fmt.Errorf("reflect from field %q: %v", fieldName, err)
 				}
 			}
@@ -765,7 +751,7 @@ func (s *Section) reflectFrom(val reflect.Value, path []reflect.Type) error {
 		s.f.defaultComment(&key.Comment, tpField.Tag.Get("comment"))
 
 		delim := parseDelim(tpField.Tag.Get("delim"))
-		if err = reflectWithProperType(tpField.Type, key, field, delim, allowShadow); err != nil {
+		if err = encodeValue(tpField.Type, key, field, delim, allowShadow); err != nil {
 			return fmt.Errorf("reflect field %q: %v", fieldName, err)
 		}
 
@@ -774,7 +760,7 @@ func (s *Section) reflectFrom(val reflect.Value, path []reflect.Type) error {
 }
 
 // ReflectFrom reflects section from given struct. It overwrites existing ones.
-func (s *Section) ReflectFrom(v interface{}) error {
+func (s *Section) ReflectFrom(v any) error {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
 	if typ == nil || (typ.Kind() == reflect.Pointer && val.IsNil()) {
@@ -798,7 +784,7 @@ func (s *Section) ReflectFrom(v interface{}) error {
 			if err != nil {
 				return err
 			}
-			return sec.reflectFrom(val.Elem(), nil)
+			return sec.encodeStruct(val.Elem(), nil)
 		}
 
 		for i := 0; i < val.Len(); i++ {
@@ -812,7 +798,7 @@ func (s *Section) ReflectFrom(v interface{}) error {
 				return err
 			}
 
-			err = sec.reflectFrom(elem, nil)
+			err = sec.encodeStruct(elem, nil)
 			if err != nil {
 				return fmt.Errorf("reflect from %dth field: %v", i, err)
 			}
@@ -824,23 +810,12 @@ func (s *Section) ReflectFrom(v interface{}) error {
 	if typ.Kind() != reflect.Pointer || typ.Elem().Kind() != reflect.Struct {
 		return errors.New("not a pointer to a struct")
 	}
-	return s.reflectFrom(val.Elem(), nil)
+	return s.encodeStruct(val.Elem(), nil)
 }
 
 // ReflectFrom reflects file from given struct.
-func (f *File) ReflectFrom(v interface{}) error {
+func (f *File) ReflectFrom(v any) error {
 	return f.Section("").ReflectFrom(v)
-}
-
-// ReflectFromWithMapper reflects data sources from given struct with name mapper.
-func ReflectFromWithMapper(cfg *File, v interface{}, mapper NameMapper) error {
-	cfg.NameMapper = mapper
-	return cfg.ReflectFrom(v)
-}
-
-// ReflectFrom reflects data sources from given struct.
-func ReflectFrom(cfg *File, v interface{}) error {
-	return ReflectFromWithMapper(cfg, v, nil)
 }
 
 // Unmarshal parses INI data with opts and maps it to the struct v points to,

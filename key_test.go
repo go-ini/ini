@@ -39,7 +39,7 @@ func TestKey_AddShadow(t *testing.T) {
 		require.NotNil(t, k)
 
 		assert.NoError(t, k.AddShadow("ini.v1"))
-		assert.Equal(t, []string{"ini", "ini.v1"}, k.ValueWithShadows())
+		assert.Equal(t, []string{"ini", "ini.v1"}, k.Values())
 
 		t.Run("add shadow to boolean key", func(t *testing.T) {
 			k, err := f.Section("").NewBooleanKey("published")
@@ -55,14 +55,14 @@ func TestKey_AddShadow(t *testing.T) {
 		t.Run("deduplicate an existing value", func(t *testing.T) {
 			k := f.Section("").Key("NAME")
 			assert.NoError(t, k.AddShadow("ini"))
-			assert.Equal(t, []string{"ini", "ini.v1"}, k.ValueWithShadows())
+			assert.Equal(t, []string{"ini", "ini.v1"}, k.Values())
 		})
 
 		t.Run("ignore empty shadow values", func(t *testing.T) {
 			k := f.Section("").Key("empty")
 			assert.NoError(t, k.AddShadow(""))
 			assert.NoError(t, k.AddShadow("ini"))
-			assert.Equal(t, []string{"ini"}, k.ValueWithShadows())
+			assert.Equal(t, []string{"ini"}, k.Values())
 		})
 	})
 
@@ -77,7 +77,7 @@ func TestKey_AddShadow(t *testing.T) {
 		assert.NoError(t, k.AddShadow("ini.v1"))
 		assert.NoError(t, k.AddShadow("ini"))
 		assert.NoError(t, k.AddShadow("ini"))
-		assert.Equal(t, []string{"ini", "ini.v1", "ini", "ini"}, k.ValueWithShadows())
+		assert.Equal(t, []string{"ini", "ini.v1", "ini", "ini"}, k.Values())
 	})
 
 	t.Run("shadow is not allowed", func(t *testing.T) {
@@ -90,70 +90,6 @@ func TestKey_AddShadow(t *testing.T) {
 
 		assert.Error(t, k.AddShadow("ini.v1"))
 	})
-}
-
-// Helpers for slice tests.
-func float64sEqual(t *testing.T, values []float64, expected ...float64) {
-	t.Helper()
-
-	assert.Len(t, values, len(expected))
-	for i, v := range expected {
-		assert.Equal(t, v, values[i])
-	}
-}
-
-func intsEqual(t *testing.T, values []int, expected ...int) {
-	t.Helper()
-
-	assert.Len(t, values, len(expected))
-	for i, v := range expected {
-		assert.Equal(t, v, values[i])
-	}
-}
-
-func int64sEqual(t *testing.T, values []int64, expected ...int64) {
-	t.Helper()
-
-	assert.Len(t, values, len(expected))
-	for i, v := range expected {
-		assert.Equal(t, v, values[i])
-	}
-}
-
-func uintsEqual(t *testing.T, values []uint, expected ...uint) {
-	t.Helper()
-
-	assert.Len(t, values, len(expected))
-	for i, v := range expected {
-		assert.Equal(t, v, values[i])
-	}
-}
-
-func uint64sEqual(t *testing.T, values []uint64, expected ...uint64) {
-	t.Helper()
-
-	assert.Len(t, values, len(expected))
-	for i, v := range expected {
-		assert.Equal(t, v, values[i])
-	}
-}
-
-func boolsEqual(t *testing.T, values []bool, expected ...bool) {
-	t.Helper()
-
-	assert.Len(t, values, len(expected))
-	for i, v := range expected {
-		assert.Equal(t, v, values[i])
-	}
-}
-
-func timesEqual(t *testing.T, values []time.Time, expected ...time.Time) {
-	t.Helper()
-
-	assert.Len(t, values, len(expected))
-	for i, v := range expected {
-		assert.Equal(t, v.String(), values[i].String())
-	}
 }
 
 func TestKey_Helpers(t *testing.T) {
@@ -323,51 +259,34 @@ func TestKey_Helpers(t *testing.T) {
 
 		t.Run("get value with candidates", func(t *testing.T) {
 			sec := f.Section("types")
-			assert.Equal(t, "str", sec.Key("STRING").In("", []string{"str", "arr", "types"}))
-			assert.Equal(t, float64(1.25), sec.Key("FLOAT64").InFloat64(0, []float64{1.25, 2.5, 3.75}))
-			assert.Equal(t, int(10), sec.Key("INT").InInt(0, []int{10, 20, 30}))
-			assert.Equal(t, int64(10), sec.Key("INT").InInt64(0, []int64{10, 20, 30}))
-			assert.Equal(t, uint(3), sec.Key("UINT").InUint(0, []uint{3, 6, 9}))
-			assert.Equal(t, uint64(3), sec.Key("UINT").InUint64(0, []uint64{3, 6, 9}))
+			assert.Equal(t, "str", In(sec.Key("STRING"), "", []string{"str", "arr", "types"}))
+			assert.Equal(t, 1.25, In(sec.Key("FLOAT64"), 0, []float64{1.25, 2.5, 3.75}))
+			assert.Equal(t, 10, In(sec.Key("INT"), 0, []int{10, 20, 30}))
+			assert.Equal(t, uint8(3), In(sec.Key("UINT"), 0, []uint8{3, 6, 9}))
+			assert.Equal(t, 165*time.Minute, In(sec.Key("DURATION"), 0, []time.Duration{time.Hour, 165 * time.Minute}))
+			ti := time.Date(2015, 1, 1, 20, 17, 5, 0, time.UTC)
+			assert.Equal(t, ti, In(sec.Key("TIME"), time.Time{}, []time.Time{ti}))
 
-			zt, err := time.Parse(time.RFC3339, "0001-01-01T01:00:00Z")
-			require.NoError(t, err)
-			ti, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
-			require.NoError(t, err)
-			assert.Equal(t, ti.String(), sec.Key("TIME").InTime(zt, []time.Time{ti, time.Now(), time.Now().Add(1 * time.Second)}).String())
-
-			t.Run("get value with candidates and default value", func(t *testing.T) {
-				assert.Equal(t, "str", sec.Key("STRING_404_2").In("str", []string{"str", "arr", "types"}))
-				assert.Equal(t, float64(1.25), sec.Key("FLOAT64_404_2").InFloat64(1.25, []float64{1.25, 2.5, 3.75}))
-				assert.Equal(t, int(10), sec.Key("INT_404_2").InInt(10, []int{10, 20, 30}))
-				assert.Equal(t, int64(10), sec.Key("INT64_404_2").InInt64(10, []int64{10, 20, 30}))
-				assert.Equal(t, uint(3), sec.Key("UINT_404_2").InUint(3, []uint{3, 6, 9}))
-				assert.Equal(t, uint64(3), sec.Key("UINT_404_2").InUint64(3, []uint64{3, 6, 9}))
-				assert.Equal(t, ti.String(), sec.Key("TIME_404_2").InTime(ti, []time.Time{time.Now(), time.Now(), time.Now().Add(1 * time.Second)}).String())
+			t.Run("default when not a candidate or not parsable", func(t *testing.T) {
+				assert.Equal(t, "x", In(sec.Key("STRING"), "x", []string{"arr"}))
+				assert.Equal(t, 7, In(sec.Key("INT"), 7, []int{20, 30}))
+				assert.Equal(t, 7, In(sec.Key("STRING"), 7, []int{7, 10}))
+				assert.Equal(t, int8(7), In(sec.Key("HEX_NUMBER"), 7, []int8{0}), "0x3000 overflows int8")
 			})
 		})
 
 		t.Run("get values in range", func(t *testing.T) {
 			sec := f.Section("types")
-			assert.Equal(t, float64(1.25), sec.Key("FLOAT64").RangeFloat64(0, 1, 2))
-			assert.Equal(t, int(10), sec.Key("INT").RangeInt(0, 10, 20))
-			assert.Equal(t, int64(10), sec.Key("INT").RangeInt64(0, 10, 20))
+			assert.Equal(t, 1.25, Range(sec.Key("FLOAT64"), 0.0, 1, 2))
+			assert.Equal(t, 10, Range(sec.Key("INT"), 0, 10, 20))
+			assert.Equal(t, uint16(0x3000), Range(sec.Key("HEX_NUMBER"), uint16(0), 0, 0xffff))
+			assert.Equal(t, 165*time.Minute, Range(sec.Key("DURATION"), 0, time.Hour, 3*time.Hour))
 
-			minT, err := time.Parse(time.RFC3339, "0001-01-01T01:00:00Z")
-			require.NoError(t, err)
-			midT, err := time.Parse(time.RFC3339, "2013-01-01T01:00:00Z")
-			require.NoError(t, err)
-			maxT, err := time.Parse(time.RFC3339, "9999-01-01T01:00:00Z")
-			require.NoError(t, err)
-			ti, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
-			require.NoError(t, err)
-			assert.Equal(t, ti.String(), sec.Key("TIME").RangeTime(ti, minT, maxT).String())
-
-			t.Run("get value in range with default value", func(t *testing.T) {
-				assert.Equal(t, float64(5), sec.Key("FLOAT64").RangeFloat64(5, 0, 1))
-				assert.Equal(t, 7, sec.Key("INT").RangeInt(7, 0, 5))
-				assert.Equal(t, int64(7), sec.Key("INT").RangeInt64(7, 0, 5))
-				assert.Equal(t, ti.String(), sec.Key("TIME").RangeTime(ti, minT, midT).String())
+			t.Run("default when out of range or not parsable", func(t *testing.T) {
+				assert.Equal(t, 5.0, Range(sec.Key("FLOAT64"), 5.0, 0, 1))
+				assert.Equal(t, 7, Range(sec.Key("INT"), 7, 0, 5))
+				assert.Equal(t, 7, Range(sec.Key("STRING"), 7, 0, 100))
+				assert.Equal(t, uint8(1), Range(sec.Key("HEX_NUMBER"), uint8(1), 0, 255), "0x3000 overflows uint8")
 			})
 		})
 
@@ -376,28 +295,44 @@ func TestKey_Helpers(t *testing.T) {
 			assert.Equal(t, "en,zh,de", strings.Join(sec.Key("STRINGS").Strings(","), ","))
 			assert.Equal(t, 0, len(sec.Key("STRINGS_404").Strings(",")))
 
-			vals1 := sec.Key("FLOAT64S").Float64s(",")
-			float64sEqual(t, vals1, 1.1, 2.2, 3.3)
-
-			vals2 := sec.Key("INTS").Ints(",")
-			intsEqual(t, vals2, 1, 2, 3)
-
-			vals3 := sec.Key("INTS").Int64s(",")
-			int64sEqual(t, vals3, 1, 2, 3)
-
-			vals4 := sec.Key("UINTS").Uints(",")
-			uintsEqual(t, vals4, 1, 2, 3)
-
-			vals5 := sec.Key("UINTS").Uint64s(",")
-			uint64sEqual(t, vals5, 1, 2, 3)
-
-			vals6 := sec.Key("BOOLS").Bools(",")
-			boolsEqual(t, vals6, true, false, false)
-
-			ti, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
+			floats, err := List[float64](sec.Key("FLOAT64S"), ",")
 			require.NoError(t, err)
-			vals7 := sec.Key("TIMES").Times(",")
-			timesEqual(t, vals7, ti, ti, ti)
+			assert.Equal(t, []float64{1.1, 2.2, 3.3}, floats)
+
+			ints, err := List[int](sec.Key("INTS"), ",")
+			require.NoError(t, err)
+			assert.Equal(t, []int{1, 2, 3}, ints)
+
+			uints, err := List[uint8](sec.Key("UINTS"), ",")
+			require.NoError(t, err)
+			assert.Equal(t, []uint8{1, 2, 3}, uints)
+
+			bools, err := List[bool](sec.Key("BOOLS"), ",")
+			require.NoError(t, err)
+			assert.Equal(t, []bool{true, false, false}, bools)
+
+			ti := time.Date(2015, 1, 1, 20, 17, 5, 0, time.UTC)
+			times, err := List[time.Time](sec.Key("TIMES"), ",")
+			require.NoError(t, err)
+			assert.Equal(t, []time.Time{ti, ti, ti}, times)
+
+			type lang string
+			langs, err := List[lang](sec.Key("STRINGS"), ",")
+			require.NoError(t, err)
+			assert.Equal(t, []lang{"en", "zh", "de"}, langs)
+
+			empty, err := List[int](sec.Key("INTS_404"), ",")
+			require.NoError(t, err)
+			assert.Empty(t, empty)
+
+			t.Run("error on the first invalid element", func(t *testing.T) {
+				vals, err := List[int](sec.Key("STRINGS"), ",")
+				assert.Error(t, err)
+				assert.Nil(t, vals)
+
+				_, err = List[time.Time](sec.Key("INTS"), ",")
+				assert.Error(t, err)
+			})
 		})
 
 		t.Run("test string slice escapes", func(t *testing.T) {
@@ -410,123 +345,10 @@ func TestKey_Helpers(t *testing.T) {
 			assert.Equal(t, []string{"aaa", "bbb and space", "ccc"}, sec.Key("key6").Strings(" "))
 		})
 
-		t.Run("get valid values into slice", func(t *testing.T) {
-			sec := f.Section("array")
-			vals1 := sec.Key("FLOAT64S").ValidFloat64s(",")
-			float64sEqual(t, vals1, 1.1, 2.2, 3.3)
-
-			vals2 := sec.Key("INTS").ValidInts(",")
-			intsEqual(t, vals2, 1, 2, 3)
-
-			vals3 := sec.Key("INTS").ValidInt64s(",")
-			int64sEqual(t, vals3, 1, 2, 3)
-
-			vals4 := sec.Key("UINTS").ValidUints(",")
-			uintsEqual(t, vals4, 1, 2, 3)
-
-			vals5 := sec.Key("UINTS").ValidUint64s(",")
-			uint64sEqual(t, vals5, 1, 2, 3)
-
-			vals6 := sec.Key("BOOLS").ValidBools(",")
-			boolsEqual(t, vals6, true, false, false)
-
-			ti, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
-			require.NoError(t, err)
-			vals7 := sec.Key("TIMES").ValidTimes(",")
-			timesEqual(t, vals7, ti, ti, ti)
-		})
-
-		t.Run("get values one type into slice of another type", func(t *testing.T) {
-			sec := f.Section("array")
-			vals1 := sec.Key("STRINGS").ValidFloat64s(",")
-			assert.Empty(t, vals1)
-
-			vals2 := sec.Key("STRINGS").ValidInts(",")
-			assert.Empty(t, vals2)
-
-			vals3 := sec.Key("STRINGS").ValidInt64s(",")
-			assert.Empty(t, vals3)
-
-			vals4 := sec.Key("STRINGS").ValidUints(",")
-			assert.Empty(t, vals4)
-
-			vals5 := sec.Key("STRINGS").ValidUint64s(",")
-			assert.Empty(t, vals5)
-
-			vals6 := sec.Key("STRINGS").ValidBools(",")
-			assert.Empty(t, vals6)
-
-			vals7 := sec.Key("STRINGS").ValidTimes(",")
-			assert.Empty(t, vals7)
-		})
-
-		t.Run("get valid values into slice without errors", func(t *testing.T) {
-			sec := f.Section("array")
-			vals1, err := sec.Key("FLOAT64S").StrictFloat64s(",")
-			require.NoError(t, err)
-			float64sEqual(t, vals1, 1.1, 2.2, 3.3)
-
-			vals2, err := sec.Key("INTS").StrictInts(",")
-			require.NoError(t, err)
-			intsEqual(t, vals2, 1, 2, 3)
-
-			vals3, err := sec.Key("INTS").StrictInt64s(",")
-			require.NoError(t, err)
-			int64sEqual(t, vals3, 1, 2, 3)
-
-			vals4, err := sec.Key("UINTS").StrictUints(",")
-			require.NoError(t, err)
-			uintsEqual(t, vals4, 1, 2, 3)
-
-			vals5, err := sec.Key("UINTS").StrictUint64s(",")
-			require.NoError(t, err)
-			uint64sEqual(t, vals5, 1, 2, 3)
-
-			vals6, err := sec.Key("BOOLS").StrictBools(",")
-			require.NoError(t, err)
-			boolsEqual(t, vals6, true, false, false)
-
-			ti, err := time.Parse(time.RFC3339, "2015-01-01T20:17:05Z")
-			require.NoError(t, err)
-			vals7, err := sec.Key("TIMES").StrictTimes(",")
-			require.NoError(t, err)
-			timesEqual(t, vals7, ti, ti, ti)
-		})
-
-		t.Run("get invalid values into slice", func(t *testing.T) {
-			sec := f.Section("array")
-			vals1, err := sec.Key("STRINGS").StrictFloat64s(",")
-			assert.Empty(t, vals1)
-			assert.Error(t, err)
-
-			vals2, err := sec.Key("STRINGS").StrictInts(",")
-			assert.Empty(t, vals2)
-			assert.Error(t, err)
-
-			vals3, err := sec.Key("STRINGS").StrictInt64s(",")
-			assert.Empty(t, vals3)
-			assert.Error(t, err)
-
-			vals4, err := sec.Key("STRINGS").StrictUints(",")
-			assert.Empty(t, vals4)
-			assert.Error(t, err)
-
-			vals5, err := sec.Key("STRINGS").StrictUint64s(",")
-			assert.Empty(t, vals5)
-			assert.Error(t, err)
-
-			vals6, err := sec.Key("STRINGS").StrictBools(",")
-			assert.Empty(t, vals6)
-			assert.Error(t, err)
-
-			vals7, err := sec.Key("STRINGS").StrictTimes(",")
-			assert.Empty(t, vals7)
-			assert.Error(t, err)
-		})
 	})
 }
 
-func TestKey_ValueWithShadows(t *testing.T) {
+func TestKey_Values(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		f, err := Load([]byte(`
 keyName = value1
@@ -537,11 +359,11 @@ keyName = value2
 
 		k := f.Section("").Key("FakeKey")
 		require.NotNil(t, k)
-		assert.Equal(t, []string{}, k.ValueWithShadows())
+		assert.Equal(t, []string{}, k.Values())
 
 		k = f.Section("").Key("keyName")
 		require.NotNil(t, k)
-		assert.Equal(t, []string{"value1", "value2"}, k.ValueWithShadows())
+		assert.Equal(t, []string{"value1", "value2"}, k.Values())
 	})
 }
 

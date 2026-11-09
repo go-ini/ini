@@ -49,7 +49,7 @@ func LoadSources(sources []any, opts ...LoadOption) (*File, error) {
 	dataSources := make([]dataSource, len(sources))
 	for i := range sources {
 		var err error
-		if dataSources[i], err = parseDataSource(sources[i]); err != nil {
+		if dataSources[i], err = newDataSource(sources[i]); err != nil {
 			return nil, err
 		}
 	}

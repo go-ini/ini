@@ -524,7 +524,7 @@ func Test_ReflectFromStruct(t *testing.T) {
 				[]int{},
 			}}
 		cfg := Empty()
-		assert.NoError(t, ReflectFrom(cfg, a))
+		assert.NoError(t, cfg.ReflectFrom(a))
 
 		var buf bytes.Buffer
 		_, err = cfg.WriteTo(&buf)
@@ -554,7 +554,7 @@ None        =
 		)
 
 		t.Run("reflect from non-point struct", func(t *testing.T) {
-			assert.Error(t, ReflectFrom(cfg, Author{}))
+			assert.Error(t, cfg.ReflectFrom(Author{}))
 		})
 
 		t.Run("reflect from struct with omitempty", func(t *testing.T) {
@@ -579,7 +579,7 @@ None        =
 				NotEmpty:  9,
 			}
 
-			assert.NoError(t, ReflectFrom(cfg, special))
+			assert.NoError(t, cfg.ReflectFrom(special))
 
 			var buf bytes.Buffer
 			_, err = cfg.WriteTo(&buf)
@@ -651,7 +651,7 @@ func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
 
 		cfg := Empty(AllowNonUniqueSections())
 
-		assert.NoError(t, ReflectFrom(cfg, nonUnique))
+		assert.NoError(t, cfg.ReflectFrom(nonUnique))
 
 		var buf bytes.Buffer
 		_, err := cfg.WriteTo(&buf)
@@ -785,7 +785,7 @@ path = /tmp/gpm-profiles/test1.profile
 				None:        []int{},
 			}
 
-			assert.NoError(t, ReflectFrom(cfg, shadow))
+			assert.NoError(t, cfg.ReflectFrom(shadow))
 
 			var buf bytes.Buffer
 			_, err := cfg.WriteTo(&buf)
@@ -823,13 +823,13 @@ type testMapper struct {
 
 func Test_NameGetter(t *testing.T) {
 	t.Run("test name mappers", func(t *testing.T) {
-		assert.NoError(t, MapToWithMapper(&testMapper{}, TitleUnderscore, []byte("packag_name=ini")))
+		assert.NoError(t, MapTo(&testMapper{}, []byte("packag_name=ini"), NameMapping(TitleUnderscore)))
 
 		cfg, err := Load([]byte("PACKAGE_NAME=ini"))
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 
-		cfg.NameMapper = SnackCase
+		cfg.NameMapper = SnakeCase
 		tg := new(testMapper)
 		assert.NoError(t, cfg.MapTo(tg))
 		assert.Equal(t, "ini", tg.PackageName)
@@ -926,7 +926,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 	assert.Equal(t, in, out)
 
 	err = Unmarshal([]byte("name"), &out)
-	assert.True(t, IsErrDelimiterNotFound(err))
+	assert.ErrorIs(t, err, ErrDelimiterNotFound)
 }
 
 func TestMarshal_ShadowsAndNonUniqueSections(t *testing.T) {
@@ -1261,14 +1261,14 @@ func TestReflectFrom_AllowShadow(t *testing.T) {
 	// The comment of a key goes before its last line, as the lexer reads it.
 	assert.Equal(t, "path = a\n; search paths\npath = b\n", string(data))
 
-	assert.Error(t, ReflectFrom(Empty(), &cfg{Paths: []string{"a", "b"}}), "values must not be dropped silently")
+	assert.Error(t, Empty().ReflectFrom(&cfg{Paths: []string{"a", "b"}}), "values must not be dropped silently")
 	f := Empty()
-	require.NoError(t, ReflectFrom(f, &cfg{Paths: []string{"a"}}))
+	require.NoError(t, f.ReflectFrom(&cfg{Paths: []string{"a"}}))
 	assert.Equal(t, "a", f.Section("").Key("path").String())
 }
 
 func TestReflectFrom_InsensitiveDefaultSection(t *testing.T) {
-	for _, opt := range []LoadOption{Insensitive(), InsensitiveSections()} {
+	for _, opt := range []LoadOption{CaseInsensitive(), CaseInsensitiveSections()} {
 		f, err := Load([]byte("a=1\n[x]\nb=2\n"), opt, AllowNonUniqueSections())
 		require.NoError(t, err)
 		require.NoError(t, f.ReflectFrom(&struct{ C int }{3}))

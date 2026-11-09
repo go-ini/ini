@@ -86,7 +86,7 @@ func TestSection_NewKey(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, k)
 
-		assert.Equal(t, []string{"ini", "ini.v1"}, k.ValueWithShadows())
+		assert.Equal(t, []string{"ini", "ini.v1"}, k.Values())
 	})
 }
 
@@ -266,7 +266,7 @@ func TestSection_KeyStrings(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, k)
 
-		assert.Equal(t, []string{"NAME", "VERSION", "IMPORT_PATH"}, f.Section("").KeyStrings())
+		assert.Equal(t, []string{"NAME", "VERSION", "IMPORT_PATH"}, f.Section("").KeyNames())
 	})
 }
 
@@ -288,7 +288,7 @@ file = b.log
 
 		assert.Equal(t, "two", f.Section("").Key("key").String())
 
-		hash := f.Section("log").KeysHash()
+		hash := f.Section("log").KeyValues()
 		relation := map[string]string{
 			"name": "app2",
 			"file": "b.log",
@@ -307,7 +307,7 @@ file = b.log
 		sec.Key("set").SetValue("3")
 		sec.DeleteKey("gone")
 
-		assert.Equal(t, map[string]string{"empty": "", "set": "3"}, sec.KeysHash())
+		assert.Equal(t, map[string]string{"empty": "", "set": "3"}, sec.KeyValues())
 	})
 }
 

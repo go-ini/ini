@@ -36,15 +36,27 @@ Without options, v2 parses every input exactly as v1's `Load` does. The parity t
 | `import "gopkg.in/ini.v1"` | `import "unknwon.dev/ini/v2"` (package name is still `ini`) |
 | `Load(a, b)` | `LoadSources([]any{a, b})`; `Load(a)` is unchanged |
 | `LoadSources(LoadOptions{AllowShadows: true}, a)` | `Load(a, ini.AllowShadows())` |
-| `LooseLoad`, `InsensitiveLoad`, `ShadowLoad` | `ini.Loose()`, `ini.Insensitive()`, `ini.AllowShadows()` |
+| `LooseLoad`, `InsensitiveLoad`, `ShadowLoad` | `ini.IgnoreMissingFiles()`, `ini.CaseInsensitive()`, `ini.AllowShadows()` |
 | `LoadOptions.DebugFunc` | `ini.Debug(fn)` |
 | `LoadOptions.ReaderBufferSize` | removed; values are never cut at a buffer size |
 | `ini.DefaultSection = "default"` | `ini.DefaultSectionName("default")` |
 | `ini.LineBreak`, `PrettyFormat`, `PrettySection`, `PrettyEqual`, `DefaultHeader`, `DefaultFormatLeft/Right` | `WriteOption`s of `File.Write` and `File.SaveTo` |
-| `LoadOptions.KeyValueDelimiterOnWrite` | `ini.KeyValueDelimiterOnWrite(d)` write option |
+| `LoadOptions.KeyValueDelimiterOnWrite` | `ini.WriteDelimiter(d)` write option |
 | `WriteToIndent(w, i)`, `SaveToIndent(f, i)` | `Write(w, ini.Indent(i))`, `SaveTo(f, ini.Indent(i))` |
 | `MapTo(v, a, b)` | `MapTo(v, a, opts...)`; one source |
-| `DEFAULT_SECTION`, `AllCapsUnderscore` | `DefaultSection`, `SnackCase` |
+| `DEFAULT_SECTION`, `AllCapsUnderscore`, `SnackCase` | `DefaultSection`, `SnakeCase` |
+| `LoadOptions.Insensitive`, `InsensitiveSections`, `InsensitiveKeys` | `ini.CaseInsensitive()`, `ini.CaseInsensitiveSections()`, `ini.CaseInsensitiveKeys()` |
+| `LoadOptions.Loose`, `ShortCircuit`, `UnparseableSections` | `ini.IgnoreMissingFiles()`, `ini.FirstSourceOnly()`, `ini.RawSections(names...)` |
+| `File.BlockMode = false` | `ini.NoLocking()` |
+| `MapToWithMapper(v, m, src)`, `StrictMapToWithMapper` | `MapTo(v, src, ini.NameMapping(m))`, `StrictMapTo(v, src, ini.NameMapping(m))` |
+| `ReflectFrom(f, v)`, `ReflectFromWithMapper(f, v, m)` | `f.ReflectFrom(v)`; set `f.NameMapper = m` or load with `ini.NameMapping(m)` |
+| `IsErrDelimiterNotFound(err)`, `IsErrEmptyKeyName(err)` | `errors.Is(err, ini.ErrDelimiterNotFound)`, `errors.Is(err, ini.ErrEmptyKeyName)` |
+| `File.SectionStrings`, `Section.KeyStrings`, `Section.KeysHash` | `SectionNames`, `KeyNames`, `KeyValues` |
+| `Key.ValueWithShadows`, `Key.IsBooleanType`, `Section.Haskey` | `Values`, `IsBoolean`, `HasKey` |
+| `k.Ints(",")`, `k.StrictInts(",")`, `k.ValidInts(",")` and the same for the other types | `ini.List[int](k, ",")`, which returns an error for an invalid element; any `Scalar` type works, such as `int8`, `time.Duration` or a named string type |
+| `k.InInt(def, cands)`, `k.In(def, cands)` and the others | `ini.In(k, def, cands)` |
+| `k.RangeInt(def, lo, hi)` and the others | `ini.Range(k, def, lo, hi)`; type the default for non-int types, as in `ini.Range(k, 0.5, 0, 1)`. Times compare with `Key.Time` |
+| `TimesFormat`, `InTimeFormat`, `RangeTimeFormat` | `Strings` with `time.Parse`; `TimeFormat` and `MustTimeFormat` remain |
 | `Reload` merged sources into the current contents; `Append` re-read every source | `Reload` replaces the contents with the sources (kept `*Section`/`*Key` pointers see new values; on error nothing changes); `Append` reads only the new sources; readers are buffered so they can be reloaded |
 
 New in v2:
@@ -52,7 +64,7 @@ New in v2:
 - Parse errors are `*ini.ParseError` with 1-based `Line` and `Column`.
 - `ini.CommentSymbols(s)` sets the comment characters.
 - `ini.KeepEmptyShadowValues()` keeps empty values of shadow keys.
-- `Key.IsBooleanType()`, and `ini.Marshal`/`ini.Unmarshal`.
+- `Key.IsBoolean()`, and `ini.Marshal`/`ini.Unmarshal`.
 - `File.Write` writes files that load back to the same sections, keys, values and comments: it picks a quoting the parser reads back, writes empty shadow values, and returns an error instead of writing a file that loads differently.
 - `MapTo`, `StrictMapTo`, `Unmarshal`, `ReflectFrom` and `Marshal` return errors instead of panicking on unsupported, named, pointer, nil and recursive types. Differences from v1 that valid input can show:
   - Out-of-range numbers (int8 `300`) are an error in `StrictMapTo` and leave the field unchanged in `MapTo`; v1 wrapped them.
@@ -64,7 +76,7 @@ New in v2:
   - Nil pointer fields aren't written.
   - Fields after an empty `nonunique` slice or a `StructReflector` field are written.
   - A `nonunique` field with no sections is left empty instead of failing.
-- With `BlockMode` (the default) a `File` can be read from many goroutines while others call `Reload`, `Append`, `SetValue`, `NewKey`, `NewSection`, the delete methods, `ReflectFrom` or `Write`; v1 locked only some writes. `Comment` fields are plain fields: set them before sharing the `File`.
+- Unless loaded with `NoLocking()`, a `File` can be read from many goroutines while others call `Reload`, `Append`, `SetValue`, `NewKey`, `NewSection`, the delete methods, `ReflectFrom` or `Write`; v1 locked only some writes. `Comment` fields are plain fields: set them before sharing the `File`.
 - `Unmarshal` reads what `Marshal` writes, including `allowshadow` slices with repeated, empty or delimiter-containing elements and `nonunique` sections.
 - Loading is O(n) in the number of keys; a 10,000-key section loads in about 6 ms instead of about 150 ms with v1.67.3.
 

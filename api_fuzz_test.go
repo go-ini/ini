@@ -116,23 +116,27 @@ func FuzzStructMapping(f *testing.F) {
 		for _, sec := range file.Sections() {
 			_ = sec.ChildSections()
 			_ = sec.ParentKeys()
-			_ = sec.KeysHash()
+			_ = sec.KeyValues()
 			for _, k := range sec.Keys() {
 				_ = k.String()
 				for _, delim := range []string{",", "", "|", "\\", "::"} {
 					_ = k.Strings(delim)
 				}
 				_ = k.StringsWithShadows(",")
-				_ = k.Ints(",")
-				_ = k.Uint64s(",")
-				_ = k.Float64s(",")
-				_ = k.Bools(",")
-				_ = k.Times(",")
+				_, _ = List[int](k, ",")
+				_, _ = List[uint64](k, ",")
+				_, _ = List[float32](k, ",")
+				_, _ = List[bool](k, ",")
+				_, _ = List[time.Time](k, ",")
+				_, _ = List[time.Duration](k, ",")
 				_, _ = k.Duration()
 				_, _ = k.Time()
 				_ = k.MustInt(1)
-				_ = k.In("a", []string{"a", "b"})
-				_ = k.ValueWithShadows()
+				_ = In(k, "a", []string{"a", "b"})
+				_ = In(k, int8(1), []int8{1, 2})
+				_ = Range(k, 1.5, -1e9, 1e9)
+				_ = Range(k, uint16(1), 0, 100)
+				_ = k.Values()
 				_ = k.NestedValues()
 			}
 		}

@@ -67,9 +67,9 @@ func v2Options(o v1.LoadOptions) []LoadOption {
 		set bool
 		opt func() LoadOption
 	}{
-		{o.Insensitive, Insensitive},
-		{o.InsensitiveSections, InsensitiveSections},
-		{o.InsensitiveKeys, InsensitiveKeys},
+		{o.Insensitive, CaseInsensitive},
+		{o.InsensitiveSections, CaseInsensitiveSections},
+		{o.InsensitiveKeys, CaseInsensitiveKeys},
 		{o.IgnoreContinuation, IgnoreContinuation},
 		{o.IgnoreInlineComment, IgnoreInlineComment},
 		{o.SkipUnrecognizableLines, SkipUnrecognizableLines},
@@ -89,7 +89,7 @@ func v2Options(o v1.LoadOptions) []LoadOption {
 		}
 	}
 	if o.UnparseableSections != nil {
-		opts = append(opts, UnparseableSections(o.UnparseableSections...))
+		opts = append(opts, RawSections(o.UnparseableSections...))
 	}
 	return append(opts, KeyValueDelimiters(o.KeyValueDelimiters))
 }
@@ -97,7 +97,7 @@ func v2Options(o v1.LoadOptions) []LoadOption {
 // dumpFile describes everything stored in a v1 or v2 *File. It reads the
 // unexported fields both versions share by reflection, so the comparison
 // covers state the public API doesn't expose, such as empty shadow values.
-func dumpFile(f interface{}) string {
+func dumpFile(f any) string {
 	v := reflect.ValueOf(f).Elem()
 	names, indexes, sections := v.FieldByName("sectionList"), v.FieldByName("sectionIndexes"), v.FieldByName("sections")
 
@@ -131,7 +131,7 @@ func dumpKey(b *strings.Builder, indent string, k reflect.Value) {
 }
 
 // loadResult describes the outcome of loading: the stored File or the error.
-func loadResult(load func() (interface{}, error)) (out string) {
+func loadResult(load func() (any, error)) (out string) {
 	defer func() {
 		if r := recover(); r != nil {
 			out = fmt.Sprintf("panic: %v", r)
@@ -159,8 +159,8 @@ func checkParity(t *testing.T, data []byte, flags uint32) {
 		return
 	}
 
-	want := loadResult(func() (interface{}, error) { return v1.LoadSources(opts, data, data) })
-	got := loadResult(func() (interface{}, error) { return LoadSources([]any{data, data}, v2Options(opts)...) })
+	want := loadResult(func() (any, error) { return v1.LoadSources(opts, data, data) })
+	got := loadResult(func() (any, error) { return LoadSources([]any{data, data}, v2Options(opts)...) })
 	if want != got {
 		t.Fatalf("v1 and v2 differ\ninput: %q\noptions: %+v\nv1:\n%s\nv2:\n%s", data, opts, want, got)
 	}

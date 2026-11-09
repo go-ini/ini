@@ -221,7 +221,7 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 }
 
 func TestLooseLoad(t *testing.T) {
-	f, err := LoadSources([]any{notFoundConf, minimalConf}, Loose())
+	f, err := LoadSources([]any{notFoundConf, minimalConf}, IgnoreMissingFiles())
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
@@ -233,7 +233,7 @@ func TestLooseLoad(t *testing.T) {
 
 func TestInsensitiveLoad(t *testing.T) {
 	t.Run("insensitive to section and key names", func(t *testing.T) {
-		f, err := Load(minimalConf, Insensitive())
+		f, err := Load(minimalConf, CaseInsensitive())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -265,7 +265,7 @@ e-mail = u@gogs.io
 user = unknwon
 [profile]
 email = unknwon@local
-`), Insensitive())
+`), CaseInsensitive())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -276,7 +276,7 @@ email = unknwon@local
 func TestLoadSources(t *testing.T) {
 	t.Run("with true `AllowPythonMultilineValues`", func(t *testing.T) {
 		t.Run("ignore nonexistent files", func(t *testing.T) {
-			f, err := LoadSources([]any{notFoundConf, minimalConf}, AllowPythonMultilineValues(), Loose())
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, AllowPythonMultilineValues(), IgnoreMissingFiles())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -287,7 +287,7 @@ func TestLoadSources(t *testing.T) {
 		})
 
 		t.Run("insensitive to section and key names", func(t *testing.T) {
-			f, err := Load(minimalConf, AllowPythonMultilineValues(), Insensitive())
+			f, err := Load(minimalConf, AllowPythonMultilineValues(), CaseInsensitive())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -314,7 +314,7 @@ e-mail = u@gogs.io
 		})
 
 		t.Run("insensitive to sections and sensitive to key names", func(t *testing.T) {
-			f, err := Load(minimalConf, InsensitiveSections())
+			f, err := Load(minimalConf, CaseInsensitiveSections())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -341,7 +341,7 @@ E-MAIL = u@gogs.io
 		})
 
 		t.Run("sensitive to sections and insensitive to key names", func(t *testing.T) {
-			f, err := Load(minimalConf, InsensitiveKeys())
+			f, err := Load(minimalConf, CaseInsensitiveKeys())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -447,7 +447,7 @@ key3`), AllowPythonMultilineValues(), AllowBooleanKeys())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
-			assert.Equal(t, []string{"key1", "key3"}, f.Section("").KeyStrings())
+			assert.Equal(t, []string{"key1", "key3"}, f.Section("").KeyNames())
 			assert.True(t, f.Section("").Key("key3").MustBool(false))
 
 			t.Run("write out", func(t *testing.T) {
@@ -487,7 +487,7 @@ fetch = +refs/heads/*:refs/remotes/origin/*`), AllowShadows(), AllowPythonMultil
 					"https://github.com/Antergone/test1.git",
 					"https://github.com/Antergone/test2.git",
 				},
-				f.Section(`remote "origin"`).Key("url").ValueWithShadows(),
+				f.Section(`remote "origin"`).Key("url").Values(),
 			)
 			assert.Equal(t, "+refs/heads/*:refs/remotes/origin/*", f.Section(`remote "origin"`).Key("fetch").String())
 
@@ -577,7 +577,7 @@ multiline_list =
   first
   second
   third
-`), AllowPythonMultilineValues(), Insensitive(), UnparseableSections("core_lesson", "comments"))
+`), AllowPythonMultilineValues(), CaseInsensitive(), RawSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -686,7 +686,7 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
    95foobar
    96barfoo
    -----END RSA PRIVATE KEY-----
-`), AllowPythonMultilineValues(), Insensitive(), UnparseableSections("core_lesson", "comments"))
+`), AllowPythonMultilineValues(), CaseInsensitive(), RawSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -805,7 +805,7 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 [COMMENTS]
 <1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
-`), AllowPythonMultilineValues(), Insensitive(), UnparseableSections("core_lesson", "comments"))
+`), AllowPythonMultilineValues(), CaseInsensitive(), RawSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -883,7 +883,7 @@ GITHUB = U;n;k;n;w;o;n
 
 	t.Run("with false `AllowPythonMultilineValues`", func(t *testing.T) {
 		t.Run("ignore nonexistent files", func(t *testing.T) {
-			f, err := LoadSources([]any{notFoundConf, minimalConf}, Loose())
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, IgnoreMissingFiles())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -894,7 +894,7 @@ GITHUB = U;n;k;n;w;o;n
 		})
 
 		t.Run("insensitive to section and key names", func(t *testing.T) {
-			f, err := Load(minimalConf, Insensitive())
+			f, err := Load(minimalConf, CaseInsensitive())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -977,7 +977,7 @@ key3`), AllowBooleanKeys())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
-			assert.Equal(t, []string{"key1", "key3"}, f.Section("").KeyStrings())
+			assert.Equal(t, []string{"key1", "key3"}, f.Section("").KeyNames())
 			assert.True(t, f.Section("").Key("key3").MustBool(false))
 
 			t.Run("write out", func(t *testing.T) {
@@ -1017,7 +1017,7 @@ fetch = +refs/heads/*:refs/remotes/origin/*`), AllowShadows())
 					"https://github.com/Antergone/test1.git",
 					"https://github.com/Antergone/test2.git",
 				},
-				f.Section(`remote "origin"`).Key("url").ValueWithShadows(),
+				f.Section(`remote "origin"`).Key("url").Values(),
 			)
 			assert.Equal(t, "+refs/heads/*:refs/remotes/origin/*", f.Section(`remote "origin"`).Key("fetch").String())
 
@@ -1209,7 +1209,7 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 [COMMENTS]
 <1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
-`), Insensitive(), UnparseableSections("core_lesson", "comments"))
+`), CaseInsensitive(), RawSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1347,9 +1347,9 @@ GITHUB = U;n;k;n;w;o;n
 		})
 	})
 
-	t.Run("ShortCircuit", func(t *testing.T) {
+	t.Run("FirstSourceOnly", func(t *testing.T) {
 		t.Run("load the first available configuration, ignore other configuration", func(t *testing.T) {
-			f, err := LoadSources([]any{minimalConf, []byte(`key1 = value1`)}, ShortCircuit())
+			f, err := LoadSources([]any{minimalConf, []byte(`key1 = value1`)}, FirstSourceOnly())
 			require.NotNil(t, f)
 			require.NoError(t, err)
 			var buf bytes.Buffer
@@ -1363,13 +1363,13 @@ E-MAIL = u@gogs.io
 		})
 
 		t.Run("return an error when fail to load", func(t *testing.T) {
-			f, err := LoadSources([]any{notFoundConf, minimalConf}, ShortCircuit())
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, FirstSourceOnly())
 			assert.Nil(t, f)
 			require.Error(t, err)
 		})
 
-		t.Run("used with Loose to ignore errors that the file does not exist", func(t *testing.T) {
-			f, err := LoadSources([]any{notFoundConf, minimalConf}, ShortCircuit(), Loose())
+		t.Run("used with IgnoreMissingFiles to ignore errors that the file does not exist", func(t *testing.T) {
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, FirstSourceOnly(), IgnoreMissingFiles())
 			require.NotNil(t, f)
 			require.NoError(t, err)
 			var buf bytes.Buffer
@@ -1382,7 +1382,7 @@ E-MAIL = u@gogs.io
 			)
 		})
 
-		t.Run("ensure all sources are loaded without ShortCircuit", func(t *testing.T) {
+		t.Run("ensure all sources are loaded without FirstSourceOnly", func(t *testing.T) {
 			f, err := LoadSources([]any{minimalConf, []byte(`key1 = value1`)})
 			require.NotNil(t, f)
 			require.NoError(t, err)

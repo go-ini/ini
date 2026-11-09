@@ -116,14 +116,14 @@ func (s *Section) addBooleanKey(name string) (*Key, error) {
 
 // GetKey returns key in section by given name.
 func (s *Section) GetKey(name string) (*Key, error) {
-	if s.f.BlockMode {
+	if s.f.locking {
 		s.f.lock.RLock()
 	}
 	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
 		name = strings.ToLower(name)
 	}
 	key := s.keys[name]
-	if s.f.BlockMode {
+	if s.f.locking {
 		s.f.lock.RUnlock()
 	}
 
@@ -152,14 +152,9 @@ func (s *Section) HasKey(name string) bool {
 	return key != nil
 }
 
-// Deprecated: Use "HasKey" instead.
-func (s *Section) Haskey(name string) bool {
-	return s.HasKey(name)
-}
-
 // HasValue returns true if section contains given raw value.
 func (s *Section) HasValue(value string) bool {
-	if s.f.BlockMode {
+	if s.f.locking {
 		s.f.lock.RLock()
 		defer s.f.lock.RUnlock()
 	}
@@ -216,8 +211,8 @@ func (s *Section) ParentKeys() []*Key {
 	return parentKeys
 }
 
-// KeyStrings returns list of key names of section.
-func (s *Section) KeyStrings() []string {
+// KeyNames returns list of key names of section.
+func (s *Section) KeyNames() []string {
 	s.f.rlock()
 	defer s.f.runlock()
 	list := make([]string, len(s.keyList))
@@ -225,9 +220,9 @@ func (s *Section) KeyStrings() []string {
 	return list
 }
 
-// KeysHash returns keys hash consisting of names and values.
-func (s *Section) KeysHash() map[string]string {
-	if s.f.BlockMode {
+// KeyValues returns keys hash consisting of names and values.
+func (s *Section) KeyValues() map[string]string {
+	if s.f.locking {
 		s.f.lock.RLock()
 		defer s.f.lock.RUnlock()
 	}
@@ -244,7 +239,7 @@ func (s *Section) DeleteKey(name string) {
 	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
 		name = strings.ToLower(name)
 	}
-	if s.f.BlockMode {
+	if s.f.locking {
 		s.f.lock.Lock()
 		defer s.f.lock.Unlock()
 	}

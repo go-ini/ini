@@ -72,7 +72,7 @@ func (s *sourceReadCloser) ReadCloser() (io.ReadCloser, error) {
 	return io.NopCloser(bytes.NewReader(s.data)), nil
 }
 
-func parseDataSource(source interface{}) (dataSource, error) {
+func newDataSource(source any) (dataSource, error) {
 	switch s := source.(type) {
 	case string:
 		return sourceFile{s}, nil

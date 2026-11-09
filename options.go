@@ -53,6 +53,8 @@ type loadOptions struct {
 	DefaultSection              string
 	CommentSymbols              string
 	KeepEmptyShadowValues       bool
+	NoLocking                   bool
+	NameMapper                  NameMapper
 }
 
 func newLoadOptions(opts []LoadOption) loadOptions {
@@ -68,21 +70,34 @@ func newLoadOptions(opts []LoadOption) loadOptions {
 	return o
 }
 
+// NoLocking turns off the lock that lets a File be read from many goroutines
+// while others change it. Use it for a File only one goroutine uses, to save
+// the cost of locking.
+func NoLocking() LoadOption { return func(o *loadOptions) { o.NoLocking = true } }
+
+// NameMapping sets the NameMapper that maps struct field names to section
+// and key names, for MapTo, StrictMapTo and ReflectFrom.
+func NameMapping(mapper NameMapper) LoadOption {
+	return func(o *loadOptions) { o.NameMapper = mapper }
+}
+
 // DebugFunc is the type of function called to log parse events.
 type DebugFunc func(message string)
 
-// Loose ignores data sources that are files which don't exist, instead of
+// IgnoreMissingFiles ignores data sources that are files which don't exist, instead of
 // returning an error.
-func Loose() LoadOption { return func(o *loadOptions) { o.Loose = true } }
+func IgnoreMissingFiles() LoadOption { return func(o *loadOptions) { o.Loose = true } }
 
-// Insensitive lowercases all section and key names.
-func Insensitive() LoadOption { return func(o *loadOptions) { o.Insensitive = true } }
+// CaseInsensitive lowercases all section and key names.
+func CaseInsensitive() LoadOption { return func(o *loadOptions) { o.Insensitive = true } }
 
-// InsensitiveSections lowercases all section names.
-func InsensitiveSections() LoadOption { return func(o *loadOptions) { o.InsensitiveSections = true } }
+// CaseInsensitiveSections lowercases all section names.
+func CaseInsensitiveSections() LoadOption {
+	return func(o *loadOptions) { o.InsensitiveSections = true }
+}
 
-// InsensitiveKeys lowercases all key names.
-func InsensitiveKeys() LoadOption { return func(o *loadOptions) { o.InsensitiveKeys = true } }
+// CaseInsensitiveKeys lowercases all key names.
+func CaseInsensitiveKeys() LoadOption { return func(o *loadOptions) { o.InsensitiveKeys = true } }
 
 // IgnoreContinuation treats a backslash at the end of a line as part of the
 // value instead of joining the next line.
@@ -98,8 +113,8 @@ func SkipUnrecognizableLines() LoadOption {
 	return func(o *loadOptions) { o.SkipUnrecognizableLines = true }
 }
 
-// ShortCircuit stops loading after the first data source that loads.
-func ShortCircuit() LoadOption { return func(o *loadOptions) { o.ShortCircuit = true } }
+// FirstSourceOnly stops loading after the first data source that loads.
+func FirstSourceOnly() LoadOption { return func(o *loadOptions) { o.ShortCircuit = true } }
 
 // AllowBooleanKeys reads a line without a delimiter as a key whose value is
 // "true", as in my.cnf.
@@ -139,9 +154,9 @@ func UnescapeValueCommentSymbols() LoadOption {
 	return func(o *loadOptions) { o.UnescapeValueCommentSymbols = true }
 }
 
-// UnparseableSections keeps the bodies of the named sections as raw text,
+// RawSections keeps the bodies of the named sections as raw text,
 // available from Section.Body.
-func UnparseableSections(names ...string) LoadOption {
+func RawSections(names ...string) LoadOption {
 	return func(o *loadOptions) { o.UnparseableSections = names }
 }
 
@@ -186,7 +201,7 @@ func AllowDuplicateShadowValues() LoadOption {
 	return func(o *loadOptions) { o.AllowDuplicateShadowValues = true }
 }
 
-// KeepEmptyShadowValues keeps empty values in Key.ValueWithShadows and when
+// KeepEmptyShadowValues keeps empty values in Key.Values and when
 // writing shadow keys. An empty value can be meaningful: in systemd units it
 // resets the values before it.
 func KeepEmptyShadowValues() LoadOption {
@@ -257,9 +272,9 @@ func LineBreak(lineBreak string) WriteOption {
 	return func(o *writeOptions) { o.lineBreak = lineBreak }
 }
 
-// KeyValueDelimiterOnWrite sets the delimiter written between keys and
+// WriteDelimiter sets the delimiter written between keys and
 // values. The default is "=".
-func KeyValueDelimiterOnWrite(delimiter string) WriteOption {
+func WriteDelimiter(delimiter string) WriteOption {
 	return func(o *writeOptions) { o.keyValueDelimiter = delimiter }
 }
 

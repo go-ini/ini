@@ -44,8 +44,8 @@ func TestDefaultSectionName(t *testing.T) {
 	f, err := Load([]byte("a = 1\n[default]\nb = 2\n[profile x]\nc = 3\n"), DefaultSectionName("default"))
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"default", "profile x"}, f.SectionStrings())
-	assert.Equal(t, map[string]string{"a": "1", "b": "2"}, f.Section("").KeysHash())
+	assert.Equal(t, []string{"default", "profile x"}, f.SectionNames())
+	assert.Equal(t, map[string]string{"a": "1", "b": "2"}, f.Section("").KeyValues())
 
 	var b bytes.Buffer
 	_, err = f.WriteTo(&b)
@@ -80,7 +80,7 @@ func TestCommentSymbols(t *testing.T) {
 		require.NoError(t, err)
 
 		sec := f.Section("")
-		assert.Equal(t, []string{"→ arrow", "k", "j", "u"}, sec.KeyStrings())
+		assert.Equal(t, []string{"→ arrow", "k", "j", "u"}, sec.KeyNames())
 		assert.Equal(t, "€ head", sec.Key("→ arrow").Comment)
 		assert.Equal(t, "a", sec.Key("k").String())
 		assert.Equal(t, "€c", sec.Key("k").Comment)
@@ -132,10 +132,10 @@ func TestParseErrorPosition(t *testing.T) {
 		name         string
 		data         string
 		line, column int
-		is           func(error) bool
+		is           error
 	}{
-		{"missing delimiter", "a = 1\n[s]\n\u00a0\u00a0été x\n", 3, 3, IsErrDelimiterNotFound},
-		{"empty key name", "a = 1\n\n= 2\n", 3, 1, IsErrEmptyKeyName},
+		{"missing delimiter", "a = 1\n[s]\n\u00a0\u00a0été x\n", 3, 3, ErrDelimiterNotFound},
+		{"empty key name", "a = 1\n\n= 2\n", 3, 1, ErrEmptyKeyName},
 		{"unclosed section", "a = 1\n\t[s\n", 2, 2, nil},
 		{"unclosed quote", "a = 1\nk = `x\ny\n", 2, 1, nil},
 	}
@@ -147,7 +147,7 @@ func TestParseErrorPosition(t *testing.T) {
 			assert.Equal(t, test.line, perr.Line)
 			assert.Equal(t, test.column, perr.Column)
 			if test.is != nil {
-				assert.True(t, test.is(err))
+				assert.ErrorIs(t, err, test.is)
 			}
 		})
 	}
@@ -158,11 +158,11 @@ func TestKeepEmptyShadowValues(t *testing.T) {
 
 	f, err := Load(data, AllowShadows())
 	require.NoError(t, err)
-	assert.Equal(t, []string{"/bin/a", "/bin/b"}, f.Section("Service").Key("ExecStart").ValueWithShadows())
+	assert.Equal(t, []string{"/bin/a", "/bin/b"}, f.Section("Service").Key("ExecStart").Values())
 
 	f, err = Load(data, AllowShadows(), KeepEmptyShadowValues())
 	require.NoError(t, err)
-	assert.Equal(t, []string{"/bin/a", "", "/bin/b"}, f.Section("Service").Key("ExecStart").ValueWithShadows())
+	assert.Equal(t, []string{"/bin/a", "", "/bin/b"}, f.Section("Service").Key("ExecStart").Values())
 
 	var b bytes.Buffer
 	_, err = f.WriteTo(&b)
@@ -173,13 +173,13 @@ func TestKeepEmptyShadowValues(t *testing.T) {
 		f, err := Load([]byte("[u]\nExecStart=\nExecStart=a\nExecStart=\nExecStart=b\nExecStart=a\n"),
 			AllowShadows(), KeepEmptyShadowValues())
 		require.NoError(t, err)
-		assert.Equal(t, []string{"", "a", "", "b"}, f.Section("u").Key("ExecStart").ValueWithShadows())
+		assert.Equal(t, []string{"", "a", "", "b"}, f.Section("u").Key("ExecStart").Values())
 	})
 }
 
 func TestKey_IsBooleanType(t *testing.T) {
 	f, err := Load([]byte("[mysqld]\nskip-name-resolve\nuser = mysql\n"), AllowBooleanKeys())
 	require.NoError(t, err)
-	assert.True(t, f.Section("mysqld").Key("skip-name-resolve").IsBooleanType())
-	assert.False(t, f.Section("mysqld").Key("user").IsBooleanType())
+	assert.True(t, f.Section("mysqld").Key("skip-name-resolve").IsBoolean())
+	assert.False(t, f.Section("mysqld").Key("user").IsBoolean())
 }

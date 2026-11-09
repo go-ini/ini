@@ -19,33 +19,14 @@ import (
 	"fmt"
 )
 
-// ErrDelimiterNotFound indicates the error type of no delimiter is found which there should be one.
-type ErrDelimiterNotFound struct {
-	Line string
-}
-
-// IsErrDelimiterNotFound returns true if the given error is an instance of ErrDelimiterNotFound.
-func IsErrDelimiterNotFound(err error) bool {
-	return errors.As(err, new(ErrDelimiterNotFound))
-}
-
-func (err ErrDelimiterNotFound) Error() string {
-	return fmt.Sprintf("key-value delimiter not found: %s", err.Line)
-}
-
-// ErrEmptyKeyName indicates the error type of no key name is found which there should be one.
-type ErrEmptyKeyName struct {
-	Line string
-}
-
-// IsErrEmptyKeyName returns true if the given error is an instance of ErrEmptyKeyName.
-func IsErrEmptyKeyName(err error) bool {
-	return errors.As(err, new(ErrEmptyKeyName))
-}
-
-func (err ErrEmptyKeyName) Error() string {
-	return fmt.Sprintf("empty key name: %s", err.Line)
-}
+// Errors a ParseError wraps, for errors.Is.
+var (
+	// ErrDelimiterNotFound: a line that should be a key has no key-value
+	// delimiter.
+	ErrDelimiterNotFound = errors.New("key-value delimiter not found")
+	// ErrEmptyKeyName: a line starts with its key-value delimiter.
+	ErrEmptyKeyName = errors.New("empty key name")
+)
 
 // ParseError reports where in a data source parsing failed. Err is the
 // error at that position, such as ErrDelimiterNotFound.

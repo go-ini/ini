@@ -130,7 +130,7 @@ func TestWriteReadsBack(t *testing.T) {
 		{"k = a\n; c\nk = b\n", []LoadOption{AllowShadows()}},            // comment of a shadowed key
 		{"k =\n  n\nk\n", []LoadOption{AllowNestedValues(), AllowBooleanKeys()}},
 		{"k = \"\"\n  n\n", []LoadOption{AllowNestedValues(), AllowPythonMultilineValues()}},
-		{"NAME = x\n[DEFAULT]\nk1 = v1\n", []LoadOption{Insensitive(), AllowNonUniqueSections()}},
+		{"NAME = x\n[DEFAULT]\nk1 = v1\n", []LoadOption{CaseInsensitive(), AllowNonUniqueSections()}},
 		{"[DEFAULT] ; c\n[s]\nk = v\n", nil}, // comment of an empty default section
 	} {
 		f, err := Load([]byte(tc.data), tc.opts...)
@@ -144,7 +144,7 @@ func TestWriteReadsBack(t *testing.T) {
 	}
 
 	t.Run("raw body without line break", func(t *testing.T) {
-		f := Empty(UnparseableSections("raw"))
+		f := Empty(RawSections("raw"))
 		_, _ = f.NewRawSection("raw", "body")
 		_, _ = f.Section("s").NewKey("k", "v")
 		var b bytes.Buffer

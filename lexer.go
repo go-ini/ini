@@ -15,6 +15,7 @@
 package ini
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -154,7 +155,7 @@ func (l *lexer) rawBody() token {
 	return t
 }
 
-func (l *lexer) debug(format string, args ...interface{}) {
+func (l *lexer) debug(format string, args ...any) {
 	if l.opts.DebugFunc != nil {
 		l.opts.DebugFunc(fmt.Sprintf(format, args...))
 	}
@@ -195,7 +196,7 @@ func (l *lexer) key(line string) (_ token, ok bool, _ error) {
 		l.lastValueEmpty = value == ""
 		return token{kind: tokKey, name: name, value: value, comment: l.takeComment()}, true, nil
 
-	case IsErrDelimiterNotFound(err) && l.opts.AllowBooleanKeys:
+	case errors.Is(err, ErrDelimiterNotFound) && l.opts.AllowBooleanKeys:
 		// The whole line is the key name, read like a value.
 		name, err := l.readValue(line)
 		if err != nil {
@@ -203,7 +204,7 @@ func (l *lexer) key(line string) (_ token, ok bool, _ error) {
 		}
 		return token{kind: tokBooleanKey, name: name, comment: l.takeComment()}, true, nil
 
-	case (IsErrDelimiterNotFound(err) || IsErrEmptyKeyName(err)) && l.opts.SkipUnrecognizableLines:
+	case (errors.Is(err, ErrDelimiterNotFound) || errors.Is(err, ErrEmptyKeyName)) && l.opts.SkipUnrecognizableLines:
 		return token{}, false, nil
 	}
 	return token{}, false, err
@@ -469,7 +470,7 @@ func readKeyName(delimiters string, line string) (string, int, error) {
 		// Find key-value delimiter
 		i := strings.IndexAny(line[pos+startIdx:], delimiters)
 		if i < 0 {
-			return "", -1, ErrDelimiterNotFound{line}
+			return "", -1, fmt.Errorf("%w: %s", ErrDelimiterNotFound, line)
 		}
 		endIdx = pos + i
 		return strings.TrimSpace(line[startIdx:pos]), endIdx + startIdx + 1, nil
@@ -477,10 +478,10 @@ func readKeyName(delimiters string, line string) (string, int, error) {
 
 	endIdx = strings.IndexAny(line, delimiters)
 	if endIdx < 0 {
-		return "", -1, ErrDelimiterNotFound{line}
+		return "", -1, fmt.Errorf("%w: %s", ErrDelimiterNotFound, line)
 	}
 	if endIdx == 0 {
-		return "", -1, ErrEmptyKeyName{line}
+		return "", -1, fmt.Errorf("%w: %s", ErrEmptyKeyName, line)
 	}
 
 	return strings.TrimSpace(line[0:endIdx]), endIdx + 1, nil

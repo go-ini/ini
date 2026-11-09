@@ -31,9 +31,9 @@ type File struct {
 	options     loadOptions
 	dataSources []dataSource
 
-	// Should make things safe, but sometimes doesn't matter.
-	BlockMode bool
-	lock      sync.RWMutex
+	// locking guards the contents with lock, unless NoLocking is set.
+	locking bool
+	lock    sync.RWMutex
 
 	// To keep data in order.
 	sectionList []string
@@ -50,11 +50,13 @@ type File struct {
 
 // newFile initializes File object with given data sources.
 func newFile(dataSources []dataSource, opts []LoadOption) *File {
+	o := newLoadOptions(opts)
 	return &File{
-		BlockMode:   true,
+		locking:     !o.NoLocking,
 		dataSources: dataSources,
 		sections:    make(map[string][]*Section),
-		options:     newLoadOptions(opts),
+		options:     o,
+		NameMapper:  o.NameMapper,
 	}
 }
 
@@ -66,7 +68,7 @@ func Empty(opts ...LoadOption) *File {
 }
 
 // isDefaultSection reports whether name, as stored, is the default
-// section's name. Loading with Insensitive or InsensitiveSections stores it
+// section's name. Loading with CaseInsensitive or CaseInsensitiveSections stores it
 // lower-cased.
 func (f *File) isDefaultSection(name string) bool {
 	return name == f.options.DefaultSection || name == f.defaultSectionName()
@@ -81,28 +83,28 @@ func (f *File) defaultSectionName() string {
 }
 
 // The lock helpers guard the file's sections, keys and values when
-// BlockMode is set. Unexported methods that change them expect the caller to
+// locking is set. Unexported methods that change them expect the caller to
 // hold the lock, or the file not to be shared yet, as while parsing.
 func (f *File) rlock() {
-	if f.BlockMode {
+	if f.locking {
 		f.lock.RLock()
 	}
 }
 
 func (f *File) runlock() {
-	if f.BlockMode {
+	if f.locking {
 		f.lock.RUnlock()
 	}
 }
 
 func (f *File) wlock() {
-	if f.BlockMode {
+	if f.locking {
 		f.lock.Lock()
 	}
 }
 
 func (f *File) wunlock() {
-	if f.BlockMode {
+	if f.locking {
 		f.lock.Unlock()
 	}
 }
@@ -243,7 +245,7 @@ func (f *File) SectionWithIndex(name string, index int) *Section {
 
 // Sections returns a list of Section stored in the current instance.
 func (f *File) Sections() []*Section {
-	if f.BlockMode {
+	if f.locking {
 		f.lock.RLock()
 		defer f.lock.RUnlock()
 	}
@@ -260,8 +262,8 @@ func (f *File) ChildSections(name string) []*Section {
 	return f.Section(name).ChildSections()
 }
 
-// SectionStrings returns list of section names.
-func (f *File) SectionStrings() []string {
+// SectionNames returns list of section names.
+func (f *File) SectionNames() []string {
 	f.rlock()
 	defer f.runlock()
 	list := make([]string, len(f.sectionList))
@@ -300,7 +302,7 @@ func (f *File) DeleteSectionWithIndex(name string, index int) error {
 		name = strings.ToLower(name)
 	}
 
-	if f.BlockMode {
+	if f.locking {
 		f.lock.Lock()
 		defer f.lock.Unlock()
 	}
@@ -338,7 +340,8 @@ func (f *File) DeleteSectionWithIndex(name string, index int) error {
 	return nil
 }
 
-func (f *File) reload(s dataSource) error {
+// loadSource parses one data source into f.
+func (f *File) loadSource(s dataSource) error {
 	r, err := s.ReadCloser()
 	if err != nil {
 		return err
@@ -401,7 +404,7 @@ func (f *File) Reload() error {
 // load parses sources into f, in order.
 func (f *File) load(sources []dataSource) error {
 	for _, s := range sources {
-		if err := f.reload(s); err != nil {
+		if err := f.loadSource(s); err != nil {
 			// In loose mode, we create an empty default section for nonexistent files.
 			if os.IsNotExist(err) && f.options.Loose {
 				_ = f.parse(bytes.NewBuffer(nil))
@@ -422,7 +425,7 @@ func (f *File) load(sources []dataSource) error {
 func (f *File) Append(source any, others ...any) error {
 	sources := make([]dataSource, 0, 1+len(others))
 	for _, s := range append([]any{source}, others...) {
-		ds, err := parseDataSource(s)
+		ds, err := newDataSource(s)
 		if err != nil {
 			return err
 		}
@@ -545,7 +548,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 	var empty []bool
 	lastSectionIdx := len(f.sectionList) - 1
 	for i, sname := range f.sectionList {
-		// Not SectionWithIndex: with Insensitive, a "[DEFAULT]" header makes a
+		// Not SectionWithIndex: with CaseInsensitive, a "[DEFAULT]" header makes a
 		// section that lookups by name don't find.
 		sec := f.sections[sname][f.sectionIndexes[i]]
 		if strings.Contains(sname, "\n") {
