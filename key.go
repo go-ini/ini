@@ -147,6 +147,22 @@ func (k *Key) NestedValues() []string {
 
 // transformValue takes a raw value and transforms to its final string.
 func (k *Key) transformValue(val string) string {
+	return k.expand(val, 0, new(expansion))
+}
+
+// expansion counts the work of one %(name)s expansion.
+type expansion struct {
+	substitutions int
+	bytes         int // total length of the values substitutions made
+}
+
+// expand applies the ValueMapper and replaces %(name)s references in val
+// with the expanded values of those keys. References nest at most
+// depthValues deep, and one expansion makes at most maxSubstitutions
+// substitutions producing at most maxExpandedLen bytes in total, so
+// reference cycles and values that double at every level stop instead of
+// overflowing the stack or using up time and memory.
+func (k *Key) expand(val string, depth int, e *expansion) string {
 	if k.s.f.ValueMapper != nil {
 		val = k.s.f.ValueMapper(val)
 	}
@@ -155,7 +171,7 @@ func (k *Key) transformValue(val string) string {
 	if !strings.Contains(val, "%") {
 		return val
 	}
-	for i := 0; i < depthValues; i++ {
+	for i := 0; i < depthValues && depth < depthValues && e.substitutions < maxSubstitutions; i++ {
 		vr := varPattern.FindString(val)
 		if len(vr) == 0 {
 			break
@@ -176,8 +192,14 @@ func (k *Key) transformValue(val string) string {
 			}
 		}
 
-		// Substitute by new value and take off leading '%(' and trailing ')s'.
-		val = strings.ReplaceAll(val, vr, nk.String())
+		e.substitutions++
+		sub := nk.expand(nk.value, depth+1, e)
+		n := len(val) + strings.Count(val, vr)*(len(sub)-len(vr))
+		if e.bytes+n > maxExpandedLen {
+			break
+		}
+		e.bytes += n
+		val = strings.ReplaceAll(val, vr, sub)
 	}
 	return val
 }

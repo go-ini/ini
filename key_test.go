@@ -621,6 +621,25 @@ expires = %(expires)s`))
 		assert.Equal(t, "yes", f.Section("package").Key("expires").String())
 	})
 
+	// https://github.com/go-ini/ini/issues/409
+	t.Run("reference cycles and doubling values stop", func(t *testing.T) {
+		for _, data := range []string{
+			"[s]\na = %(b)s\nb = %(a)s\n",
+			"[s]\na = %(b)s%(b)s\nb = %(a)s%(a)s\n",
+		} {
+			f, err := Load([]byte(data))
+			require.NoError(t, err)
+			done := make(chan string)
+			go func() { done <- f.Section("s").Key("a").String() }()
+			select {
+			case v := <-done:
+				assert.LessOrEqual(t, len(v), maxExpandedLen)
+			case <-time.After(5 * time.Second):
+				t.Fatalf("%q: String didn't return", data)
+			}
+		}
+	})
+
 	t.Run("recursive value with no target found", func(t *testing.T) {
 		f, err := Load([]byte(`
 [foo]

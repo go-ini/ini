@@ -28,6 +28,9 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	depthValues = 99
+	// Limits of one %(name)s expansion; see Key.expand.
+	maxSubstitutions = 10000
+	maxExpandedLen   = 1 << 20
 )
 
 // Variable regexp pattern: %(variable)s
