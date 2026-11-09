@@ -93,7 +93,7 @@ func (f *File) NewSection(name string) (*Section, error) {
 		defer f.lock.Unlock()
 	}
 
-	if !f.options.AllowNonUniqueSections && inSlice(name, f.sectionList) {
+	if _, ok := f.sections[name]; ok && !f.options.AllowNonUniqueSections {
 		return f.sections[name][0], nil
 	}
 
