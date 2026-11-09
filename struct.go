@@ -423,9 +423,10 @@ func (f *File) StrictMapTo(v interface{}) error {
 	return f.Section("").StrictMapTo(v)
 }
 
-// MapToWithMapper maps data sources to given struct with name mapper.
-func MapToWithMapper(v interface{}, mapper NameMapper, source interface{}, others ...interface{}) error {
-	cfg, err := Load(source, others...)
+// MapToWithMapper loads a data source with opts and maps it to the given
+// struct with the name mapper.
+func MapToWithMapper(v any, mapper NameMapper, source any, opts ...LoadOption) error {
+	cfg, err := Load(source, opts...)
 	if err != nil {
 		return err
 	}
@@ -433,10 +434,11 @@ func MapToWithMapper(v interface{}, mapper NameMapper, source interface{}, other
 	return cfg.MapTo(v)
 }
 
-// StrictMapToWithMapper maps data sources to given struct with name mapper in strict mode,
-// which returns all possible error including value parsing error.
-func StrictMapToWithMapper(v interface{}, mapper NameMapper, source interface{}, others ...interface{}) error {
-	cfg, err := Load(source, others...)
+// StrictMapToWithMapper loads a data source with opts and maps it to the
+// given struct with the name mapper in strict mode, which returns all
+// possible error including value parsing error.
+func StrictMapToWithMapper(v any, mapper NameMapper, source any, opts ...LoadOption) error {
+	cfg, err := Load(source, opts...)
 	if err != nil {
 		return err
 	}
@@ -444,15 +446,16 @@ func StrictMapToWithMapper(v interface{}, mapper NameMapper, source interface{},
 	return cfg.StrictMapTo(v)
 }
 
-// MapTo maps data sources to given struct.
-func MapTo(v, source interface{}, others ...interface{}) error {
-	return MapToWithMapper(v, nil, source, others...)
+// MapTo loads a data source with opts and maps it to the given struct.
+func MapTo(v, source any, opts ...LoadOption) error {
+	return MapToWithMapper(v, nil, source, opts...)
 }
 
-// StrictMapTo maps data sources to given struct in strict mode,
-// which returns all possible error including value parsing error.
-func StrictMapTo(v, source interface{}, others ...interface{}) error {
-	return StrictMapToWithMapper(v, nil, source, others...)
+// StrictMapTo loads a data source with opts and maps it to the given struct
+// in strict mode, which returns all possible error including value parsing
+// error.
+func StrictMapTo(v, source any, opts ...LoadOption) error {
+	return StrictMapToWithMapper(v, nil, source, opts...)
 }
 
 // reflectSliceWithProperType does the opposite thing as setSliceWithProperType.
@@ -687,7 +690,7 @@ func (s *Section) ReflectFrom(v interface{}) error {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
 
-	if s.name != DefaultSection && s.f.options.AllowNonUniqueSections &&
+	if s.name != s.f.options.DefaultSection && s.f.options.AllowNonUniqueSections &&
 		(typ.Kind() == reflect.Slice || typ.Kind() == reflect.Pointer) {
 		// Clear sections to make sure none exists before adding the new ones
 		s.f.DeleteSection(s.name)

@@ -54,12 +54,7 @@ var update = flag.Bool("update", false, "Update .golden files")
 
 func TestLoad(t *testing.T) {
 	t.Run("load from good data sources", func(t *testing.T) {
-		f, err := Load(
-			"testdata/minimal.ini",
-			[]byte("NAME = ini\nIMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s"),
-			bytes.NewReader([]byte(`VERSION = v1`)),
-			io.NopCloser(bytes.NewReader([]byte("[author]\nNAME = Unknwon"))),
-		)
+		f, err := LoadSources([]any{"testdata/minimal.ini", []byte("NAME = ini\nIMPORT_PATH = gopkg.in/%(NAME)s.%(VERSION)s"), bytes.NewReader([]byte(`VERSION = v1`)), io.NopCloser(bytes.NewReader([]byte("[author]\nNAME = Unknwon")))})
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -114,7 +109,7 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 `))
 		require.Error(t, err)
 		assert.Nil(t, f)
-		assert.Equal(t, "key-value delimiter not found: foo\n", err.Error())
+		assert.Equal(t, "line 4, column 4: key-value delimiter not found: foo\n", err.Error())
 	})
 
 	t.Run("cannot parse big python-compatible INI files", func(t *testing.T) {
@@ -221,12 +216,12 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 `))
 		require.Error(t, err)
 		assert.Nil(t, f)
-		assert.Equal(t, "key-value delimiter not found: 1foo\n", err.Error())
+		assert.Equal(t, "line 4, column 4: key-value delimiter not found: 1foo\n", err.Error())
 	})
 }
 
 func TestLooseLoad(t *testing.T) {
-	f, err := LoadSources(LoadOptions{Loose: true}, notFoundConf, minimalConf)
+	f, err := LoadSources([]any{notFoundConf, minimalConf}, Loose())
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
@@ -238,7 +233,7 @@ func TestLooseLoad(t *testing.T) {
 
 func TestInsensitiveLoad(t *testing.T) {
 	t.Run("insensitive to section and key names", func(t *testing.T) {
-		f, err := InsensitiveLoad(minimalConf)
+		f, err := Load(minimalConf, Insensitive())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -266,11 +261,11 @@ e-mail = u@gogs.io
 
 	// Ref: https://github.com/go-ini/ini/issues/198
 	t.Run("insensitive load with default section", func(t *testing.T) {
-		f, err := InsensitiveLoad([]byte(`
+		f, err := Load([]byte(`
 user = unknwon
 [profile]
 email = unknwon@local
-`))
+`), Insensitive())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -281,18 +276,18 @@ email = unknwon@local
 func TestLoadSources(t *testing.T) {
 	t.Run("with true `AllowPythonMultilineValues`", func(t *testing.T) {
 		t.Run("ignore nonexistent files", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true, Loose: true}, notFoundConf, minimalConf)
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, AllowPythonMultilineValues(), Loose())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err = LoadSources(LoadOptions{AllowPythonMultilineValues: true}, notFoundConf)
+				_, err = Load(notFoundConf, AllowPythonMultilineValues())
 				require.Error(t, err)
 			})
 		})
 
 		t.Run("insensitive to section and key names", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true, Insensitive: true}, minimalConf)
+			f, err := Load(minimalConf, AllowPythonMultilineValues(), Insensitive())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -310,7 +305,7 @@ e-mail = u@gogs.io
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, minimalConf)
+				f, err := Load(minimalConf, AllowPythonMultilineValues())
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -319,7 +314,7 @@ e-mail = u@gogs.io
 		})
 
 		t.Run("insensitive to sections and sensitive to key names", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{InsensitiveSections: true}, minimalConf)
+			f, err := Load(minimalConf, InsensitiveSections())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -337,7 +332,7 @@ E-MAIL = u@gogs.io
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{}, minimalConf)
+				f, err := Load(minimalConf)
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -346,7 +341,7 @@ E-MAIL = u@gogs.io
 		})
 
 		t.Run("sensitive to sections and insensitive to key names", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{InsensitiveKeys: true}, minimalConf)
+			f, err := Load(minimalConf, InsensitiveKeys())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -364,7 +359,7 @@ e-mail = u@gogs.io
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{}, minimalConf)
+				f, err := Load(minimalConf)
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -373,13 +368,10 @@ e-mail = u@gogs.io
 		})
 
 		t.Run("ignore continuation lines", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: true,
-				IgnoreContinuation:         true,
-			}, []byte(`
+			f, err := Load([]byte(`
 key1=a\b\
 key2=c\d\
-key3=value`))
+key3=value`), AllowPythonMultilineValues(), IgnoreContinuation())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -388,9 +380,9 @@ key3=value`))
 			assert.Equal(t, "value", f.Section("").Key("key3").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+				f, err := Load([]byte(`
 key1=a\b\
-key2=c\d\`))
+key2=c\d\`), AllowPythonMultilineValues())
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -399,13 +391,10 @@ key2=c\d\`))
 		})
 
 		t.Run("ignore inline comments", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: true,
-				IgnoreInlineComment:        true,
-			}, []byte(`
+			f, err := Load([]byte(`
 key1=value ;comment
 key2=value2 #comment2
-key3=val#ue #comment3`))
+key3=val#ue #comment3`), AllowPythonMultilineValues(), IgnoreInlineComment())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -414,9 +403,9 @@ key3=val#ue #comment3`))
 			assert.Equal(t, `val#ue #comment3`, f.Section("").Key("key3").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+				f, err := Load([]byte(`
 key1=value ;comment
-key2=value2 #comment2`))
+key2=value2 #comment2`), AllowPythonMultilineValues())
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -428,9 +417,7 @@ key2=value2 #comment2`))
 		})
 
 		t.Run("skip unrecognizable lines", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				SkipUnrecognizableLines: true,
-			}, []byte(`
+			f, err := Load([]byte(`
 GenerationDepth: 13
 
 BiomeRarityScale: 100
@@ -443,7 +430,7 @@ BiomeGroup(NormalBiomes, 3, 99, RoofedForestEnchanted, ForestSakura, FloatingJun
 BiomeGroup(IceBiomes, 4, 85, Ice Plains)
 
 = RainForest
-`))
+`), SkipUnrecognizableLines())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -453,13 +440,10 @@ BiomeGroup(IceBiomes, 4, 85, Ice Plains)
 		})
 
 		t.Run("allow boolean type keys", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: true,
-				AllowBooleanKeys:           true,
-			}, []byte(`
+			f, err := Load([]byte(`
 key1=hello
 #key2
-key3`))
+key3`), AllowPythonMultilineValues(), AllowBooleanKeys())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -479,20 +463,20 @@ key3
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+				_, err := Load([]byte(`
 key1=hello
 #key2
-key3`))
+key3`), AllowPythonMultilineValues())
 				require.Error(t, err)
 			})
 		})
 
 		t.Run("allow shadow keys", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{AllowShadows: true, AllowPythonMultilineValues: true}, []byte(`
+			f, err := Load([]byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git
-fetch = +refs/heads/*:refs/remotes/origin/*`))
+fetch = +refs/heads/*:refs/remotes/origin/*`), AllowShadows(), AllowPythonMultilineValues())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -521,10 +505,10 @@ fetch = +refs/heads/*:refs/remotes/origin/*
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+				f, err := Load([]byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
-url = https://github.com/Antergone/test2.git`))
+url = https://github.com/Antergone/test2.git`), AllowPythonMultilineValues())
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -533,19 +517,16 @@ url = https://github.com/Antergone/test2.git`))
 		})
 
 		t.Run("unescape double quotes inside value", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: true,
-				UnescapeValueDoubleQuotes:  true,
-			}, []byte(`
-create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
+			f, err := Load([]byte(`
+create_repo="创建了仓库 <a href=\"%s\">%s</a>"`), AllowPythonMultilineValues(), UnescapeValueDoubleQuotes())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
 			assert.Equal(t, `创建了仓库 <a href="%s">%s</a>`, f.Section("").Key("create_repo").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
-create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
+				f, err := Load([]byte(`
+create_repo="创建了仓库 <a href=\"%s\">%s</a>"`), AllowPythonMultilineValues())
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -554,13 +535,9 @@ create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
 		})
 
 		t.Run("unescape comment symbols inside value", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues:  true,
-				IgnoreInlineComment:         true,
-				UnescapeValueCommentSymbols: true,
-			}, []byte(`
+			f, err := Load([]byte(`
 key = test value <span style="color: %s\; background: %s">more text</span>
-`))
+`), AllowPythonMultilineValues(), IgnoreInlineComment(), UnescapeValueCommentSymbols())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -568,11 +545,9 @@ key = test value <span style="color: %s\; background: %s">more text</span>
 		})
 
 		t.Run("unescape double quotes with backslash continuation", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				UnescapeValueDoubleQuotes: true,
-			}, []byte(`hello = "!f() { \
+			f, err := Load([]byte(`hello = "!f() { \
   echo "hello world"; \
-};f"`))
+};f"`), UnescapeValueDoubleQuotes())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -582,22 +557,15 @@ key = test value <span style="color: %s\; background: %s">more text</span>
 			assert.Equal(t, expected, f.Section("").Key("hello").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err := LoadSources(LoadOptions{
-					UnescapeValueDoubleQuotes: true,
-					IgnoreContinuation:        true,
-				}, []byte(`hello = "!f() { \
+				_, err := Load([]byte(`hello = "!f() { \
   echo "hello world"; \
-};f"`))
+};f"`), UnescapeValueDoubleQuotes(), IgnoreContinuation())
 				require.Error(t, err)
 			})
 		})
 
 		t.Run("can parse small python-compatible INI files", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: true,
-				Insensitive:                true,
-				UnparseableSections:        []string{"core_lesson", "comments"},
-			}, []byte(`
+			f, err := Load([]byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
   foo
@@ -609,7 +577,7 @@ multiline_list =
   first
   second
   third
-`))
+`), AllowPythonMultilineValues(), Insensitive(), UnparseableSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -618,11 +586,7 @@ multiline_list =
 		})
 
 		t.Run("can parse big python-compatible INI files", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: true,
-				Insensitive:                true,
-				UnparseableSections:        []string{"core_lesson", "comments"},
-			}, []byte(`
+			f, err := Load([]byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
    1foo
@@ -722,7 +686,7 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
    95foobar
    96barfoo
    -----END RSA PRIVATE KEY-----
-`))
+`), AllowPythonMultilineValues(), Insensitive(), UnparseableSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -829,11 +793,7 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 		})
 
 		t.Run("allow unparsable sections", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: true,
-				Insensitive:                true,
-				UnparseableSections:        []string{"core_lesson", "comments"},
-			}, []byte(`
+			f, err := Load([]byte(`
 Lesson_Location = 87
 Lesson_Status = C
 Score = 3
@@ -845,7 +805,7 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 [COMMENTS]
 <1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
-`))
+`), AllowPythonMultilineValues(), Insensitive(), UnparseableSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -878,19 +838,17 @@ my lesson state data – 1111111111111111111000000000000000001110000
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(`
+				_, err := Load([]byte(`
 [CORE_LESSON]
 my lesson state data – 1111111111111111111000000000000000001110000
-111111111111111111100000000000111000000000 – end my lesson state data`))
+111111111111111111100000000000111000000000 – end my lesson state data`), AllowPythonMultilineValues())
 				require.Error(t, err)
 			})
 		})
 
 		t.Run("and false `SpaceBeforeInlineComment`", func(t *testing.T) {
 			t.Run("cannot parse INI files containing `#` or `;` in value", func(t *testing.T) {
-				f, err := LoadSources(
-					LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: false},
-					[]byte(`
+				f, err := Load([]byte(`
 [author]
 NAME = U#n#k#n#w#o#n
 GITHUB = U;n;k;n;w;o;n
@@ -907,13 +865,11 @@ GITHUB = U;n;k;n;w;o;n
 
 		t.Run("and true `SpaceBeforeInlineComment`", func(t *testing.T) {
 			t.Run("can parse INI files containing `#` or `;` in value", func(t *testing.T) {
-				f, err := LoadSources(
-					LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: true},
-					[]byte(`
+				f, err := Load([]byte(`
 [author]
 NAME = U#n#k#n#w#o#n
 GITHUB = U;n;k;n;w;o;n
-`))
+`), SpaceBeforeInlineComment())
 				require.NoError(t, err)
 				require.NotNil(t, f)
 				sec := f.Section("author")
@@ -927,26 +883,18 @@ GITHUB = U;n;k;n;w;o;n
 
 	t.Run("with false `AllowPythonMultilineValues`", func(t *testing.T) {
 		t.Run("ignore nonexistent files", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: false,
-				Loose:                      true,
-			}, notFoundConf, minimalConf)
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, Loose())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err = LoadSources(LoadOptions{
-					AllowPythonMultilineValues: false,
-				}, notFoundConf)
+				_, err = Load(notFoundConf)
 				require.Error(t, err)
 			})
 		})
 
 		t.Run("insensitive to section and key names", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: false,
-				Insensitive:                true,
-			}, minimalConf)
+			f, err := Load(minimalConf, Insensitive())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -964,9 +912,7 @@ e-mail = u@gogs.io
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{
-					AllowPythonMultilineValues: false,
-				}, minimalConf)
+				f, err := Load(minimalConf)
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -975,13 +921,10 @@ e-mail = u@gogs.io
 		})
 
 		t.Run("ignore continuation lines", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: false,
-				IgnoreContinuation:         true,
-			}, []byte(`
+			f, err := Load([]byte(`
 key1=a\b\
 key2=c\d\
-key3=value`))
+key3=value`), IgnoreContinuation())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -990,7 +933,7 @@ key3=value`))
 			assert.Equal(t, "value", f.Section("").Key("key3").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				f, err := Load([]byte(`
 key1=a\b\
 key2=c\d\`))
 				require.NoError(t, err)
@@ -1001,13 +944,10 @@ key2=c\d\`))
 		})
 
 		t.Run("ignore inline comments", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: false,
-				IgnoreInlineComment:        true,
-			}, []byte(`
+			f, err := Load([]byte(`
 key1=value ;comment
 key2=value2 #comment2
-key3=val#ue #comment3`))
+key3=val#ue #comment3`), IgnoreInlineComment())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1016,7 +956,7 @@ key3=val#ue #comment3`))
 			assert.Equal(t, `val#ue #comment3`, f.Section("").Key("key3").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				f, err := Load([]byte(`
 key1=value ;comment
 key2=value2 #comment2`))
 				require.NoError(t, err)
@@ -1030,13 +970,10 @@ key2=value2 #comment2`))
 		})
 
 		t.Run("allow boolean type keys", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: false,
-				AllowBooleanKeys:           true,
-			}, []byte(`
+			f, err := Load([]byte(`
 key1=hello
 #key2
-key3`))
+key3`), AllowBooleanKeys())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1056,7 +993,7 @@ key3
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				_, err := Load([]byte(`
 key1=hello
 #key2
 key3`))
@@ -1065,11 +1002,11 @@ key3`))
 		})
 
 		t.Run("allow shadow keys", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false, AllowShadows: true}, []byte(`
+			f, err := Load([]byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git
-fetch = +refs/heads/*:refs/remotes/origin/*`))
+fetch = +refs/heads/*:refs/remotes/origin/*`), AllowShadows())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1098,7 +1035,7 @@ fetch = +refs/heads/*:refs/remotes/origin/*
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				f, err := Load([]byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git`))
@@ -1110,18 +1047,15 @@ url = https://github.com/Antergone/test2.git`))
 		})
 
 		t.Run("unescape double quotes inside value", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: false,
-				UnescapeValueDoubleQuotes:  true,
-			}, []byte(`
-create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
+			f, err := Load([]byte(`
+create_repo="创建了仓库 <a href=\"%s\">%s</a>"`), UnescapeValueDoubleQuotes())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
 			assert.Equal(t, `创建了仓库 <a href="%s">%s</a>`, f.Section("").Key("create_repo").String())
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				f, err := Load([]byte(`
 create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
 				require.NoError(t, err)
 				require.NotNil(t, f)
@@ -1131,13 +1065,9 @@ create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
 		})
 
 		t.Run("unescape comment symbols inside value", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues:  false,
-				IgnoreInlineComment:         true,
-				UnescapeValueCommentSymbols: true,
-			}, []byte(`
+			f, err := Load([]byte(`
 key = test value <span style="color: %s\; background: %s">more text</span>
-`))
+`), IgnoreInlineComment(), UnescapeValueCommentSymbols())
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1145,7 +1075,7 @@ key = test value <span style="color: %s\; background: %s">more text</span>
 		})
 
 		t.Run("cannot parse small python-compatible INI files", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+			f, err := Load([]byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
   foo
@@ -1156,11 +1086,11 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 `))
 			require.Error(t, err)
 			assert.Nil(t, f)
-			assert.Equal(t, "key-value delimiter not found: foo\n", err.Error())
+			assert.Equal(t, "line 4, column 3: key-value delimiter not found: foo\n", err.Error())
 		})
 
 		t.Run("cannot parse big python-compatible INI files", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+			f, err := Load([]byte(`
 [long]
 long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
   1foo
@@ -1263,15 +1193,11 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 `))
 			require.Error(t, err)
 			assert.Nil(t, f)
-			assert.Equal(t, "key-value delimiter not found: 1foo\n", err.Error())
+			assert.Equal(t, "line 4, column 3: key-value delimiter not found: 1foo\n", err.Error())
 		})
 
 		t.Run("allow unparsable sections", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{
-				AllowPythonMultilineValues: false,
-				Insensitive:                true,
-				UnparseableSections:        []string{"core_lesson", "comments"},
-			}, []byte(`
+			f, err := Load([]byte(`
 Lesson_Location = 87
 Lesson_Status = C
 Score = 3
@@ -1283,7 +1209,7 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 [COMMENTS]
 <1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
-`))
+`), Insensitive(), UnparseableSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1316,7 +1242,7 @@ my lesson state data – 1111111111111111111000000000000000001110000
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err := LoadSources(LoadOptions{AllowPythonMultilineValues: false}, []byte(`
+				_, err := Load([]byte(`
 [CORE_LESSON]
 my lesson state data – 1111111111111111111000000000000000001110000
 111111111111111111100000000000111000000000 – end my lesson state data`))
@@ -1326,13 +1252,11 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 		t.Run("and false `SpaceBeforeInlineComment`", func(t *testing.T) {
 			t.Run("cannot parse INI files containing `#` or `;` in value", func(t *testing.T) {
-				f, err := LoadSources(
-					LoadOptions{AllowPythonMultilineValues: true, SpaceBeforeInlineComment: false},
-					[]byte(`
+				f, err := Load([]byte(`
 [author]
 NAME = U#n#k#n#w#o#n
 GITHUB = U;n;k;n;w;o;n
-`))
+`), AllowPythonMultilineValues())
 				require.NoError(t, err)
 				require.NotNil(t, f)
 				sec := f.Section("author")
@@ -1345,13 +1269,11 @@ GITHUB = U;n;k;n;w;o;n
 
 		t.Run("and true `SpaceBeforeInlineComment`", func(t *testing.T) {
 			t.Run("can parse INI files containing `#` or `;` in value", func(t *testing.T) {
-				f, err := LoadSources(
-					LoadOptions{AllowPythonMultilineValues: true, SpaceBeforeInlineComment: true},
-					[]byte(`
+				f, err := Load([]byte(`
 [author]
 NAME = U#n#k#n#w#o#n
 GITHUB = U;n;k;n;w;o;n
-`))
+`), AllowPythonMultilineValues(), SpaceBeforeInlineComment())
 				require.NoError(t, err)
 				require.NotNil(t, f)
 				sec := f.Section("author")
@@ -1365,7 +1287,7 @@ GITHUB = U;n;k;n;w;o;n
 
 	t.Run("with `ChildSectionDelimiter` ':'", func(t *testing.T) {
 		t.Run("get all keys of parent sections", func(t *testing.T) {
-			f := Empty(LoadOptions{ChildSectionDelimiter: ":"})
+			f := Empty(ChildSectionDelimiter(":"))
 			require.NotNil(t, f)
 
 			k, err := f.Section("package").NewKey("NAME", "ini")
@@ -1387,7 +1309,7 @@ GITHUB = U;n;k;n;w;o;n
 		})
 
 		t.Run("getting and setting values", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{ChildSectionDelimiter: ":"}, fullConf)
+			f, err := Load(fullConf, ChildSectionDelimiter(":"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1406,13 +1328,13 @@ GITHUB = U;n;k;n;w;o;n
 		})
 
 		t.Run("get child sections by parent name", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{ChildSectionDelimiter: ":"}, []byte(`
+			f, err := Load([]byte(`
 [node]
 [node:biz1]
 [node:biz2]
 [node.biz3]
 [node.bizN]
-`))
+`), ChildSectionDelimiter(":"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1427,7 +1349,7 @@ GITHUB = U;n;k;n;w;o;n
 
 	t.Run("ShortCircuit", func(t *testing.T) {
 		t.Run("load the first available configuration, ignore other configuration", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{ShortCircuit: true}, minimalConf, []byte(`key1 = value1`))
+			f, err := LoadSources([]any{minimalConf, []byte(`key1 = value1`)}, ShortCircuit())
 			require.NotNil(t, f)
 			require.NoError(t, err)
 			var buf bytes.Buffer
@@ -1441,13 +1363,13 @@ E-MAIL = u@gogs.io
 		})
 
 		t.Run("return an error when fail to load", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{ShortCircuit: true}, notFoundConf, minimalConf)
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, ShortCircuit())
 			assert.Nil(t, f)
 			require.Error(t, err)
 		})
 
 		t.Run("used with Loose to ignore errors that the file does not exist", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{ShortCircuit: true, Loose: true}, notFoundConf, minimalConf)
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, ShortCircuit(), Loose())
 			require.NotNil(t, f)
 			require.NoError(t, err)
 			var buf bytes.Buffer
@@ -1461,7 +1383,7 @@ E-MAIL = u@gogs.io
 		})
 
 		t.Run("ensure all sources are loaded without ShortCircuit", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{ShortCircuit: false}, minimalConf, []byte(`key1 = value1`))
+			f, err := LoadSources([]any{minimalConf, []byte(`key1 = value1`)})
 			require.NotNil(t, f)
 			require.NoError(t, err)
 			var buf bytes.Buffer
@@ -1480,13 +1402,11 @@ E-MAIL = u@gogs.io
 
 func Test_KeyValueDelimiters(t *testing.T) {
 	t.Run("custom key-value delimiters", func(t *testing.T) {
-		f, err := LoadSources(LoadOptions{
-			KeyValueDelimiters: "?!",
-		}, []byte(`
+		f, err := Load([]byte(`
 [section]
 key1?value1
 key2!value2
-`))
+`), KeyValueDelimiters("?!"))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -1497,13 +1417,11 @@ key2!value2
 
 func Test_PreserveSurroundedQuote(t *testing.T) {
 	t.Run("preserve surrounded quote test", func(t *testing.T) {
-		f, err := LoadSources(LoadOptions{
-			PreserveSurroundedQuote: true,
-		}, []byte(`
+		f, err := Load([]byte(`
 [section]
 key1 = "value1"
 key2 = value2
-`))
+`), PreserveSurroundedQuote())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -1512,9 +1430,7 @@ key2 = value2
 	})
 
 	t.Run("preserve surrounded quote test inverse test", func(t *testing.T) {
-		f, err := LoadSources(LoadOptions{
-			PreserveSurroundedQuote: false,
-		}, []byte(`
+		f, err := Load([]byte(`
 [section]
 key1 = "value1"
 key2 = value2
@@ -1539,10 +1455,7 @@ func TestPythonMultiline(t *testing.T) {
 	}
 
 	path := filepath.Join("testdata", "multiline.ini")
-	f, err := LoadSources(LoadOptions{
-		AllowPythonMultilineValues: true,
-		ReaderBufferSize:           64 * 1024,
-	}, path)
+	f, err := Load(path, AllowPythonMultilineValues())
 	require.NoError(t, err)
 	require.NotNil(t, f)
 	assert.Len(t, f.Sections(), 1)
@@ -1588,10 +1501,7 @@ func TestPythonMultiline_EOF(t *testing.T) {
 	}
 
 	path := filepath.Join("testdata", "multiline_eof.ini")
-	f, err := LoadSources(LoadOptions{
-		AllowPythonMultilineValues: true,
-		ReaderBufferSize:           64 * 1024,
-	}, path)
+	f, err := Load(path, AllowPythonMultilineValues())
 	require.NoError(t, err)
 	require.NotNil(t, f)
 	assert.Len(t, f.Sections(), 1)
@@ -1607,14 +1517,12 @@ func TestPythonMultiline_EOF(t *testing.T) {
 
 func Test_NestedValuesSpanningSections(t *testing.T) {
 	t.Run("basic nested value", func(t *testing.T) {
-		f, err := LoadSources(LoadOptions{
-			AllowNestedValues: true,
-		}, []byte(`
+		f, err := Load([]byte(`
 [section]
 key1 = value1
 key2 =
   nested1 = nestedvalue1
-`))
+`), AllowNestedValues())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -1624,13 +1532,11 @@ key2 =
 	})
 
 	t.Run("no nested values", func(t *testing.T) {
-		f, err := LoadSources(LoadOptions{
-			AllowNestedValues: true,
-		}, []byte(`
+		f, err := Load([]byte(`
 [section]
 key1 = value1
 key2 =
-`))
+`), AllowNestedValues())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -1639,16 +1545,14 @@ key2 =
 	})
 
 	t.Run("no nested values and following sections", func(t *testing.T) {
-		f, err := LoadSources(LoadOptions{
-			AllowNestedValues: true,
-		}, []byte(`
+		f, err := Load([]byte(`
 [section]
 key1 = value1
 key2 =
 
 [section2]
 key3 = value3
-`))
+`), AllowNestedValues())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -1658,16 +1562,14 @@ key3 = value3
 	})
 
 	t.Run("no nested values and following sections with indentation", func(t *testing.T) {
-		f, err := LoadSources(LoadOptions{
-			AllowNestedValues: true,
-		}, []byte(`
+		f, err := Load([]byte(`
 [section]
 key1 = value1
 key2 =
 
 [section2]
   key3 = value3
-`))
+`), AllowNestedValues())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 

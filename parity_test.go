@@ -15,6 +15,7 @@
 package ini
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -60,27 +61,37 @@ func parityOptions(flags uint32) v1.LoadOptions {
 }
 
 // v2Options returns the v2 equivalent of v1 load options.
-func v2Options(o v1.LoadOptions) LoadOptions {
-	return LoadOptions{
-		Insensitive:                 o.Insensitive,
-		InsensitiveSections:         o.InsensitiveSections,
-		InsensitiveKeys:             o.InsensitiveKeys,
-		IgnoreContinuation:          o.IgnoreContinuation,
-		IgnoreInlineComment:         o.IgnoreInlineComment,
-		SkipUnrecognizableLines:     o.SkipUnrecognizableLines,
-		AllowBooleanKeys:            o.AllowBooleanKeys,
-		AllowShadows:                o.AllowShadows,
-		AllowNestedValues:           o.AllowNestedValues,
-		AllowPythonMultilineValues:  o.AllowPythonMultilineValues,
-		SpaceBeforeInlineComment:    o.SpaceBeforeInlineComment,
-		UnescapeValueDoubleQuotes:   o.UnescapeValueDoubleQuotes,
-		UnescapeValueCommentSymbols: o.UnescapeValueCommentSymbols,
-		PreserveSurroundedQuote:     o.PreserveSurroundedQuote,
-		AllowNonUniqueSections:      o.AllowNonUniqueSections,
-		AllowDuplicateShadowValues:  o.AllowDuplicateShadowValues,
-		UnparseableSections:         o.UnparseableSections,
-		KeyValueDelimiters:          o.KeyValueDelimiters,
+func v2Options(o v1.LoadOptions) []LoadOption {
+	var opts []LoadOption
+	for _, flag := range []struct {
+		set bool
+		opt func() LoadOption
+	}{
+		{o.Insensitive, Insensitive},
+		{o.InsensitiveSections, InsensitiveSections},
+		{o.InsensitiveKeys, InsensitiveKeys},
+		{o.IgnoreContinuation, IgnoreContinuation},
+		{o.IgnoreInlineComment, IgnoreInlineComment},
+		{o.SkipUnrecognizableLines, SkipUnrecognizableLines},
+		{o.AllowBooleanKeys, AllowBooleanKeys},
+		{o.AllowShadows, AllowShadows},
+		{o.AllowNestedValues, AllowNestedValues},
+		{o.AllowPythonMultilineValues, AllowPythonMultilineValues},
+		{o.SpaceBeforeInlineComment, SpaceBeforeInlineComment},
+		{o.UnescapeValueDoubleQuotes, UnescapeValueDoubleQuotes},
+		{o.UnescapeValueCommentSymbols, UnescapeValueCommentSymbols},
+		{o.PreserveSurroundedQuote, PreserveSurroundedQuote},
+		{o.AllowNonUniqueSections, AllowNonUniqueSections},
+		{o.AllowDuplicateShadowValues, AllowDuplicateShadowValues},
+	} {
+		if flag.set {
+			opts = append(opts, flag.opt())
+		}
 	}
+	if o.UnparseableSections != nil {
+		opts = append(opts, UnparseableSections(o.UnparseableSections...))
+	}
+	return append(opts, KeyValueDelimiters(o.KeyValueDelimiters))
 }
 
 // dumpFile describes everything stored in a v1 or v2 *File. It reads the
@@ -127,6 +138,11 @@ func loadResult(load func() (interface{}, error)) (out string) {
 		}
 	}()
 	f, err := load()
+	// v2 adds the position to parse errors; compare the error under it.
+	var perr *ParseError
+	if errors.As(err, &perr) {
+		err = perr.Err
+	}
 	if err != nil {
 		return "error: " + err.Error()
 	}
@@ -144,7 +160,7 @@ func checkParity(t *testing.T, data []byte, flags uint32) {
 	}
 
 	want := loadResult(func() (interface{}, error) { return v1.LoadSources(opts, data, data) })
-	got := loadResult(func() (interface{}, error) { return LoadSources(v2Options(opts), data, data) })
+	got := loadResult(func() (interface{}, error) { return LoadSources([]any{data, data}, v2Options(opts)...) })
 	if want != got {
 		t.Fatalf("v1 and v2 differ\ninput: %q\noptions: %+v\nv1:\n%s\nv2:\n%s", data, opts, want, got)
 	}
@@ -312,7 +328,7 @@ func TestParsePythonMultilineLongerThanBuffer(t *testing.T) {
 	}
 	b.WriteString("next = ok\n")
 
-	f, err := LoadSources(LoadOptions{AllowPythonMultilineValues: true}, []byte(b.String()))
+	f, err := Load([]byte(b.String()), AllowPythonMultilineValues())
 	if err != nil {
 		t.Fatal(err)
 	}

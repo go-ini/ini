@@ -26,7 +26,7 @@ import (
 
 // File represents a combination of one or more INI files in memory.
 type File struct {
-	options     LoadOptions
+	options     loadOptions
 	dataSources []dataSource
 
 	// Should make things safe, but sometimes doesn't matter.
@@ -47,34 +47,19 @@ type File struct {
 }
 
 // newFile initializes File object with given data sources.
-func newFile(dataSources []dataSource, opts LoadOptions) *File {
-	if len(opts.KeyValueDelimiters) == 0 {
-		opts.KeyValueDelimiters = "=:"
-	}
-	if len(opts.KeyValueDelimiterOnWrite) == 0 {
-		opts.KeyValueDelimiterOnWrite = "="
-	}
-	if len(opts.ChildSectionDelimiter) == 0 {
-		opts.ChildSectionDelimiter = "."
-	}
-
+func newFile(dataSources []dataSource, opts []LoadOption) *File {
 	return &File{
 		BlockMode:   true,
 		dataSources: dataSources,
 		sections:    make(map[string][]*Section),
-		options:     opts,
+		options:     newLoadOptions(opts),
 	}
 }
 
 // Empty returns an empty file object.
-func Empty(opts ...LoadOptions) *File {
-	var opt LoadOptions
-	if len(opts) > 0 {
-		opt = opts[0]
-	}
-
+func Empty(opts ...LoadOption) *File {
 	// Ignore error here, we are sure our data is good.
-	f, _ := LoadSources(opt, []byte(""))
+	f, _ := Load([]byte(""), opts...)
 	return f
 }
 
@@ -84,7 +69,7 @@ func (f *File) NewSection(name string) (*Section, error) {
 		return nil, errors.New("empty section name")
 	}
 
-	if (f.options.Insensitive || f.options.InsensitiveSections) && name != DefaultSection {
+	if (f.options.Insensitive || f.options.InsensitiveSections) && name != f.options.DefaultSection {
 		name = strings.ToLower(name)
 	}
 
@@ -150,7 +135,7 @@ func (f *File) HasSection(name string) bool {
 // SectionsByName returns all sections with given name.
 func (f *File) SectionsByName(name string) ([]*Section, error) {
 	if len(name) == 0 {
-		name = DefaultSection
+		name = f.options.DefaultSection
 	}
 	if f.options.Insensitive || f.options.InsensitiveSections {
 		name = strings.ToLower(name)
@@ -174,7 +159,7 @@ func (f *File) Section(name string) *Section {
 	sec, err := f.GetSection(name)
 	if err != nil {
 		if name == "" {
-			name = DefaultSection
+			name = f.options.DefaultSection
 		}
 		sec, _ = f.NewSection(name)
 		return sec
@@ -243,7 +228,7 @@ func (f *File) DeleteSectionWithIndex(name string, index int) error {
 	}
 
 	if len(name) == 0 {
-		name = DefaultSection
+		name = f.options.DefaultSection
 	}
 	if f.options.Insensitive || f.options.InsensitiveSections {
 		name = strings.ToLower(name)
@@ -332,12 +317,22 @@ func (f *File) Append(source interface{}, others ...interface{}) error {
 	return f.Reload()
 }
 
-func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
-	equalSign := DefaultFormatLeft + f.options.KeyValueDelimiterOnWrite + DefaultFormatRight
-
-	if PrettyFormat || PrettyEqual {
-		equalSign = fmt.Sprintf(" %s ", f.options.KeyValueDelimiterOnWrite)
+func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
+	o := newWriteOptions(opts)
+	indent, lineBreak := o.indent, o.lineBreak
+	equalSign := o.formatLeft + o.keyValueDelimiter + o.formatRight
+	if o.prettyFormat || o.prettyEqual {
+		equalSign = fmt.Sprintf(" %s ", o.keyValueDelimiter)
 	}
+
+	// Comment lines that don't start with a comment symbol get one: ";" as in
+	// v1 when it is a comment symbol, otherwise the first one.
+	symbols := f.options.CommentSymbols
+	commentPrefix := ";"
+	if !strings.Contains(symbols, ";") && symbols != "" {
+		commentPrefix = symbols[:1]
+	}
+	isComment := func(line string) bool { return strings.IndexByte(symbols, line[0]) > -1 }
 
 	// Use buffer to make sure target is safe until finish encoding.
 	buf := bytes.NewBuffer(nil)
@@ -346,22 +341,22 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 		sec := f.SectionWithIndex(sname, f.sectionIndexes[i])
 		if len(sec.Comment) > 0 {
 			// Support multiline comments
-			lines := strings.Split(sec.Comment, LineBreak)
+			lines := strings.Split(sec.Comment, lineBreak)
 			for i := range lines {
-				if lines[i][0] != '#' && lines[i][0] != ';' {
-					lines[i] = "; " + lines[i]
+				if !isComment(lines[i]) {
+					lines[i] = commentPrefix + " " + lines[i]
 				} else {
 					lines[i] = lines[i][:1] + " " + strings.TrimSpace(lines[i][1:])
 				}
 
-				if _, err := buf.WriteString(lines[i] + LineBreak); err != nil {
+				if _, err := buf.WriteString(lines[i] + lineBreak); err != nil {
 					return nil, err
 				}
 			}
 		}
 
-		if i > 0 || DefaultHeader || (i == 0 && strings.ToUpper(sec.name) != DefaultSection) {
-			if _, err := buf.WriteString("[" + sname + "]" + LineBreak); err != nil {
+		if i > 0 || o.defaultHeader || (i == 0 && strings.ToUpper(sec.name) != f.options.DefaultSection) {
+			if _, err := buf.WriteString("[" + sname + "]" + lineBreak); err != nil {
 				return nil, err
 			}
 		} else {
@@ -377,9 +372,9 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 				return nil, err
 			}
 
-			if PrettySection && !isLastSection {
+			if o.prettySection && !isLastSection {
 				// Put a line between sections
-				if _, err := buf.WriteString(LineBreak); err != nil {
+				if _, err := buf.WriteString(lineBreak); err != nil {
 					return nil, err
 				}
 			}
@@ -390,7 +385,7 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 		// longest key. Keys may be modified if they contain certain characters so
 		// we need to take that into account in our calculation.
 		alignLength := 0
-		if PrettyFormat {
+		if o.prettyFormat {
 			for _, kname := range sec.keyList {
 				keyLength := len(kname)
 				// First case will surround key by ` and second by """
@@ -411,26 +406,26 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 		for _, kname := range sec.keyList {
 			key := sec.Key(kname)
 			if len(key.Comment) > 0 {
-				if len(indent) > 0 && sname != DefaultSection {
+				if len(indent) > 0 && sname != f.options.DefaultSection {
 					buf.WriteString(indent)
 				}
 
 				// Support multiline comments
-				lines := strings.Split(key.Comment, LineBreak)
+				lines := strings.Split(key.Comment, lineBreak)
 				for i := range lines {
-					if lines[i][0] != '#' && lines[i][0] != ';' {
-						lines[i] = "; " + strings.TrimSpace(lines[i])
+					if !isComment(lines[i]) {
+						lines[i] = commentPrefix + " " + strings.TrimSpace(lines[i])
 					} else {
 						lines[i] = lines[i][:1] + " " + strings.TrimSpace(lines[i][1:])
 					}
 
-					if _, err := buf.WriteString(lines[i] + LineBreak); err != nil {
+					if _, err := buf.WriteString(lines[i] + lineBreak); err != nil {
 						return nil, err
 					}
 				}
 			}
 
-			if len(indent) > 0 && sname != DefaultSection {
+			if len(indent) > 0 && sname != f.options.DefaultSection {
 				buf.WriteString(indent)
 			}
 
@@ -449,24 +444,24 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 				}
 
 				if key.isBooleanType {
-					buf.WriteString(LineBreak)
+					buf.WriteString(lineBreak)
 					return true, nil
 				}
 
 				// Write out alignment spaces before "=" sign
-				if PrettyFormat {
+				if o.prettyFormat {
 					buf.Write(alignSpaces[:alignLength-len(kname)])
 				}
 
 				// In case key value contains "\n", "`", "\"", "#" or ";"
 				if strings.ContainsAny(val, "\n`") {
 					val = `"""` + val + `"""`
-				} else if !f.options.IgnoreInlineComment && strings.ContainsAny(val, "#;") {
+				} else if !f.options.IgnoreInlineComment && strings.ContainsAny(val, symbols) {
 					val = "`" + val + "`"
 				} else if len(strings.TrimSpace(val)) != len(val) {
 					val = `"` + val + `"`
 				}
-				if _, err := buf.WriteString(equalSign + val + LineBreak); err != nil {
+				if _, err := buf.WriteString(equalSign + val + lineBreak); err != nil {
 					return false, err
 				}
 				return false, nil
@@ -489,15 +484,15 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 			}
 
 			for _, val := range key.nestedValues {
-				if _, err := buf.WriteString(indent + "  " + val + LineBreak); err != nil {
+				if _, err := buf.WriteString(indent + "  " + val + lineBreak); err != nil {
 					return nil, err
 				}
 			}
 		}
 
-		if PrettySection && !isLastSection {
+		if o.prettySection && !isLastSection {
 			// Put a line between sections
-			if _, err := buf.WriteString(LineBreak); err != nil {
+			if _, err := buf.WriteString(lineBreak); err != nil {
 				return nil, err
 			}
 		}
@@ -506,35 +501,25 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 	return buf, nil
 }
 
-// WriteToIndent writes content into io.Writer with given indention.
-// If PrettyFormat has been set to be true,
-// it will align "=" sign with spaces under each section.
-func (f *File) WriteToIndent(w io.Writer, indent string) (int64, error) {
-	buf, err := f.writeToBuffer(indent)
+// Write writes the file to w, formatted by opts.
+func (f *File) Write(w io.Writer, opts ...WriteOption) (int64, error) {
+	buf, err := f.writeToBuffer(opts)
 	if err != nil {
 		return 0, err
 	}
 	return buf.WriteTo(w)
 }
 
-// WriteTo writes file content into io.Writer.
+// WriteTo writes the file to w with the default format.
 func (f *File) WriteTo(w io.Writer) (int64, error) {
-	return f.WriteToIndent(w, "")
+	return f.Write(w)
 }
 
-// SaveToIndent writes content to file system with given value indention.
-func (f *File) SaveToIndent(filename, indent string) error {
-	// Note: Because we are truncating with os.Create,
-	// 	so it's safer to save to a temporary file location and rename after done.
-	buf, err := f.writeToBuffer(indent)
+// SaveTo writes the file to the named file, formatted by opts.
+func (f *File) SaveTo(filename string, opts ...WriteOption) error {
+	buf, err := f.writeToBuffer(opts)
 	if err != nil {
 		return err
 	}
-
 	return os.WriteFile(filename, buf.Bytes(), 0666)
-}
-
-// SaveTo writes content to file system.
-func (f *File) SaveTo(filename string) error {
-	return f.SaveToIndent(filename, "")
 }

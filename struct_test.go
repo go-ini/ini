@@ -315,7 +315,7 @@ func Test_MapToStruct(t *testing.T) {
 		})
 
 		t.Run("map with shadows", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{AllowShadows: true}, []byte(confDataStruct))
+			f, err := Load([]byte(confDataStruct), AllowShadows())
 			require.NoError(t, err)
 			ts := new(testStruct)
 			assert.NoError(t, f.MapTo(ts))
@@ -388,7 +388,7 @@ names=alice, bruce`))
 func Test_MapToStructNonUniqueSections(t *testing.T) {
 	t.Run("map to struct non unique", func(t *testing.T) {
 		t.Run("map file to struct non unique", func(t *testing.T) {
-			f, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
+			f, err := Load([]byte(confNonUniqueSectionDataStruct), AllowNonUniqueSections())
 			require.NoError(t, err)
 			ts := new(testNonUniqueSectionsStruct)
 
@@ -413,7 +413,7 @@ func Test_MapToStructNonUniqueSections(t *testing.T) {
 			newPeer := new(testPeer)
 			newPeerSlice := make([]testPeer, 0)
 
-			f, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, []byte(confNonUniqueSectionDataStruct))
+			f, err := Load([]byte(confNonUniqueSectionDataStruct), AllowNonUniqueSections())
 			require.NoError(t, err)
 
 			// try only first one
@@ -437,7 +437,7 @@ func Test_MapToStructNonUniqueSections(t *testing.T) {
 		})
 
 		t.Run("map non unique sections with subsections to struct", func(t *testing.T) {
-			iniFile, err := LoadSources(LoadOptions{AllowNonUniqueSections: true}, strings.NewReader(`
+			iniFile, err := Load(strings.NewReader(`
 [Section]
 FieldInSubSection = 1
 FieldInSubSection2 = 2
@@ -447,7 +447,7 @@ FieldInSection = 3
 FieldInSubSection = 4
 FieldInSubSection2 = 5
 FieldInSection = 6
-`))
+`), AllowNonUniqueSections())
 			require.NoError(t, err)
 
 			type SubSection struct {
@@ -649,9 +649,7 @@ func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
 			},
 		}
 
-		cfg := Empty(LoadOptions{
-			AllowNonUniqueSections: true,
-		})
+		cfg := Empty(AllowNonUniqueSections())
 
 		assert.NoError(t, ReflectFrom(cfg, nonUnique))
 
@@ -731,12 +729,10 @@ func TestMapToAndReflectFromStructWithShadows(t *testing.T) {
 			Paths []string `ini:"path,omitempty,allowshadow"`
 		}
 
-		cfg, err := LoadSources(LoadOptions{
-			AllowShadows: true,
-		}, []byte(`
+		cfg, err := Load([]byte(`
 [include]
 path = /tmp/gpm-profiles/test5.profile
-path = /tmp/gpm-profiles/test1.profile`))
+path = /tmp/gpm-profiles/test1.profile`), AllowShadows())
 		require.NoError(t, err)
 
 		sec := cfg.Section("include")
@@ -758,9 +754,7 @@ path = /tmp/gpm-profiles/test1.profile
 		)
 
 		t.Run("reflect from struct with shadows", func(t *testing.T) {
-			cfg := Empty(LoadOptions{
-				AllowShadows: true,
-			})
+			cfg := Empty(AllowShadows())
 			type ShadowStruct struct {
 				StringArray      []string    `ini:"sa,allowshadow"`
 				EmptyStringArrat []string    `ini:"empty,omitempty,allowshadow"`

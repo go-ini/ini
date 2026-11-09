@@ -15,6 +15,7 @@
 package ini
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -25,8 +26,7 @@ type ErrDelimiterNotFound struct {
 
 // IsErrDelimiterNotFound returns true if the given error is an instance of ErrDelimiterNotFound.
 func IsErrDelimiterNotFound(err error) bool {
-	_, ok := err.(ErrDelimiterNotFound)
-	return ok
+	return errors.As(err, new(ErrDelimiterNotFound))
 }
 
 func (err ErrDelimiterNotFound) Error() string {
@@ -40,10 +40,25 @@ type ErrEmptyKeyName struct {
 
 // IsErrEmptyKeyName returns true if the given error is an instance of ErrEmptyKeyName.
 func IsErrEmptyKeyName(err error) bool {
-	_, ok := err.(ErrEmptyKeyName)
-	return ok
+	return errors.As(err, new(ErrEmptyKeyName))
 }
 
 func (err ErrEmptyKeyName) Error() string {
 	return fmt.Sprintf("empty key name: %s", err.Line)
+}
+
+// ParseError reports where in a data source parsing failed. Err is the
+// error at that position, such as ErrDelimiterNotFound.
+type ParseError struct {
+	Line   int // 1-based line number
+	Column int // 1-based column, in characters, where the line's content starts
+	Err    error
+}
+
+func (err *ParseError) Error() string {
+	return fmt.Sprintf("line %d, column %d: %v", err.Line, err.Column, err.Err)
+}
+
+func (err *ParseError) Unwrap() error {
+	return err.Err
 }

@@ -75,7 +75,7 @@ func TestSection_NewKey(t *testing.T) {
 	})
 
 	t.Run("create keys with same name and allow shadow", func(t *testing.T) {
-		f, err := ShadowLoad([]byte(""))
+		f, err := Load([]byte(""), AllowShadows())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -272,7 +272,7 @@ func TestSection_KeyStrings(t *testing.T) {
 
 func TestSection_KeyHash(t *testing.T) {
 	t.Run("get clone of key hash", func(t *testing.T) {
-		f, err := Load([]byte(`
+		f, err := LoadSources([]any{[]byte(`
 key = one
 [log]
 name = app
@@ -282,7 +282,7 @@ key = two
 [log]
 name = app2
 file = b.log
-`))
+`)})
 		require.NoError(t, err)
 		require.NotNil(t, f)
 

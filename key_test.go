@@ -28,9 +28,9 @@ import (
 
 func TestKey_AddShadow(t *testing.T) {
 	t.Run("add shadow to a key", func(t *testing.T) {
-		f, err := ShadowLoad([]byte(`
+		f, err := Load([]byte(`
 [notes]
--: note1`))
+-: note1`), AllowShadows())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -67,10 +67,7 @@ func TestKey_AddShadow(t *testing.T) {
 	})
 
 	t.Run("allow duplicate shadowed values", func(t *testing.T) {
-		f := Empty(LoadOptions{
-			AllowShadows:               true,
-			AllowDuplicateShadowValues: true,
-		})
+		f := Empty(AllowShadows(), AllowDuplicateShadowValues())
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
@@ -531,10 +528,10 @@ func TestKey_Helpers(t *testing.T) {
 
 func TestKey_ValueWithShadows(t *testing.T) {
 	t.Run("", func(t *testing.T) {
-		f, err := ShadowLoad([]byte(`
+		f, err := Load([]byte(`
 keyName = value1
 keyName = value2
-`))
+`), AllowShadows())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -550,7 +547,7 @@ keyName = value2
 
 func TestKey_StringsWithShadows(t *testing.T) {
 	t.Run("get strings of shadows of a key", func(t *testing.T) {
-		f, err := ShadowLoad([]byte(""))
+		f, err := Load([]byte(""), AllowShadows())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -582,15 +579,13 @@ func TestKey_SetValue(t *testing.T) {
 
 func TestKey_NestedValues(t *testing.T) {
 	t.Run("read and write nested values", func(t *testing.T) {
-		f, err := LoadSources(LoadOptions{
-			AllowNestedValues: true,
-		}, []byte(`
+		f, err := Load([]byte(`
 aws_access_key_id = foo
 aws_secret_access_key = bar
 region = us-west-2
 s3 =
   max_concurrent_requests=10
-  max_queue_size=1000`))
+  max_queue_size=1000`), AllowNestedValues())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 

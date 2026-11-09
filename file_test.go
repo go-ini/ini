@@ -64,9 +64,7 @@ func TestFile_NewSection(t *testing.T) {
 
 func TestFile_NonUniqueSection(t *testing.T) {
 	t.Run("read and write non-unique sections", func(t *testing.T) {
-		f, err := LoadSources(LoadOptions{
-			AllowNonUniqueSections: true,
-		}, []byte(`[Interface]
+		f, err := Load([]byte(`[Interface]
 Address = 192.168.2.1
 PrivateKey = <server's privatekey>
 ListenPort = 51820
@@ -77,7 +75,7 @@ AllowedIPs = 192.168.2.2/32
 
 [Peer]
 PublicKey = <client2's publickey>
-AllowedIPs = 192.168.2.3/32`))
+AllowedIPs = 192.168.2.3/32`), AllowNonUniqueSections())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -112,9 +110,7 @@ AllowedIPs = 192.168.2.4/32
 	})
 
 	t.Run("delete non-unique section", func(t *testing.T) {
-		f, err := LoadSources(LoadOptions{
-			AllowNonUniqueSections: true,
-		}, []byte(`[Interface]
+		f, err := Load([]byte(`[Interface]
 Address    = 192.168.2.1
 PrivateKey = <server's privatekey>
 ListenPort = 51820
@@ -131,7 +127,7 @@ AllowedIPs = 192.168.2.3/32
 PublicKey  = <client3's publickey>
 AllowedIPs = 192.168.2.4/32
 
-`))
+`), AllowNonUniqueSections())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -158,9 +154,7 @@ AllowedIPs = 192.168.2.4/32
 	})
 
 	t.Run("delete all sections", func(t *testing.T) {
-		f := Empty(LoadOptions{
-			AllowNonUniqueSections: true,
-		})
+		f := Empty(AllowNonUniqueSections())
 		require.NotNil(t, f)
 
 		_ = f.NewSections("Interface", "Peer", "Peer")
@@ -267,10 +261,10 @@ func TestFile_Section(t *testing.T) {
 	})
 
 	t.Run("get default section in lower case with insensitive load", func(t *testing.T) {
-		f, err := InsensitiveLoad([]byte(`
+		f, err := Load([]byte(`
 [default]
 NAME = ini
-VERSION = v1`))
+VERSION = v1`), Insensitive())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -375,7 +369,7 @@ key1 = value1
 	})
 
 	t.Run("delete a section with InsensitiveSections", func(t *testing.T) {
-		f := Empty(LoadOptions{InsensitiveSections: true})
+		f := Empty(InsensitiveSections())
 		require.NotNil(t, f)
 
 		_ = f.NewSections("author", "package", "features")
@@ -482,13 +476,11 @@ func TestFile_SaveTo(t *testing.T) {
 	require.NotNil(t, f)
 
 	assert.NoError(t, f.SaveTo("testdata/conf_out.ini"))
-	assert.NoError(t, f.SaveToIndent("testdata/conf_out.ini", "\t"))
+	assert.NoError(t, f.SaveTo("testdata/conf_out.ini", Indent("\t")))
 }
 
 func TestFile_WriteToWithOutputDelimiter(t *testing.T) {
-	f, err := LoadSources(LoadOptions{
-		KeyValueDelimiterOnWrite: "->",
-	}, []byte(`[Others]
+	f, err := Load([]byte(`[Others]
 Cities = HangZhou|Boston
 Visits = 1993-10-07T20:17:05Z, 1993-10-07T20:17:05Z
 Years = 1993,1994
@@ -513,7 +505,7 @@ Coordinates -> 192.168,10.11
 Flags       -> true,false
 Note        -> Hello world!
 `)
-	_, err = f.WriteTo(&actual)
+	_, err = f.Write(&actual, KeyValueDelimiterOnWrite("->"))
 	require.NoError(t, err)
 
 	assert.Equal(t, expected, actual.Bytes())
@@ -521,12 +513,12 @@ Note        -> Hello world!
 
 // Inspired by https://github.com/go-ini/ini/issues/207
 func TestReloadAfterShadowLoad(t *testing.T) {
-	f, err := ShadowLoad([]byte(`
+	f, err := Load([]byte(`
 [slice]
 v = 1
 v = 2
 v = 3
-`))
+`), AllowShadows())
 	require.NoError(t, err)
 	require.NotNil(t, f)
 

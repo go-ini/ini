@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 type tokenKind uint8
@@ -34,10 +35,16 @@ const (
 )
 
 type token struct {
-	kind    tokenKind
-	name    string
-	value   string
-	comment string
+	kind         tokenKind
+	name         string
+	value        string
+	comment      string
+	line, column int // where the token starts, both from 1
+}
+
+// errorf reports err at the position of the token.
+func (t token) errorf(err error) error {
+	return &ParseError{Line: t.line, Column: t.column, Err: err}
 }
 
 // lexer turns INI input into tokens. It follows the v1 parser rule for rule,
@@ -47,7 +54,8 @@ type lexer struct {
 	src  string
 	pos  int  // offset of the next unread byte
 	eof  bool // the last line read had no '\n'
-	opts *LoadOptions
+	opts *loadOptions
+	line int // number of the last line read, from 1
 
 	comment        []string // comment pieces for the next section or key
 	lastValueEmpty bool     // the last key had an empty value, so indented lines are nested values
@@ -59,29 +67,43 @@ type lexer struct {
 func (l *lexer) next() (token, error) {
 	for !l.eof {
 		raw := l.readLine()
+		lineNum := l.line
+		column := func(s string) int { return utf8.RuneCountInString(raw[:len(raw)-len(s)]) + 1 }
 		if l.opts.AllowNestedValues && l.lastValueEmpty && raw != "" && (raw[0] == ' ' || raw[0] == '\t') {
-			return token{kind: tokNestedValue, value: strings.TrimSpace(raw)}, nil
+			value := strings.TrimSpace(raw)
+			return token{kind: tokNestedValue, value: value, line: lineNum, column: column(strings.TrimLeftFunc(raw, unicode.IsSpace))}, nil
 		}
 
 		line := strings.TrimLeftFunc(raw, unicode.IsSpace)
+		var tok token
+		var err error
 		switch {
 		case line == "":
-		case line[0] == '#' || line[0] == ';':
+			continue
+		case l.isCommentSymbol(line[0]):
 			// Keep the line break so comment lines stay on separate lines.
 			l.comment = append(l.comment, line)
+			continue
 		case line[0] == '[':
 			if l.raw.Len() > 0 {
 				l.unread(raw)
 				return l.rawBody(), nil
 			}
-			return l.section(line)
+			tok, err = l.section(line)
 		case l.inRaw:
 			l.raw.WriteString(line)
+			continue
 		default:
-			if tok, ok, err := l.key(line); ok || err != nil {
-				return tok, err
+			var ok bool
+			if tok, ok, err = l.key(line); !ok && err == nil {
+				continue
 			}
 		}
+		if err != nil {
+			return token{}, &ParseError{Line: lineNum, Column: column(line), Err: err}
+		}
+		tok.line, tok.column = lineNum, column(line)
+		return tok, nil
 	}
 	if l.raw.Len() > 0 {
 		return l.rawBody(), nil
@@ -95,9 +117,11 @@ func (l *lexer) readLine() string {
 	i := strings.IndexByte(rest, '\n')
 	if i < 0 {
 		l.pos, l.eof = len(l.src), true
+		l.line++
 		return rest
 	}
 	l.pos += i + 1
+	l.line++
 	return rest[:i+1]
 }
 
@@ -105,6 +129,11 @@ func (l *lexer) readLine() string {
 func (l *lexer) unread(line string) {
 	l.pos -= len(line)
 	l.eof = false
+	l.line--
+}
+
+func (l *lexer) isCommentSymbol(c byte) bool {
+	return strings.IndexByte(l.opts.CommentSymbols, c) > -1
 }
 
 func (l *lexer) takeComment() string {
@@ -132,7 +161,7 @@ func (l *lexer) section(line string) (token, error) {
 		return token{}, fmt.Errorf("unclosed section: %s", line)
 	}
 	name := line[1:closeIdx]
-	if i := strings.IndexAny(line[closeIdx+1:], "#;"); i > -1 {
+	if i := strings.IndexAny(line[closeIdx+1:], l.opts.CommentSymbols); i > -1 {
 		l.comment = append(l.comment, line[closeIdx+1+i:])
 	}
 
@@ -206,8 +235,12 @@ func (l *lexer) readValue(in string) (string, error) {
 	case !l.opts.PreserveSurroundedQuote && (hasSurroundedQuote(line, '\'') || hasSurroundedQuote(line, '"')):
 		return line[1 : len(line)-1], nil
 	case l.opts.UnescapeValueCommentSymbols:
-		line = strings.ReplaceAll(line, `\;`, ";")
-		return strings.ReplaceAll(line, `\#`, "#"), nil
+		// Last symbol first, as v1 unescaped \; before \#.
+		for i := len(l.opts.CommentSymbols) - 1; i >= 0; i-- {
+			c := l.opts.CommentSymbols[i : i+1]
+			line = strings.ReplaceAll(line, `\`+c, c)
+		}
+		return line, nil
 	case l.opts.AllowPythonMultilineValues && endsLine:
 		return l.readPythonMultilines(line), nil
 	}
@@ -256,7 +289,7 @@ func (l *lexer) readQuoted(line, q string) (string, error) {
 			b.WriteString(next)
 		default:
 			b.WriteString(next[:i])
-			if j := strings.IndexAny(next[i:], "#;"); j > -1 {
+			if j := strings.IndexAny(next[i:], l.opts.CommentSymbols); j > -1 {
 				l.comment = append(l.comment, strings.TrimSpace(next[i+j:]))
 			}
 			return b.String(), nil
@@ -266,15 +299,17 @@ func (l *lexer) readQuoted(line, q string) (string, error) {
 
 // cutInlineComment moves a trailing "# ..." or "; ..." of a plain value to
 // the comment. With SpaceBeforeInlineComment the symbol must follow a space,
-// and " #" wins over an earlier " ;".
+// and symbols are tried in order, so " #" wins over an earlier " ;".
 func (l *lexer) cutInlineComment(line string) string {
-	var i int
+	i := -1
 	if l.opts.SpaceBeforeInlineComment {
-		if i = strings.Index(line, " #"); i == -1 {
-			i = strings.Index(line, " ;")
+		for _, c := range []byte(l.opts.CommentSymbols) {
+			if i = strings.Index(line, " "+string(c)); i > -1 {
+				break
+			}
 		}
 	} else {
-		i = strings.IndexAny(line, "#;")
+		i = strings.IndexAny(line, l.opts.CommentSymbols)
 	}
 	if i == -1 {
 		return line
@@ -338,9 +373,9 @@ func (f *File) parse(reader io.Reader) error {
 	l := &lexer{src: skipBOM(b.String()), opts: &f.options}
 
 	// Ignore error because default section name is never empty string.
-	name := DefaultSection
+	name := f.options.DefaultSection
 	if f.options.Insensitive || f.options.InsensitiveSections {
-		name = strings.ToLower(DefaultSection)
+		name = strings.ToLower(name)
 	}
 	section, _ := f.NewSection(name)
 
@@ -358,7 +393,7 @@ func (f *File) parse(reader io.Reader) error {
 
 		case tokSection:
 			if section, err = f.NewSection(tok.name); err != nil {
-				return err
+				return tok.errorf(err)
 			}
 			section.Comment = tok.comment
 			count = 1
@@ -369,13 +404,13 @@ func (f *File) parse(reader io.Reader) error {
 
 		case tokNestedValue:
 			if err = lastRegularKey.addNestedValue(tok.value); err != nil {
-				return err
+				return tok.errorf(err)
 			}
 
 		case tokBooleanKey:
 			key, err := section.NewBooleanKey(tok.name)
 			if err != nil {
-				return err
+				return tok.errorf(err)
 			}
 			key.Comment = tok.comment
 
@@ -387,7 +422,7 @@ func (f *File) parse(reader io.Reader) error {
 			}
 			key, err := section.NewKey(name, tok.value)
 			if err != nil {
-				return err
+				return tok.errorf(err)
 			}
 			key.isAutoIncrement = isAutoIncr
 			key.Comment = tok.comment
