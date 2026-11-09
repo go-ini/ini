@@ -114,26 +114,27 @@ func (k *Key) Value() string {
 	return k.value
 }
 
-// ValueWithShadows returns raw values of key and its shadows if any. Shadow
-// keys with empty values are ignored from the returned list.
+// ValueWithShadows returns raw values of key and its shadows if any. Empty
+// values are left out, unless the file was loaded with
+// KeepEmptyShadowValues.
 func (k *Key) ValueWithShadows() []string {
-	if len(k.shadows) == 0 {
-		if k.value == "" {
-			return []string{}
-		}
-		return []string{k.value}
-	}
-
+	keepEmpty := k.s.f.options.KeepEmptyShadowValues
 	vals := make([]string, 0, len(k.shadows)+1)
-	if k.value != "" {
+	if keepEmpty || k.value != "" {
 		vals = append(vals, k.value)
 	}
 	for _, s := range k.shadows {
-		if s.value != "" {
+		if keepEmpty || s.value != "" {
 			vals = append(vals, s.value)
 		}
 	}
 	return vals
+}
+
+// IsBooleanType reports whether the key was read as a boolean key, a line
+// without a delimiter loaded with AllowBooleanKeys.
+func (k *Key) IsBooleanType() bool {
+	return k.isBooleanType
 }
 
 // NestedValues returns nested values stored in the key.

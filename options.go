@@ -52,6 +52,7 @@ type loadOptions struct {
 	AllowDuplicateShadowValues  bool
 	DefaultSection              string
 	CommentSymbols              string
+	KeepEmptyShadowValues       bool
 }
 
 func newLoadOptions(opts []LoadOption) loadOptions {
@@ -183,6 +184,13 @@ func AllowNonUniqueSections() LoadOption {
 // value of the key. By default they are dropped.
 func AllowDuplicateShadowValues() LoadOption {
 	return func(o *loadOptions) { o.AllowDuplicateShadowValues = true }
+}
+
+// KeepEmptyShadowValues keeps empty values in Key.ValueWithShadows and when
+// writing shadow keys. An empty value can be meaningful: in systemd units it
+// resets the values before it.
+func KeepEmptyShadowValues() LoadOption {
+	return func(o *loadOptions) { o.KeepEmptyShadowValues = true }
 }
 
 // DefaultSectionName names the section that holds keys before the first

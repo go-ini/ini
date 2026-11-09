@@ -102,3 +102,27 @@ func TestParseErrorPosition(t *testing.T) {
 		})
 	}
 }
+
+func TestKeepEmptyShadowValues(t *testing.T) {
+	data := []byte("[Service]\nExecStart=/bin/a\nExecStart=\nExecStart=/bin/b\n")
+
+	f, err := Load(data, AllowShadows())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/bin/a", "/bin/b"}, f.Section("Service").Key("ExecStart").ValueWithShadows())
+
+	f, err = Load(data, AllowShadows(), KeepEmptyShadowValues())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/bin/a", "", "/bin/b"}, f.Section("Service").Key("ExecStart").ValueWithShadows())
+
+	var b bytes.Buffer
+	_, err = f.WriteTo(&b)
+	require.NoError(t, err)
+	assert.Equal(t, "[Service]\nExecStart = /bin/a\nExecStart = \nExecStart = /bin/b\n", b.String())
+}
+
+func TestKey_IsBooleanType(t *testing.T) {
+	f, err := Load([]byte("[mysqld]\nskip-name-resolve\nuser = mysql\n"), AllowBooleanKeys())
+	require.NoError(t, err)
+	assert.True(t, f.Section("mysqld").Key("skip-name-resolve").IsBooleanType())
+	assert.False(t, f.Section("mysqld").Key("user").IsBooleanType())
+}
