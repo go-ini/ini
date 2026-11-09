@@ -928,3 +928,47 @@ func TestMarshalUnmarshal(t *testing.T) {
 	err = Unmarshal([]byte("name"), &out)
 	assert.True(t, IsErrDelimiterNotFound(err))
 }
+
+func TestMarshal_ShadowsAndNonUniqueSections(t *testing.T) {
+	type peer struct {
+		Key string `ini:"key"`
+	}
+	type config struct {
+		Paths []string `ini:"path,,allowshadow"`
+		Peers []peer   `ini:"Peer,,,nonunique"`
+	}
+	in := config{Paths: []string{"a", "b", "c"}, Peers: []peer{{"x"}, {"y"}}}
+
+	data, err := Marshal(in)
+	require.NoError(t, err)
+	assert.Equal(t, "path = a\npath = b\npath = c\n\n[Peer]\nkey = x\n\n[Peer]\nkey = y\n", string(data))
+
+	var out config
+	require.NoError(t, Unmarshal(data, &out, AllowShadows(), AllowNonUniqueSections()))
+	assert.Equal(t, in, out)
+}
+
+func TestMarshalUnmarshal_Nil(t *testing.T) {
+	type peer struct {
+		Key string `ini:"key"`
+	}
+	type config struct {
+		Name string `ini:"name"`
+		Peer *peer  `ini:"peer"`
+	}
+
+	_, err := Marshal(nil)
+	assert.Error(t, err)
+	_, err = Marshal((*config)(nil))
+	assert.Error(t, err)
+	n := 1
+	_, err = Marshal(&n)
+	assert.Error(t, err)
+	assert.Error(t, Unmarshal([]byte("name = x"), nil))
+	assert.Error(t, Unmarshal([]byte("name = x"), (*config)(nil)))
+
+	// A nil section pointer writes nothing for that section.
+	data, err := Marshal(config{Name: "n"})
+	require.NoError(t, err)
+	assert.Equal(t, "name = n\n", string(data))
+}

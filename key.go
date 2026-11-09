@@ -58,8 +58,10 @@ func (k *Key) addShadow(val string) error {
 		return errors.New("cannot add shadow to auto-increment or boolean key")
 	}
 
-	if !k.s.f.options.AllowDuplicateShadowValues {
-		// Deduplicate shadows based on their values.
+	// Deduplicate shadows based on their values. Empty values kept with
+	// KeepEmptyShadowValues each reset the values before them, so they stay.
+	keptEmpty := val == "" && k.s.f.options.KeepEmptyShadowValues
+	if !k.s.f.options.AllowDuplicateShadowValues && !keptEmpty {
 		if k.value == val {
 			return nil
 		}

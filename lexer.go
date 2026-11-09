@@ -80,7 +80,7 @@ func (l *lexer) next() (token, error) {
 		switch {
 		case line == "":
 			continue
-		case l.isCommentSymbol(line[0]):
+		case l.startsWithCommentSymbol(line):
 			// Keep the line break so comment lines stay on separate lines.
 			l.comment = append(l.comment, line)
 			continue
@@ -132,8 +132,14 @@ func (l *lexer) unread(line string) {
 	l.line--
 }
 
-func (l *lexer) isCommentSymbol(c byte) bool {
-	return strings.IndexByte(l.opts.CommentSymbols, c) > -1
+func (l *lexer) startsWithCommentSymbol(line string) bool {
+	return startsWithAny(line, l.opts.CommentSymbols)
+}
+
+// startsWithAny reports whether the first character of s is one of chars.
+func startsWithAny(s, chars string) bool {
+	r, _ := utf8.DecodeRuneInString(s)
+	return r != utf8.RuneError && strings.ContainsRune(chars, r)
 }
 
 func (l *lexer) takeComment() string {
@@ -236,8 +242,9 @@ func (l *lexer) readValue(in string) (string, error) {
 		return line[1 : len(line)-1], nil
 	case l.opts.UnescapeValueCommentSymbols:
 		// Last symbol first, as v1 unescaped \; before \#.
-		for i := len(l.opts.CommentSymbols) - 1; i >= 0; i-- {
-			c := l.opts.CommentSymbols[i : i+1]
+		symbols := []rune(l.opts.CommentSymbols)
+		for i := len(symbols) - 1; i >= 0; i-- {
+			c := string(symbols[i])
 			line = strings.ReplaceAll(line, `\`+c, c)
 		}
 		return line, nil
@@ -303,7 +310,7 @@ func (l *lexer) readQuoted(line, q string) (string, error) {
 func (l *lexer) cutInlineComment(line string) string {
 	i := -1
 	if l.opts.SpaceBeforeInlineComment {
-		for _, c := range []byte(l.opts.CommentSymbols) {
+		for _, c := range l.opts.CommentSymbols {
 			if i = strings.Index(line, " "+string(c)); i > -1 {
 				break
 			}

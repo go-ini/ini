@@ -381,7 +381,7 @@ func (s *Section) mapToSlice(secName string, val reflect.Value, isStrict bool) (
 func (s *Section) mapTo(v interface{}, isStrict bool) error {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
-	if typ.Kind() == reflect.Pointer {
+	if typ != nil && typ.Kind() == reflect.Pointer && !val.IsNil() {
 		typ = typ.Elem()
 		val = val.Elem()
 	} else {
@@ -609,6 +609,11 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 			continue
 		}
 
+		// A nil struct pointer has nothing to write.
+		if field.Kind() == reflect.Pointer && field.IsNil() && tpField.Type.Elem().Kind() == reflect.Struct {
+			continue
+		}
+
 		if extends && tpField.Anonymous && (tpField.Type.Kind() == reflect.Pointer || tpField.Type.Kind() == reflect.Struct) {
 			if err := s.reflectFrom(field); err != nil {
 				return fmt.Errorf("reflect from field %q: %v", fieldName, err)
@@ -689,6 +694,9 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 func (s *Section) ReflectFrom(v interface{}) error {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
+	if typ == nil || (typ.Kind() == reflect.Pointer && val.IsNil()) {
+		return errors.New("not a pointer to a struct")
+	}
 
 	if s.name != s.f.options.DefaultSection && s.f.options.AllowNonUniqueSections &&
 		(typ.Kind() == reflect.Slice || typ.Kind() == reflect.Pointer) {
@@ -724,13 +732,10 @@ func (s *Section) ReflectFrom(v interface{}) error {
 		return nil
 	}
 
-	if typ.Kind() == reflect.Pointer {
-		val = val.Elem()
-	} else {
+	if typ.Kind() != reflect.Pointer || typ.Elem().Kind() != reflect.Struct {
 		return errors.New("not a pointer to a struct")
 	}
-
-	return s.reflectFrom(val)
+	return s.reflectFrom(val.Elem())
 }
 
 // ReflectFrom reflects file from given struct.
@@ -763,7 +768,9 @@ func Marshal(v any, opts ...WriteOption) ([]byte, error) {
 		ptr.Elem().Set(val)
 		v = ptr.Interface()
 	}
-	f := Empty()
+	// Shadows and non-unique sections let allowshadow and nonunique fields
+	// write all their values.
+	f := Empty(AllowShadows(), AllowNonUniqueSections())
 	if err := f.ReflectFrom(v); err != nil {
 		return nil, err
 	}

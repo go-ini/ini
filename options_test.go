@@ -51,6 +51,16 @@ func TestDefaultSectionName(t *testing.T) {
 	_, err = f.WriteTo(&b)
 	require.NoError(t, err)
 	assert.Equal(t, "[default]\na = 1\nb = 2\n\n[profile x]\nc = 3\n", b.String())
+
+	t.Run("empty default section is not written", func(t *testing.T) {
+		f, err := Load([]byte("[s]\nk = v\n"), DefaultSectionName("default"))
+		require.NoError(t, err)
+
+		var b bytes.Buffer
+		_, err = f.WriteTo(&b)
+		require.NoError(t, err)
+		assert.Equal(t, "[s]\nk = v\n", b.String())
+	})
 }
 
 func TestCommentSymbols(t *testing.T) {
@@ -63,6 +73,46 @@ func TestCommentSymbols(t *testing.T) {
 	assert.Equal(t, "http://x/#a;b", sec.Key("url").String())
 	assert.Equal(t, "// note", sec.Key("url").Comment)
 	assert.Equal(t, "a//b", sec.Key("k").String())
+
+	t.Run("multi-byte symbols", func(t *testing.T) {
+		f, err := Load([]byte("€ head\n→ arrow = 1\nk = a €c\nj = x\\€y\nu = \\→\n"),
+			CommentSymbols("€"), SpaceBeforeInlineComment(), UnescapeValueCommentSymbols())
+		require.NoError(t, err)
+
+		sec := f.Section("")
+		assert.Equal(t, []string{"→ arrow", "k", "j", "u"}, sec.KeyStrings())
+		assert.Equal(t, "€ head", sec.Key("→ arrow").Comment)
+		assert.Equal(t, "a", sec.Key("k").String())
+		assert.Equal(t, "€c", sec.Key("k").Comment)
+		assert.Equal(t, "x€y", sec.Key("j").String())
+		assert.Equal(t, `\→`, sec.Key("u").String())
+
+		f, err = Load([]byte("§  head\nk = v\n"), CommentSymbols("§"))
+		require.NoError(t, err)
+		_, err = f.Section("").NewKey("n", "1")
+		require.NoError(t, err)
+		f.Section("").Key("n").Comment = "note"
+		var b bytes.Buffer
+		_, err = f.WriteTo(&b)
+		require.NoError(t, err)
+		assert.Equal(t, "§ head\nk = v\n§ note\nn = 1\n", b.String())
+	})
+
+	t.Run("no symbols", func(t *testing.T) {
+		f := Empty(CommentSymbols(""))
+		k, err := f.Section("").NewKey("k", "v")
+		require.NoError(t, err)
+
+		var b bytes.Buffer
+		_, err = f.WriteTo(&b)
+		require.NoError(t, err)
+		assert.Equal(t, "k = v\n", b.String())
+
+		// A comment can't be written so that it reads back as a comment.
+		k.Comment = "set x = y"
+		_, err = f.WriteTo(&b)
+		assert.Error(t, err)
+	})
 
 	t.Run("written comments use the configured symbol", func(t *testing.T) {
 		f := Empty(CommentSymbols("#"))
@@ -118,6 +168,13 @@ func TestKeepEmptyShadowValues(t *testing.T) {
 	_, err = f.WriteTo(&b)
 	require.NoError(t, err)
 	assert.Equal(t, "[Service]\nExecStart = /bin/a\nExecStart = \nExecStart = /bin/b\n", b.String())
+
+	t.Run("every empty value is kept", func(t *testing.T) {
+		f, err := Load([]byte("[u]\nExecStart=\nExecStart=a\nExecStart=\nExecStart=b\nExecStart=a\n"),
+			AllowShadows(), KeepEmptyShadowValues())
+		require.NoError(t, err)
+		assert.Equal(t, []string{"", "a", "", "b"}, f.Section("u").Key("ExecStart").ValueWithShadows())
+	})
 }
 
 func TestKey_IsBooleanType(t *testing.T) {

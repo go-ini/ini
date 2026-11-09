@@ -22,6 +22,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 // File represents a combination of one or more INI files in memory.
@@ -326,13 +327,29 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 	}
 
 	// Comment lines that don't start with a comment symbol get one: ";" as in
-	// v1 when it is a comment symbol, otherwise the first one.
+	// v1 when it is a comment symbol, otherwise the first one. Without
+	// comment symbols, a comment can't be written so that it reads back.
 	symbols := f.options.CommentSymbols
 	commentPrefix := ";"
 	if !strings.Contains(symbols, ";") && symbols != "" {
-		commentPrefix = symbols[:1]
+		r, _ := utf8.DecodeRuneInString(symbols)
+		commentPrefix = string(r)
 	}
-	isComment := func(line string) bool { return strings.IndexByte(symbols, line[0]) > -1 }
+	// formatComment puts the comment symbol of line, or commentPrefix, and a
+	// space before its text.
+	formatComment := func(line string, trim bool) (string, error) {
+		if symbols == "" {
+			return "", errors.New("cannot write comment: no comment symbols set")
+		}
+		if !startsWithAny(line, symbols) {
+			if trim {
+				line = strings.TrimSpace(line)
+			}
+			return commentPrefix + " " + line, nil
+		}
+		_, n := utf8.DecodeRuneInString(line)
+		return line[:n] + " " + strings.TrimSpace(line[n:]), nil
+	}
 
 	// Use buffer to make sure target is safe until finish encoding.
 	buf := bytes.NewBuffer(nil)
@@ -343,10 +360,9 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			// Support multiline comments
 			lines := strings.Split(sec.Comment, lineBreak)
 			for i := range lines {
-				if !isComment(lines[i]) {
-					lines[i] = commentPrefix + " " + lines[i]
-				} else {
-					lines[i] = lines[i][:1] + " " + strings.TrimSpace(lines[i][1:])
+				var err error
+				if lines[i], err = formatComment(lines[i], false); err != nil {
+					return nil, err
 				}
 
 				if _, err := buf.WriteString(lines[i] + lineBreak); err != nil {
@@ -355,7 +371,11 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			}
 		}
 
-		if i > 0 || o.defaultHeader || (i == 0 && strings.ToUpper(sec.name) != f.options.DefaultSection) {
+		// v1 left out the header of the default section only when its name was
+		// upper case, so a renamed default section keeps its header. It is
+		// skipped like any default section when it has no keys.
+		emptyDefault := i == 0 && len(sec.keyList) == 0 && strings.EqualFold(sec.name, f.options.DefaultSection)
+		if i > 0 || o.defaultHeader || (strings.ToUpper(sec.name) != f.options.DefaultSection && !emptyDefault) {
 			if _, err := buf.WriteString("[" + sname + "]" + lineBreak); err != nil {
 				return nil, err
 			}
@@ -413,10 +433,9 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 				// Support multiline comments
 				lines := strings.Split(key.Comment, lineBreak)
 				for i := range lines {
-					if !isComment(lines[i]) {
-						lines[i] = commentPrefix + " " + strings.TrimSpace(lines[i])
-					} else {
-						lines[i] = lines[i][:1] + " " + strings.TrimSpace(lines[i][1:])
+					var err error
+					if lines[i], err = formatComment(lines[i], true); err != nil {
+						return nil, err
 					}
 
 					if _, err := buf.WriteString(lines[i] + lineBreak); err != nil {
