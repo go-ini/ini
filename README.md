@@ -54,6 +54,16 @@ New in v2:
 - `ini.KeepEmptyShadowValues()` keeps empty values of shadow keys.
 - `Key.IsBooleanType()`, and `ini.Marshal`/`ini.Unmarshal`.
 - `File.Write` writes files that load back to the same sections, keys, values and comments: it picks a quoting the parser reads back, writes empty shadow values, and returns an error instead of writing a file that loads differently.
+- `MapTo`, `StrictMapTo`, `Unmarshal`, `ReflectFrom` and `Marshal` return errors instead of panicking on unsupported, named, pointer, nil and recursive types. Differences from v1 that valid input can show:
+  - Out-of-range numbers (int8 `300`) are an error in `StrictMapTo` and leave the field unchanged in `MapTo`; v1 wrapped them.
+  - `StrictMapTo` reports invalid slice elements.
+  - Durations of `0` and negative durations are applied.
+  - uint8 fields map.
+  - Times keep sub-second precision when written.
+  - Slice elements containing the delimiter, or ending in a backslash, are escaped so they read back as one element.
+  - Nil pointer fields aren't written.
+  - Fields after an empty `nonunique` slice or a `StructReflector` field are written.
+  - A `nonunique` field with no sections is left empty instead of failing.
 - Loading is O(n) in the number of keys; a 10,000-key section loads in about 6 ms instead of about 150 ms with v1.67.3.
 
 ## Getting Help
