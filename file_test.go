@@ -590,3 +590,61 @@ func TestFile_AppendReaders(t *testing.T) {
 	assert.Equal(t, "3", f.Section("a").Key("k").String())
 	assert.False(t, f.Section("a").HasKey("edited"))
 }
+
+// Misuse and option combinations that panicked, hung or lost data in v1.
+func TestFile_EdgeCases(t *testing.T) {
+	t.Run("self-reference in the default section", func(t *testing.T) {
+		f, err := Load([]byte("a = %(a)s\n"))
+		require.NoError(t, err)
+		assert.Equal(t, "%(a)s", f.Section("").Key("a").String())
+	})
+
+	t.Run("Strings with an empty delimiter", func(t *testing.T) {
+		f, err := Load([]byte("a = x,y\n"))
+		require.NoError(t, err)
+		assert.Equal(t, []string{"x,y"}, f.Section("").Key("a").Strings(""))
+	})
+
+	t.Run("negative and out-of-range section indexes", func(t *testing.T) {
+		f, err := Load([]byte("a = 1\n[x]\nb = 2\n"), AllowNonUniqueSections())
+		require.NoError(t, err)
+		assert.NotNil(t, f.SectionWithIndex("x", -1))
+		assert.Error(t, f.DeleteSectionWithIndex("x", -1))
+		assert.NotNil(t, f.SectionWithIndex("", 1))
+		assert.NotPanics(t, func() { _ = f.Sections() })
+	})
+
+	t.Run("default section after deleting it, case-insensitive", func(t *testing.T) {
+		f, err := Load([]byte("a = 1\n"), Insensitive(), AllowNonUniqueSections())
+		require.NoError(t, err)
+		f.DeleteSection("")
+		f.Section("").Key("k").SetValue("v")
+		assert.Equal(t, "v", f.Section("").Key("k").String())
+		assert.Len(t, f.Sections(), 1)
+	})
+
+	// https://github.com/go-ini/ini/issues/340
+	t.Run("DeleteKey with Insensitive", func(t *testing.T) {
+		f, err := Load([]byte("TestKey = 1\n"), Insensitive())
+		require.NoError(t, err)
+		f.Section("").DeleteKey("TestKey")
+		assert.False(t, f.Section("").HasKey("TestKey"))
+	})
+
+	// https://github.com/go-ini/ini/issues/358
+	t.Run("key with an empty name", func(t *testing.T) {
+		f := Empty()
+		require.NotNil(t, f.Section("").Key(""))
+		assert.Equal(t, "", f.Section("").Key("").String())
+		assert.Empty(t, f.Section("").Keys())
+	})
+
+	t.Run("child sections with non-unique names", func(t *testing.T) {
+		f, err := Load([]byte("[a]\n[a.b]\nx = 1\n[a.b]\nx = 2\n"), AllowNonUniqueSections())
+		require.NoError(t, err)
+		children := f.Section("a").ChildSections()
+		require.Len(t, children, 2)
+		assert.Equal(t, "1", children[0].Key("x").String())
+		assert.Equal(t, "2", children[1].Key("x").String())
+	})
+}

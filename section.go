@@ -163,9 +163,10 @@ func (s *Section) HasValue(value string) bool {
 func (s *Section) Key(name string) *Key {
 	key, err := s.GetKey(name)
 	if err != nil {
-		// It's OK here because the only possible error is empty key name,
-		// but if it's empty, this piece of code won't be executed.
-		key, _ = s.NewKey(name, "")
+		if key, err = s.NewKey(name, ""); err != nil {
+			// An empty name can't be added; return a key that isn't.
+			return newKey(s, name, "")
+		}
 		return key
 	}
 	return key
@@ -223,6 +224,9 @@ func (s *Section) KeysHash() map[string]string {
 
 // DeleteKey deletes a key from section.
 func (s *Section) DeleteKey(name string) {
+	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
+		name = strings.ToLower(name)
+	}
 	if s.f.BlockMode {
 		s.f.lock.Lock()
 		defer s.f.lock.Unlock()
@@ -243,9 +247,9 @@ func (s *Section) DeleteKey(name string) {
 func (s *Section) ChildSections() []*Section {
 	prefix := s.name + s.f.options.ChildSectionDelimiter
 	children := make([]*Section, 0, 3)
-	for _, name := range s.f.sectionList {
+	for i, name := range s.f.sectionList {
 		if strings.HasPrefix(name, prefix) {
-			children = append(children, s.f.sections[name]...)
+			children = append(children, s.f.sections[name][s.f.sectionIndexes[i]])
 		}
 	}
 	return children

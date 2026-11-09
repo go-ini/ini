@@ -65,6 +65,21 @@ func Empty(opts ...LoadOption) *File {
 	return f
 }
 
+// isDefaultSection reports whether name, as stored, is the default
+// section's name. Loading with Insensitive or InsensitiveSections stores it
+// lower-cased.
+func (f *File) isDefaultSection(name string) bool {
+	return name == f.options.DefaultSection || name == f.defaultSectionName()
+}
+
+// defaultSectionName returns the name the default section is stored under.
+func (f *File) defaultSectionName() string {
+	if f.options.Insensitive || f.options.InsensitiveSections {
+		return strings.ToLower(f.options.DefaultSection)
+	}
+	return f.options.DefaultSection
+}
+
 // NewSection creates a new section.
 func (f *File) NewSection(name string) (*Section, error) {
 	if len(name) == 0 {
@@ -161,7 +176,8 @@ func (f *File) Section(name string) *Section {
 	sec, err := f.GetSection(name)
 	if err != nil {
 		if name == "" {
-			name = f.options.DefaultSection
+			// The name the lookup used, so the next lookup finds it.
+			name = f.defaultSectionName()
 		}
 		sec, _ = f.NewSection(name)
 		return sec
@@ -171,10 +187,11 @@ func (f *File) Section(name string) *Section {
 
 // SectionWithIndex assumes named section exists and returns a new section when not.
 func (f *File) SectionWithIndex(name string, index int) *Section {
+	if name == "" {
+		name = f.defaultSectionName()
+	}
 	secs, err := f.SectionsByName(name)
-	if err != nil || len(secs) <= index {
-		// NOTE: It's OK here because the only possible error is empty section name,
-		// but if it's empty, this piece of code won't be executed.
+	if err != nil || index < 0 || len(secs) <= index {
 		newSec, _ := f.NewSection(name)
 		return newSec
 	}
@@ -225,6 +242,9 @@ func (f *File) DeleteSection(name string) {
 
 // DeleteSectionWithIndex deletes a section with given name and index.
 func (f *File) DeleteSectionWithIndex(name string, index int) error {
+	if index < 0 {
+		return fmt.Errorf("delete section with negative index %d", index)
+	}
 	if !f.options.AllowNonUniqueSections && index != 0 {
 		return fmt.Errorf("delete section with non-zero index is only allowed when non-unique sections is enabled")
 	}
@@ -547,7 +567,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		alignSpaces := bytes.Repeat([]byte(" "), alignLength)
 
 		keyIndent := ""
-		if sname != f.options.DefaultSection {
+		if !f.isDefaultSection(sname) {
 			keyIndent = indent
 		}
 		// swallows is set when the lexer would read an indented line as part

@@ -185,9 +185,9 @@ func (k *Key) expand(val string, depth int, e *expansion) string {
 		nk, err := k.s.GetKey(noption)
 		if err != nil || k == nk {
 			nk, _ = k.s.f.Section("").GetKey(noption)
-			if nk == nil {
-				// Stop when no results found in the default section,
-				// and returns the value as-is.
+			if nk == nil || nk == k {
+				// Stop when no results found in the default section, or only
+				// the key itself, and returns the value as-is.
 				break
 			}
 		}
@@ -522,6 +522,9 @@ func (k *Key) Strings(delim string) []string {
 	str := k.String()
 	if len(str) == 0 {
 		return []string{}
+	}
+	if delim == "" {
+		return []string{strings.TrimSpace(str)}
 	}
 
 	maxParts := strings.Count(str, delim) + 1
