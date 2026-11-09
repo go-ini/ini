@@ -904,3 +904,27 @@ Title = Consultant Engineer
 		)
 	})
 }
+
+func TestMarshalUnmarshal(t *testing.T) {
+	type server struct {
+		Host  string   `ini:"host"`
+		Ports []int    `ini:"ports"`
+		Tags  []string `ini:"tags" delim:"|"`
+	}
+	type config struct {
+		Name   string `ini:"name"`
+		Server server `ini:"server"`
+	}
+	in := config{Name: "app", Server: server{Host: "localhost", Ports: []int{80, 443}, Tags: []string{"a", "b"}}}
+
+	data, err := Marshal(in)
+	require.NoError(t, err)
+	assert.Equal(t, "name = app\n\n[server]\nhost  = localhost\nports = 80,443\ntags  = a|b\n", string(data))
+
+	var out config
+	require.NoError(t, Unmarshal(data, &out))
+	assert.Equal(t, in, out)
+
+	err = Unmarshal([]byte("name"), &out)
+	assert.True(t, IsErrDelimiterNotFound(err))
+}

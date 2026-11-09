@@ -748,3 +748,28 @@ func ReflectFromWithMapper(cfg *File, v interface{}, mapper NameMapper) error {
 func ReflectFrom(cfg *File, v interface{}) error {
 	return ReflectFromWithMapper(cfg, v, nil)
 }
+
+// Unmarshal parses INI data with opts and maps it to the struct v points to,
+// as File.MapTo does.
+func Unmarshal(data []byte, v any, opts ...LoadOption) error {
+	return MapTo(v, data, opts...)
+}
+
+// Marshal returns the INI encoding of v, a struct or a pointer to one, as
+// File.ReflectFrom and File.Write produce it.
+func Marshal(v any, opts ...WriteOption) ([]byte, error) {
+	if val := reflect.ValueOf(v); val.Kind() == reflect.Struct {
+		ptr := reflect.New(val.Type())
+		ptr.Elem().Set(val)
+		v = ptr.Interface()
+	}
+	f := Empty()
+	if err := f.ReflectFrom(v); err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if _, err := f.Write(&buf, opts...); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
