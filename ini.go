@@ -51,7 +51,7 @@ func LoadSources(sources []any, opts ...LoadOption) (*File, error) {
 		}
 	}
 	f := newFile(dataSources, opts)
-	if err := f.Reload(); err != nil {
+	if err := f.load(dataSources); err != nil {
 		return nil, err
 	}
 	return f, nil

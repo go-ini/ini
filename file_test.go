@@ -17,8 +17,10 @@ package ini
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -526,4 +528,65 @@ v = 3
 
 	require.NoError(t, f.Reload())
 	assert.Equal(t, []string{"1", "2", "3"}, f.Section("slice").Key("v").ValueWithShadows())
+}
+
+func TestFile_Reload(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "app.ini")
+	write := func(s string) { require.NoError(t, os.WriteFile(path, []byte(s), 0o600)) }
+
+	// https://github.com/go-ini/ini/issues/418
+	t.Run("removed keys and sections are gone", func(t *testing.T) {
+		write("[app]\nold = 1\nkeep = 2\n[gone]\nk = v\n")
+		f, err := Load(path)
+		require.NoError(t, err)
+		sec, key := f.Section("app"), f.Section("app").Key("keep")
+
+		write("[app]\nkeep = 3\n")
+		require.NoError(t, f.Reload())
+		assert.False(t, f.Section("app").HasKey("old"))
+		assert.False(t, f.HasSection("gone"))
+		assert.Equal(t, map[string]string{"keep": "3"}, f.Section("app").KeysHash())
+		// Pointers taken before the reload see the new contents.
+		assert.Equal(t, "3", key.String())
+		assert.Same(t, sec, f.Section("app"))
+	})
+
+	// https://github.com/go-ini/ini/issues/273
+	t.Run("shadows don't pile up", func(t *testing.T) {
+		write("[log]\nlevel = info\nlevel = warn\n")
+		f, err := Load(path, AllowShadows(), AllowDuplicateShadowValues())
+		require.NoError(t, err)
+
+		write("[log]\nlevel = debug\n")
+		require.NoError(t, f.Reload())
+		assert.Equal(t, []string{"debug"}, f.Section("log").Key("level").ValueWithShadows())
+	})
+
+	t.Run("error leaves the file unchanged", func(t *testing.T) {
+		write("[app]\nk = 1\n")
+		f, err := Load(path)
+		require.NoError(t, err)
+
+		write("[app]\nk = 2\nbroken\n")
+		require.Error(t, f.Reload())
+		assert.Equal(t, "1", f.Section("app").Key("k").String())
+	})
+}
+
+// https://github.com/go-ini/ini/issues/324
+func TestFile_AppendReaders(t *testing.T) {
+	f, err := Load(strings.NewReader("[a]\nk = 1\n"))
+	require.NoError(t, err)
+	f.Section("a").Key("edited").SetValue("yes")
+
+	require.NoError(t, f.Append(strings.NewReader("[b]\nk = 2\n")))
+	require.NoError(t, f.Append(strings.NewReader("[a]\nk = 3\n")))
+	assert.Equal(t, "3", f.Section("a").Key("k").String())
+	assert.Equal(t, "2", f.Section("b").Key("k").String())
+	assert.Equal(t, "yes", f.Section("a").Key("edited").String(), "Append keeps changes made in memory")
+
+	// Readers are read once and kept for reloading.
+	require.NoError(t, f.Reload())
+	assert.Equal(t, "3", f.Section("a").Key("k").String())
+	assert.False(t, f.Section("a").HasKey("edited"))
 }

@@ -284,10 +284,53 @@ func (f *File) reload(s dataSource) error {
 	return f.parse(r)
 }
 
-// Reload reloads and parses all data sources.
-func (f *File) Reload() (err error) {
-	for _, s := range f.dataSources {
-		if err = f.reload(s); err != nil {
+// Reload reads all data sources again and replaces the contents of the file
+// with them: keys and sections no longer in the sources are gone, and
+// shadows don't pile up. Sections and keys that are still there stay the
+// same values, so pointers to them see the new contents. On error the file
+// is unchanged.
+func (f *File) Reload() error {
+	next := &File{options: f.options, sections: make(map[string][]*Section)}
+	if err := next.load(f.dataSources); err != nil {
+		return err
+	}
+
+	if f.BlockMode {
+		f.lock.Lock()
+		defer f.lock.Unlock()
+	}
+	for name, secs := range next.sections {
+		for i, sec := range secs {
+			if old := f.sections[name]; i < len(old) {
+				// Keep the section and keys callers may hold.
+				o := old[i]
+				for kname, k := range sec.keys {
+					if ok := o.keys[kname]; ok != nil {
+						*ok = *k
+						sec.keys[kname] = ok
+					}
+				}
+				o.Comment, o.keys, o.keyList = sec.Comment, sec.keys, sec.keyList
+				o.isRawSection, o.rawBody = sec.isRawSection, sec.rawBody
+				secs[i], sec = o, o
+			}
+			sec.f = f
+			for _, k := range sec.keys {
+				k.s = sec
+				for _, s := range k.shadows {
+					s.s = sec
+				}
+			}
+		}
+	}
+	f.sectionList, f.sectionIndexes, f.sections = next.sectionList, next.sectionIndexes, next.sections
+	return nil
+}
+
+// load parses sources into f, in order.
+func (f *File) load(sources []dataSource) error {
+	for _, s := range sources {
+		if err := f.reload(s); err != nil {
 			// In loose mode, we create an empty default section for nonexistent files.
 			if os.IsNotExist(err) && f.options.Loose {
 				_ = f.parse(bytes.NewBuffer(nil))
@@ -302,21 +345,24 @@ func (f *File) Reload() (err error) {
 	return nil
 }
 
-// Append appends one or more data sources and reloads automatically.
-func (f *File) Append(source interface{}, others ...interface{}) error {
-	ds, err := parseDataSource(source)
-	if err != nil {
-		return err
-	}
-	f.dataSources = append(f.dataSources, ds)
-	for _, s := range others {
-		ds, err = parseDataSource(s)
+// Append adds one or more data sources and reads them into the file. Their
+// sections and keys add to the current ones and overwrite keys they repeat;
+// changes made to the file in memory stay.
+func (f *File) Append(source any, others ...any) error {
+	sources := make([]dataSource, 0, 1+len(others))
+	for _, s := range append([]any{source}, others...) {
+		ds, err := parseDataSource(s)
 		if err != nil {
 			return err
 		}
-		f.dataSources = append(f.dataSources, ds)
+		sources = append(sources, ds)
 	}
-	return f.Reload()
+	f.dataSources = append(f.dataSources, sources...)
+	if f.options.ShortCircuit {
+		// Only the first source that loads counts.
+		return f.Reload()
+	}
+	return f.load(sources)
 }
 
 func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {

@@ -45,6 +45,7 @@ Without options, v2 parses every input exactly as v1's `Load` does. The parity t
 | `WriteToIndent(w, i)`, `SaveToIndent(f, i)` | `Write(w, ini.Indent(i))`, `SaveTo(f, ini.Indent(i))` |
 | `MapTo(v, a, b)` | `MapTo(v, a, opts...)`; one source |
 | `DEFAULT_SECTION`, `AllCapsUnderscore` | `DefaultSection`, `SnackCase` |
+| `Reload` merged sources into the current contents; `Append` re-read every source | `Reload` replaces the contents with the sources (kept `*Section`/`*Key` pointers see new values; on error nothing changes); `Append` reads only the new sources; readers are buffered so they can be reloaded |
 
 New in v2:
 
