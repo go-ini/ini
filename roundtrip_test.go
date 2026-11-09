@@ -34,7 +34,9 @@ import (
 func describeFile(f *File) string {
 	var b strings.Builder
 	for _, s := range f.Sections() {
-		fmt.Fprintf(&b, "[%q] comment=%q raw=%v body=%q\n", s.name, normalizeComment(s.Comment), s.isRawSection, s.rawBody)
+		// A raw body gets a final line break when a section follows it;
+		// Body trims it either way.
+		fmt.Fprintf(&b, "[%q] comment=%q raw=%v body=%q\n", s.name, normalizeComment(s.Comment), s.isRawSection, strings.TrimRight(s.rawBody, "\n"))
 		for _, k := range s.Keys() {
 			vals := []string{k.value}
 			for _, s := range k.shadows {

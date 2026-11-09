@@ -695,18 +695,25 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 					regular = nil
 				}
 			}
-			if len(key.nestedValues) > 0 && !slices.Contains(regular, "") {
-				// Nested values only follow an empty value. Without shadows
-				// the value after it still wins.
-				regular = append([]string{""}, regular...)
-			}
-
+			nested := key.nestedValues
 			if key.isBooleanType && boolFirst {
+				if len(nested) > 0 {
+					// Nested values can't follow a boolean line, so they
+					// go before it, after an empty value.
+					if err := addLine(false, "", nested); err != nil {
+						return nil, err
+					}
+					nested = nil
+				}
 				if err := addLine(true, "", nil); err != nil {
 					return nil, err
 				}
 			}
-			nested := key.nestedValues
+			if len(nested) > 0 && !slices.Contains(regular, "") {
+				// Nested values only follow an empty value. Without shadows
+				// the value after it still wins.
+				regular = append([]string{""}, regular...)
+			}
 			for _, val := range regular {
 				if val != "" {
 					if err := addLine(false, val, nil); err != nil {
