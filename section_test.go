@@ -297,6 +297,18 @@ file = b.log
 			assert.Equal(t, relation[k], v)
 		}
 	})
+
+	t.Run("reports values as loaded or set, not Must* defaults", func(t *testing.T) {
+		f, err := Load([]byte("empty =\nset = 1\ngone = 2\n"))
+		require.NoError(t, err)
+		sec := f.Section("")
+
+		assert.Equal(t, "fallback", sec.Key("empty").MustString("fallback"))
+		sec.Key("set").SetValue("3")
+		sec.DeleteKey("gone")
+
+		assert.Equal(t, map[string]string{"empty": "", "set": "3"}, sec.KeysHash())
+	})
 }
 
 func TestSection_DeleteKey(t *testing.T) {

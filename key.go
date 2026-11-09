@@ -25,10 +25,13 @@ import (
 
 // Key represents a key under a section.
 type Key struct {
-	s               *Section
-	Comment         string
-	name            string
-	value           string
+	s       *Section
+	Comment string
+	name    string
+	value   string
+	// hashValue is the value KeysHash reports. Must* defaults change value
+	// but not hashValue, as they never updated KeysHash in v1.
+	hashValue       string
 	isAutoIncrement bool
 	isBooleanType   bool
 
@@ -41,9 +44,10 @@ type Key struct {
 // newKey simply return a key object with given values.
 func newKey(s *Section, name, val string) *Key {
 	return &Key{
-		s:     s,
-		name:  name,
-		value: val,
+		s:         s,
+		name:      name,
+		value:     val,
+		hashValue: val,
 	}
 }
 
@@ -840,5 +844,5 @@ func (k *Key) SetValue(v string) {
 	}
 
 	k.value = v
-	k.s.keysHash[k.name] = v
+	k.hashValue = v
 }

@@ -22,12 +22,11 @@ import (
 
 // Section represents a config section.
 type Section struct {
-	f        *File
-	Comment  string
-	name     string
-	keys     map[string]*Key
-	keyList  []string
-	keysHash map[string]string
+	f       *File
+	Comment string
+	name    string
+	keys    map[string]*Key
+	keyList []string
 
 	isRawSection bool
 	rawBody      string
@@ -35,11 +34,10 @@ type Section struct {
 
 func newSection(f *File, name string) *Section {
 	return &Section{
-		f:        f,
-		name:     name,
-		keys:     make(map[string]*Key),
-		keyList:  make([]string, 0, 10),
-		keysHash: make(map[string]string),
+		f:       f,
+		name:    name,
+		keys:    make(map[string]*Key),
+		keyList: make([]string, 0, 10),
 	}
 }
 
@@ -82,14 +80,13 @@ func (s *Section) NewKey(name, val string) (*Key, error) {
 			}
 		} else {
 			s.keys[name].value = val
-			s.keysHash[name] = val
+			s.keys[name].hashValue = val
 		}
 		return s.keys[name], nil
 	}
 
 	s.keyList = append(s.keyList, name)
 	s.keys[name] = newKey(s, name, val)
-	s.keysHash[name] = val
 	return s.keys[name], nil
 }
 
@@ -217,9 +214,9 @@ func (s *Section) KeysHash() map[string]string {
 		defer s.f.lock.RUnlock()
 	}
 
-	hash := make(map[string]string, len(s.keysHash))
-	for key, value := range s.keysHash {
-		hash[key] = value
+	hash := make(map[string]string, len(s.keys))
+	for name, k := range s.keys {
+		hash[name] = k.hashValue
 	}
 	return hash
 }
@@ -235,7 +232,6 @@ func (s *Section) DeleteKey(name string) {
 		if k == name {
 			s.keyList = append(s.keyList[:i], s.keyList[i+1:]...)
 			delete(s.keys, name)
-			delete(s.keysHash, name)
 			return
 		}
 	}
