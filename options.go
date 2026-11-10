@@ -139,7 +139,7 @@ func SpaceBeforeInlineComment(v bool) LoadOption {
 }
 
 // UnescapeValueDoubleQuotes unescapes \" inside values surrounded by double
-// quotes, e.g. key="a \"value\"" is `a "value"`.
+// quotes, e.g., key="a \"value\"" is `a "value"`.
 func UnescapeValueDoubleQuotes(v bool) LoadOption {
 	return func(o *loadOptions) { o.UnescapeValueDoubleQuotes = v }
 }

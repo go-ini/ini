@@ -81,7 +81,7 @@ func (k *Key) AddNestedValue(val string) error {
 	return k.addNestedValue(val)
 }
 
-// ValueMapper represents a mapping function for values, e.g. os.ExpandEnv
+// ValueMapper represents a mapping function for values, e.g., os.ExpandEnv
 type ValueMapper func(string) string
 
 // Name returns name of key.

@@ -40,7 +40,7 @@ import (
 func main() {
 	f, err := ini.Load("app.ini")
 	if err != nil {
-		log.Fatal(err) // e.g. "line 3, column 1: key-value delimiter not found: broken line"
+		log.Fatal(err) // e.g., "line 3, column 1: key-value delimiter not found: broken line"
 	}
 
 	server := f.Section("server")
