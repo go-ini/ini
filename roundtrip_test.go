@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -86,30 +84,21 @@ func checkRoundTrip(t *testing.T, data []byte, opts []LoadOption, wopts ...Write
 }
 
 func FuzzWriteRoundTrip(f *testing.F) {
-	inputs := append([]string{confData}, paritySeeds...)
-	files, _ := filepath.Glob("testdata/*.ini")
-	for _, name := range files {
-		data, err := os.ReadFile(name)
-		if err != nil {
-			f.Fatal(err)
-		}
-		inputs = append(inputs, string(data))
-	}
-	for _, in := range inputs {
+	for _, in := range fuzzInputs(f) {
 		for _, flags := range []uint32{0, 1 << 9, 1<<8 | 1<<6, 1<<11 | 1<<10 | 1<<12, 1<<16 | 1<<7 | 1<<5, 1<<20 - 1} {
 			f.Add([]byte(in), flags)
 		}
 	}
 	f.Fuzz(func(t *testing.T, data []byte, flags uint32) {
-		checkRoundTrip(t, data, v2Options(parityOptions(flags)))
+		checkRoundTrip(t, data, optionsFromBits(flags))
 	})
 }
 
 func TestWriteRoundTripRandom(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
-	for _, in := range paritySeeds {
+	for _, in := range parserInputs(t) {
 		for i := 0; i < 200; i++ {
-			checkRoundTrip(t, []byte(in), v2Options(parityOptions(rng.Uint32())))
+			checkRoundTrip(t, []byte(in), optionsFromBits(rng.Uint32()))
 		}
 	}
 }

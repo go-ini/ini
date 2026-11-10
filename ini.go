@@ -12,7 +12,35 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
-// Package ini provides INI file read and write functionality in Go.
+// Package ini reads and writes INI files.
+//
+// Load parses one source, a file name, []byte or io.Reader, and LoadSources
+// merges several, later ones overriding earlier ones. Without options, every
+// input parses exactly as it did with gopkg.in/ini.v1. LoadOption values
+// such as AllowShadows, CaseInsensitive or IgnoreInlineComment change the
+// syntax that is accepted.
+//
+// A File holds Sections in order, and each Section holds Keys in order. The
+// default section, named DefaultSection, holds the keys before the first
+// section header; pass "" to refer to it. Key returns values as strings or
+// parses them, as in Key.Int or Key.Duration, and the generic List, In and
+// Range parse lists, candidates and ranges of any Scalar type. A value can
+// refer to another key of its section or of the default section as
+// %(name)s.
+//
+// MapTo and StrictMapTo fill a struct from a File, and File.ReflectFrom
+// fills a File from a struct; Unmarshal and Marshal do the same for INI
+// text, like encoding/json. Field names map to key and section names
+// unchanged unless NameMapping sets a mapper, and the ini, delim and
+// comment struct tags adjust each field.
+//
+// File.Write and File.SaveTo write a File back with its comments and in its
+// order, and WriteOption values set the formatting. What Write writes loads
+// back to the same sections, keys, values and comments, or Write returns an
+// error.
+//
+// A File is safe for concurrent use unless loaded with Locking(false).
+// Parse errors are *ParseError values that give the line and column.
 package ini
 
 import (

@@ -16,8 +16,6 @@ package ini
 
 import (
 	"bytes"
-	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -83,16 +81,7 @@ type fzCfg struct {
 // with every Key accessor and maps it into fzCfg. Nothing may panic or hang,
 // and a value written by Marshal must read back the same.
 func FuzzStructMapping(f *testing.F) {
-	inputs := append([]string{confData}, paritySeeds...)
-	files, _ := filepath.Glob("testdata/*.ini")
-	for _, name := range files {
-		data, err := os.ReadFile(name)
-		if err != nil {
-			f.Fatal(err)
-		}
-		inputs = append(inputs, string(data))
-	}
-	inputs = append(inputs,
+	inputs := append(fuzzInputs(f),
 		"S = s\nI = -3\nI8 = 127\nU = 4\nU8 = 255\nF32 = 1.5\nF = 2.5\nB = true\nD = 1s\nT = 2020-01-02T03:04:05.5Z\n"+
 			"PS = p\nPI = 7\nPT = 2020-01-02T03:04:05Z\nPD = 3s\nSS = a,b\\, c,d\nSI = 1,2\nSU = 3,4\nSF = 1.5,2\nSB = true,false\n"+
 			"ST = 2020-01-02T03:04:05Z\nSP = x|y\nNamed = n\nPNamed = m\nshadow = a\nshadow = b\nE = e\n"+
@@ -107,7 +96,7 @@ func FuzzStructMapping(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, data []byte, flags uint32) {
-		opts := v2Options(parityOptions(flags))
+		opts := optionsFromBits(flags)
 		file, err := Load(data, opts...)
 		if err != nil {
 			return

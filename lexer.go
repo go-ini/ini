@@ -48,9 +48,8 @@ func (t token) errorf(err error) error {
 	return &ParseError{Line: t.line, Column: t.column, Err: err}
 }
 
-// lexer turns INI input into tokens. It follows the v1 parser rule for rule,
-// including the order in which value rules apply; FuzzParseParity checks that
-// v1 (gopkg.in/ini.v1) and v2 produce the same File.
+// lexer turns INI input into tokens. Its rules, and the order in which they
+// apply, are those of gopkg.in/ini.v1, so every input loads as it did there.
 type lexer struct {
 	src  string
 	pos  int  // offset of the next unread byte
@@ -211,7 +210,7 @@ func (l *lexer) key(line string) (_ token, ok bool, _ error) {
 }
 
 // readValue reads a value that starts in "in", the rest of the current line,
-// and any following lines it spans. The rules apply in v1's order, which
+// and any following lines it spans. The rules apply in a fixed order, which
 // decides the result when they overlap: a value is either quoted, continued
 // with a backslash, or plain; for a plain value the inline comment is cut
 // before surrounding quotes are stripped, so `"a;b"` is `"a` with comment
@@ -242,7 +241,7 @@ func (l *lexer) readValue(in string) (string, error) {
 	case !l.opts.PreserveSurroundingQuotes && (hasSurroundedQuote(line, '\'') || hasSurroundedQuote(line, '"')):
 		return line[1 : len(line)-1], nil
 	case l.opts.UnescapeValueCommentSymbols:
-		// Last symbol first, as v1 unescaped \; before \#.
+		// Last symbol first, so \; is unescaped before \#.
 		symbols := []rune(l.opts.CommentSymbols)
 		for i := len(symbols) - 1; i >= 0; i-- {
 			c := string(symbols[i])

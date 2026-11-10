@@ -15,6 +15,8 @@
 package ini
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,4 +76,26 @@ func TestBadLoad(t *testing.T) {
 			require.Error(t, err)
 		})
 	})
+}
+
+// A Python-style multiline value is read to its end however long it is. v1
+// read only as far as one 4 KiB reader buffer looked ahead.
+func TestParsePythonMultilineLongerThanBuffer(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("[s]\nkey = first\n")
+	for i := 0; i < 200; i++ {
+		fmt.Fprintf(&b, "  line %03d xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n", i)
+	}
+	b.WriteString("next = ok\n")
+
+	f, err := Load([]byte(b.String()), AllowPythonMultilineValues(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Count(f.Section("s").Key("key").Value(), "\n"); got != 200 {
+		t.Fatalf("value has %d continuation lines, want 200", got)
+	}
+	if got := f.Section("s").Key("next").Value(); got != "ok" {
+		t.Fatalf("next = %q, want ok", got)
+	}
 }

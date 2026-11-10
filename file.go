@@ -414,8 +414,8 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		equalSign = fmt.Sprintf(" %s ", o.keyValueDelimiter)
 	}
 
-	// Comment lines that don't start with a comment symbol get one: ";" as in
-	// v1 when it is a comment symbol, otherwise the first one. Without
+	// Comment lines that don't start with a comment symbol get one: ";" when
+	// it is a comment symbol, otherwise the first one. Without
 	// comment symbols, a comment can't be written so that it reads back.
 	symbols := f.options.CommentSymbols
 	commentPrefix := ";"
@@ -441,11 +441,11 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 
 	// keyLine returns the line that writes val as a value of key, written as
 	// form, or key itself for a boolean key, followed by nested values.
-	// v1's quoting comes first; when the lexer reads that back differently,
-	// other quotings and a bare delimiter are tried, and when none reads
-	// back, it's an error rather than a file that loads differently. A file
-	// read with delimiters that don't include the written one is meant for
-	// other readers, and is written as v1 did.
+	// The usual quoting comes first; when the lexer reads that back
+	// differently, other quotings and a bare delimiter are tried, and when
+	// none reads back, it's an error rather than a file that loads
+	// differently. A file read with delimiters that don't include the
+	// written one is meant for other readers, and is written unchecked.
 	verify := strings.ContainsAny(o.keyValueDelimiter, f.options.KeyValueDelimiters)
 	keyLine := func(key *Key, boolean bool, name, form, eq, val string, nested []string) (string, error) {
 		var after string
