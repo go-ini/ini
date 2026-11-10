@@ -36,14 +36,11 @@ func describeFile(f *File) string {
 	for _, s := range f.Sections() {
 		// A raw body gets a final line break when a section follows it;
 		// Body trims it either way.
-		fmt.Fprintf(&b, "[%q] comment=%q raw=%v body=%q\n", s.name, normalizeComment(s.Comment), s.isRawSection, strings.TrimRight(s.rawBody, "\n"))
+		fmt.Fprintf(&b, "[%q] comment=%q raw=%v body=%q\n", s.name, normalizeComment(s.comment), s.isRawSection, strings.TrimRight(s.rawBody, "\n"))
 		for _, k := range s.Keys() {
-			vals := []string{k.value}
-			for _, s := range k.shadows {
-				vals = append(vals, s.value)
-			}
+			vals := append([]string{k.value}, k.shadows...)
 			fmt.Fprintf(&b, "  %q=%q comment=%q auto=%v bool=%v nested=%q\n",
-				k.name, vals, normalizeComment(k.Comment), k.isAutoIncrement, k.isBooleanType, k.nestedValues)
+				k.name, vals, normalizeComment(k.comment), k.isAutoIncrement, k.isBooleanType, k.nestedValues)
 		}
 	}
 	return b.String()

@@ -35,17 +35,10 @@ type File struct {
 	locking bool
 	lock    sync.RWMutex
 
-	// To keep data in order.
-	sectionList []string
-	// To keep track of the index of a section with same name.
-	// This meta list is only used with non-unique section names are allowed.
-	sectionIndexes []int
-
-	// Actual data is stored here.
-	sections map[string][]*Section
-
-	NameMapper
-	ValueMapper
+	// sections are in the order they were added; byName indexes
+	// them, in the same order, by name.
+	sections []*Section
+	byName   map[string][]*Section
 }
 
 // newFile initializes File object with given data sources.
@@ -54,9 +47,8 @@ func newFile(dataSources []dataSource, opts []LoadOption) *File {
 	return &File{
 		locking:     !o.NoLocking,
 		dataSources: dataSources,
-		sections:    make(map[string][]*Section),
+		byName:      make(map[string][]*Section),
 		options:     o,
-		NameMapper:  o.NameMapper,
 	}
 }
 
@@ -126,19 +118,13 @@ func (f *File) addSection(name string) (*Section, error) {
 		name = strings.ToLower(name)
 	}
 
-	if _, ok := f.sections[name]; ok && !f.options.AllowNonUniqueSections {
-		return f.sections[name][0], nil
+	if secs := f.byName[name]; len(secs) > 0 && !f.options.AllowNonUniqueSections {
+		return secs[0], nil
 	}
 
-	f.sectionList = append(f.sectionList, name)
-
-	// NOTE: Append to indexes must happen before appending to sections,
-	// otherwise index will have off-by-one problem.
-	f.sectionIndexes = append(f.sectionIndexes, len(f.sections[name]))
-
 	sec := newSection(f, name)
-	f.sections[name] = append(f.sections[name], sec)
-
+	f.sections = append(f.sections, sec)
+	f.byName[name] = append(f.byName[name], sec)
 	return sec, nil
 }
 
@@ -209,7 +195,7 @@ func (f *File) sectionsByName(name string) ([]*Section, error) {
 		name = strings.ToLower(name)
 	}
 
-	secs := f.sections[name]
+	secs := f.byName[name]
 	if len(secs) == 0 {
 		return nil, fmt.Errorf("section %q does not exist", name)
 	}
@@ -245,16 +231,9 @@ func (f *File) SectionWithIndex(name string, index int) *Section {
 
 // Sections returns a list of Section stored in the current instance.
 func (f *File) Sections() []*Section {
-	if f.locking {
-		f.lock.RLock()
-		defer f.lock.RUnlock()
-	}
-
-	sections := make([]*Section, len(f.sectionList))
-	for i, name := range f.sectionList {
-		sections[i] = f.sections[name][f.sectionIndexes[i]]
-	}
-	return sections
+	f.rlock()
+	defer f.runlock()
+	return slices.Clone(f.sections)
 }
 
 // ChildSections returns a list of child sections of given section name.
@@ -266,9 +245,11 @@ func (f *File) ChildSections(name string) []*Section {
 func (f *File) SectionNames() []string {
 	f.rlock()
 	defer f.runlock()
-	list := make([]string, len(f.sectionList))
-	copy(list, f.sectionList)
-	return list
+	names := make([]string, len(f.sections))
+	for i, sec := range f.sections {
+		names[i] = sec.name
+	}
+	return names
 }
 
 // DeleteSection deletes a section or all sections with given name.
@@ -302,41 +283,19 @@ func (f *File) DeleteSectionWithIndex(name string, index int) error {
 		name = strings.ToLower(name)
 	}
 
-	if f.locking {
-		f.lock.Lock()
-		defer f.lock.Unlock()
+	f.wlock()
+	defer f.wunlock()
+	secs := f.byName[name]
+	if index >= len(secs) {
+		return nil
 	}
-
-	// Count occurrences of the sections
-	occurrences := 0
-
-	sectionListCopy := make([]string, len(f.sectionList))
-	copy(sectionListCopy, f.sectionList)
-
-	for i, s := range sectionListCopy {
-		if s != name {
-			continue
-		}
-
-		if occurrences == index {
-			if len(f.sections[name]) <= 1 {
-				delete(f.sections, name) // The last one in the map
-			} else {
-				f.sections[name] = append(f.sections[name][:index], f.sections[name][index+1:]...)
-			}
-
-			// Fix section lists
-			f.sectionList = append(f.sectionList[:i], f.sectionList[i+1:]...)
-			f.sectionIndexes = append(f.sectionIndexes[:i], f.sectionIndexes[i+1:]...)
-
-		} else if occurrences > index {
-			// Fix the indices of all following sections with this name.
-			f.sectionIndexes[i-1]--
-		}
-
-		occurrences++
+	sec := secs[index]
+	if len(secs) == 1 {
+		delete(f.byName, name)
+	} else {
+		f.byName[name] = slices.Delete(secs, index, index+1)
 	}
-
+	f.sections = slices.DeleteFunc(f.sections, func(s *Section) bool { return s == sec })
 	return nil
 }
 
@@ -360,44 +319,47 @@ func (f *File) Reload() error {
 	f.rlock()
 	sources := f.dataSources
 	f.runlock()
-	next := &File{options: f.options, sections: make(map[string][]*Section)}
+	next := &File{options: f.options, byName: make(map[string][]*Section)}
 	if err := next.load(sources); err != nil {
 		return err
 	}
 
 	f.wlock()
 	defer f.wunlock()
-	for name, secs := range next.sections {
+	for name, secs := range next.byName {
+		old := f.byName[name]
 		for i, sec := range secs {
-			if old := f.sections[name]; i < len(old) {
-				// Keep the section and keys callers may hold. Their s and
-				// f stay, as readers use them to find the lock.
-				o := old[i]
-				for kname, k := range sec.keys {
-					if ok := o.keys[kname]; ok != nil {
-						ok.Comment, ok.value, ok.hashValue = k.Comment, k.value, k.hashValue
-						ok.isAutoIncrement, ok.isBooleanType = k.isAutoIncrement, k.isBooleanType
-						ok.shadows, ok.nestedValues = k.shadows, k.nestedValues
-						sec.keys[kname] = ok
-					}
-				}
-				o.Comment, o.keys, o.keyList = sec.Comment, sec.keys, sec.keyList
-				o.isRawSection, o.rawBody = sec.isRawSection, sec.rawBody
-				secs[i], sec = o, o
-			} else {
+			if i >= len(old) {
 				sec.f = f
+				continue
 			}
-			for _, k := range sec.keys {
-				if k.s != sec {
-					k.s = sec
-				}
-				for _, s := range k.shadows {
-					s.s = sec
+			// Keep the section and keys callers may hold, with the new
+			// contents. Their s and f stay, as readers use them to find
+			// the lock.
+			o := old[i]
+			for j, k := range sec.keys {
+				if ok := o.byName[k.name]; ok != nil {
+					ok.comment, ok.value, ok.shadows = k.comment, k.value, k.shadows
+					ok.isAutoIncrement, ok.isBooleanType = k.isAutoIncrement, k.isBooleanType
+					ok.nestedValues = k.nestedValues
+					sec.keys[j], sec.byName[k.name] = ok, ok
+				} else {
+					k.s = o
 				}
 			}
+			o.comment, o.keys, o.byName = sec.comment, sec.keys, sec.byName
+			o.isRawSection, o.rawBody = sec.isRawSection, sec.rawBody
+			secs[i] = o
 		}
 	}
-	f.sectionList, f.sectionIndexes, f.sections = next.sectionList, next.sectionIndexes, next.sections
+	// The n-th section of a name in next.sections is the n-th in
+	// next.byName, which now holds the sections kept.
+	seen := make(map[string]int)
+	for i, sec := range next.sections {
+		next.sections[i] = next.byName[sec.name][seen[sec.name]]
+		seen[sec.name]++
+	}
+	f.sections, f.byName = next.sections, next.byName
 	return nil
 }
 
@@ -546,17 +508,15 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 	// Per-key buffers, reused for every key.
 	var vals, lines []string
 	var empty []bool
-	lastSectionIdx := len(f.sectionList) - 1
-	for i, sname := range f.sectionList {
-		// Not SectionWithIndex: with CaseInsensitive, a "[DEFAULT]" header makes a
-		// section that lookups by name don't find.
-		sec := f.sections[sname][f.sectionIndexes[i]]
+	lastSectionIdx := len(f.sections) - 1
+	for i, sec := range f.sections {
+		sname := sec.name
 		if strings.Contains(sname, "\n") {
 			return nil, fmt.Errorf("cannot write section %q: its name has a line break", sname)
 		}
-		if len(sec.Comment) > 0 {
+		if len(sec.comment) > 0 {
 			// Support multiline comments
-			lines := strings.Split(sec.Comment, lineBreak)
+			lines := strings.Split(sec.comment, lineBreak)
 			for i := range lines {
 				var err error
 				if lines[i], err = formatComment(lines[i], false); err != nil {
@@ -572,15 +532,15 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		// v1 left out the header of the default section only when its name was
 		// upper case, so a renamed default section keeps its header. It is
 		// skipped like any default section when it has no keys.
-		emptyDefault := i == 0 && len(sec.keyList) == 0 && strings.EqualFold(sec.name, f.options.DefaultSection)
+		emptyDefault := i == 0 && len(sec.keys) == 0 && strings.EqualFold(sec.name, f.options.DefaultSection)
 		// A comment needs the header to stay on the section.
-		if i > 0 || o.defaultHeader || len(sec.Comment) > 0 || (strings.ToUpper(sec.name) != f.options.DefaultSection && !emptyDefault) {
+		if i > 0 || o.defaultHeader || len(sec.comment) > 0 || (strings.ToUpper(sec.name) != f.options.DefaultSection && !emptyDefault) {
 			if _, err := buf.WriteString("[" + sname + "]" + lineBreak); err != nil {
 				return nil, err
 			}
 		} else {
 			// Write nothing if default section is empty
-			if len(sec.keyList) == 0 {
+			if len(sec.keys) == 0 {
 				continue
 			}
 		}
@@ -609,7 +569,8 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		// we need to take that into account in our calculation.
 		alignLength := 0
 		if o.prettyFormat {
-			for _, kname := range sec.keyList {
+			for _, key := range sec.keys {
+				kname := key.name
 				keyLength := len(kname)
 				// First case will surround key by ` and second by """
 				if strings.Contains(kname, "\"") || strings.ContainsAny(kname, f.options.KeyValueDelimiters) {
@@ -641,8 +602,8 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			return nil
 		}
 
-		for _, kname := range sec.keyList {
-			key := sec.keys[kname]
+		for _, key := range sec.keys {
+			kname := key.name
 			name, form := kname, kname
 			switch {
 			case key.isAutoIncrement:
@@ -675,9 +636,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			// the values before it in systemd units, and nested values
 			// follow an empty value.
 			vals = append(vals[:0], key.value)
-			for _, s := range key.shadows {
-				vals = append(vals, s.value)
-			}
+			vals = append(vals, key.shadows...)
 
 			// regular are the values written on key lines. A boolean line
 			// after a key of the same name makes it a boolean key with the
@@ -744,12 +703,12 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 				}
 				swallows = f.options.AllowPythonMultilineValues || (f.options.AllowNestedValues && empty[i])
 			}
-			if len(key.Comment) > 0 {
+			if len(key.comment) > 0 {
 				if err := writeIndented(""); err != nil {
 					return nil, err
 				}
 				// Support multiline comments
-				comments := strings.Split(key.Comment, lineBreak)
+				comments := strings.Split(key.comment, lineBreak)
 				for i := range comments {
 					var err error
 					if comments[i], err = formatComment(comments[i], true); err != nil {

@@ -27,17 +27,14 @@ import (
 // Key represents a key under a section.
 type Key struct {
 	s       *Section
-	Comment string
 	name    string
+	comment string
 	value   string
-	// hashValue is the value KeyValues reports. Must* defaults change value
-	// but not hashValue, as they never updated KeyValues in v1.
-	hashValue       string
+	// shadows are the values after the first of a key that appears more
+	// than once, with AllowShadows.
+	shadows         []string
 	isAutoIncrement bool
 	isBooleanType   bool
-
-	isShadow bool
-	shadows  []*Key
 
 	nestedValues []string
 }
@@ -45,17 +42,14 @@ type Key struct {
 // newKey simply return a key object with given values.
 func newKey(s *Section, name, val string) *Key {
 	return &Key{
-		s:         s,
-		name:      name,
-		value:     val,
-		hashValue: val,
+		s:     s,
+		name:  name,
+		value: val,
 	}
 }
 
 func (k *Key) addShadow(val string) error {
-	if k.isShadow {
-		return errors.New("cannot add shadow to another shadow key")
-	} else if k.isAutoIncrement || k.isBooleanType {
+	if k.isAutoIncrement || k.isBooleanType {
 		return errors.New("cannot add shadow to auto-increment or boolean key")
 	}
 
@@ -63,19 +57,12 @@ func (k *Key) addShadow(val string) error {
 	// KeepEmptyShadowValues each reset the values before them, so they stay.
 	keptEmpty := val == "" && k.s.f.options.KeepEmptyShadowValues
 	if !k.s.f.options.AllowDuplicateShadowValues && !keptEmpty {
-		if k.value == val {
+		if k.value == val || slices.Contains(k.shadows, val) {
 			return nil
-		}
-		for i := range k.shadows {
-			if k.shadows[i].value == val {
-				return nil
-			}
 		}
 	}
 
-	shadow := newKey(k.s, k.name, val)
-	shadow.isShadow = true
-	k.shadows = append(k.shadows, shadow)
+	k.shadows = append(k.shadows, val)
 	return nil
 }
 
@@ -116,6 +103,22 @@ func (k *Key) Name() string {
 	return k.name
 }
 
+// Comment returns the comment lines before the key, with their comment
+// symbols.
+func (k *Key) Comment() string {
+	k.s.f.rlock()
+	defer k.s.f.runlock()
+	return k.comment
+}
+
+// SetComment sets the comment lines written before the key. Lines without a
+// comment symbol get one.
+func (k *Key) SetComment(comment string) {
+	k.s.f.wlock()
+	defer k.s.f.wunlock()
+	k.comment = comment
+}
+
 // Value returns raw value of key for performance purpose.
 func (k *Key) Value() string {
 	f := k.s.f
@@ -139,9 +142,9 @@ func (k *Key) Values() []string {
 	if keepEmpty || k.value != "" {
 		vals = append(vals, k.value)
 	}
-	for _, s := range k.shadows {
-		if keepEmpty || s.value != "" {
-			vals = append(vals, s.value)
+	for _, v := range k.shadows {
+		if keepEmpty || v != "" {
+			vals = append(vals, v)
 		}
 	}
 	return vals
@@ -181,8 +184,8 @@ type expansion struct {
 // reference cycles and values that double at every level stop instead of
 // overflowing the stack or using up time and memory.
 func (k *Key) expand(val string, depth int, e *expansion) string {
-	if k.s.f.ValueMapper != nil {
-		val = k.s.f.ValueMapper(val)
+	if k.s.f.options.ValueMapper != nil {
+		val = k.s.f.options.ValueMapper(val)
 	}
 
 	// Fail-fast if no indicate char found for recursive value
@@ -225,14 +228,6 @@ func (k *Key) expand(val string, depth int, e *expansion) string {
 // String returns string representation of value.
 func (k *Key) String() string {
 	return k.expandValue(k.Value())
-}
-
-// setDefault sets the value a Must method falls back to. Unlike SetValue,
-// it leaves KeyValues as it was, as in v1.
-func (k *Key) setDefault(v string) {
-	k.s.f.wlock()
-	defer k.s.f.wunlock()
-	k.value = v
 }
 
 // Validate accepts a validate function which can
@@ -349,7 +344,7 @@ func (k *Key) Time() (time.Time, error) {
 func (k *Key) MustString(defaultVal string) string {
 	val := k.String()
 	if len(val) == 0 {
-		k.setDefault(defaultVal)
+		k.SetValue(defaultVal)
 		return defaultVal
 	}
 	return val
@@ -360,7 +355,7 @@ func (k *Key) MustString(defaultVal string) string {
 func (k *Key) MustBool(defaultVal ...bool) bool {
 	val, err := k.Bool()
 	if len(defaultVal) > 0 && err != nil {
-		k.setDefault(strconv.FormatBool(defaultVal[0]))
+		k.SetValue(strconv.FormatBool(defaultVal[0]))
 		return defaultVal[0]
 	}
 	return val
@@ -371,7 +366,7 @@ func (k *Key) MustBool(defaultVal ...bool) bool {
 func (k *Key) MustFloat64(defaultVal ...float64) float64 {
 	val, err := k.Float64()
 	if len(defaultVal) > 0 && err != nil {
-		k.setDefault(strconv.FormatFloat(defaultVal[0], 'f', -1, 64))
+		k.SetValue(strconv.FormatFloat(defaultVal[0], 'f', -1, 64))
 		return defaultVal[0]
 	}
 	return val
@@ -382,7 +377,7 @@ func (k *Key) MustFloat64(defaultVal ...float64) float64 {
 func (k *Key) MustInt(defaultVal ...int) int {
 	val, err := k.Int()
 	if len(defaultVal) > 0 && err != nil {
-		k.setDefault(strconv.FormatInt(int64(defaultVal[0]), 10))
+		k.SetValue(strconv.FormatInt(int64(defaultVal[0]), 10))
 		return defaultVal[0]
 	}
 	return val
@@ -393,7 +388,7 @@ func (k *Key) MustInt(defaultVal ...int) int {
 func (k *Key) MustInt64(defaultVal ...int64) int64 {
 	val, err := k.Int64()
 	if len(defaultVal) > 0 && err != nil {
-		k.setDefault(strconv.FormatInt(defaultVal[0], 10))
+		k.SetValue(strconv.FormatInt(defaultVal[0], 10))
 		return defaultVal[0]
 	}
 	return val
@@ -404,7 +399,7 @@ func (k *Key) MustInt64(defaultVal ...int64) int64 {
 func (k *Key) MustUint(defaultVal ...uint) uint {
 	val, err := k.Uint()
 	if len(defaultVal) > 0 && err != nil {
-		k.setDefault(strconv.FormatUint(uint64(defaultVal[0]), 10))
+		k.SetValue(strconv.FormatUint(uint64(defaultVal[0]), 10))
 		return defaultVal[0]
 	}
 	return val
@@ -415,7 +410,7 @@ func (k *Key) MustUint(defaultVal ...uint) uint {
 func (k *Key) MustUint64(defaultVal ...uint64) uint64 {
 	val, err := k.Uint64()
 	if len(defaultVal) > 0 && err != nil {
-		k.setDefault(strconv.FormatUint(defaultVal[0], 10))
+		k.SetValue(strconv.FormatUint(defaultVal[0], 10))
 		return defaultVal[0]
 	}
 	return val
@@ -426,7 +421,7 @@ func (k *Key) MustUint64(defaultVal ...uint64) uint64 {
 func (k *Key) MustDuration(defaultVal ...time.Duration) time.Duration {
 	val, err := k.Duration()
 	if len(defaultVal) > 0 && err != nil {
-		k.setDefault(defaultVal[0].String())
+		k.SetValue(defaultVal[0].String())
 		return defaultVal[0]
 	}
 	return val
@@ -437,7 +432,7 @@ func (k *Key) MustDuration(defaultVal ...time.Duration) time.Duration {
 func (k *Key) MustTimeFormat(format string, defaultVal ...time.Time) time.Time {
 	val, err := k.TimeFormat(format)
 	if len(defaultVal) > 0 && err != nil {
-		k.setDefault(defaultVal[0].Format(format))
+		k.SetValue(defaultVal[0].Format(format))
 		return defaultVal[0]
 	}
 	return val
@@ -528,11 +523,7 @@ func (k *Key) StringsWithShadows(delim string) []string {
 
 // SetValue changes key value.
 func (k *Key) SetValue(v string) {
-	if k.s.f.locking {
-		k.s.f.lock.Lock()
-		defer k.s.f.lock.Unlock()
-	}
-
+	k.s.f.wlock()
+	defer k.s.f.wunlock()
 	k.value = v
-	k.hashValue = v
 }

@@ -410,9 +410,9 @@ key2=value2 #comment2`), AllowPythonMultilineValues())
 				require.NotNil(t, f)
 
 				assert.Equal(t, `value`, f.Section("").Key("key1").String())
-				assert.Equal(t, `;comment`, f.Section("").Key("key1").Comment)
+				assert.Equal(t, `;comment`, f.Section("").Key("key1").Comment())
 				assert.Equal(t, `value2`, f.Section("").Key("key2").String())
-				assert.Equal(t, `#comment2`, f.Section("").Key("key2").Comment)
+				assert.Equal(t, `#comment2`, f.Section("").Key("key2").Comment())
 			})
 		})
 
@@ -963,9 +963,9 @@ key2=value2 #comment2`))
 				require.NotNil(t, f)
 
 				assert.Equal(t, `value`, f.Section("").Key("key1").String())
-				assert.Equal(t, `;comment`, f.Section("").Key("key1").Comment)
+				assert.Equal(t, `;comment`, f.Section("").Key("key1").Comment())
 				assert.Equal(t, `value2`, f.Section("").Key("key2").String())
-				assert.Equal(t, `#comment2`, f.Section("").Key("key2").Comment)
+				assert.Equal(t, `#comment2`, f.Section("").Key("key2").Comment())
 			})
 		})
 

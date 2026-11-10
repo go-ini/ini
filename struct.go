@@ -63,8 +63,8 @@ func (s *Section) parseFieldName(raw, actual string) string {
 	if len(actual) > 0 {
 		return actual
 	}
-	if s.f.NameMapper != nil {
-		return s.f.NameMapper(raw)
+	if s.f.options.NameMapper != nil {
+		return s.f.options.NameMapper(raw)
 	}
 	return raw
 }
@@ -540,14 +540,19 @@ func encodeSlice(key *Key, field reflect.Value, delim string, allowShadow bool) 
 		vals[i] = escapeSliceElem(vals[i], delim)
 	}
 	if allowShadow {
-		keyWithShadows := newKey(key.s, key.name, vals[0])
+		if len(vals) > 1 && !key.s.f.options.AllowShadows {
+			return errors.New("shadow key is not allowed")
+		}
+		// Shadows deduplicated as the file's options say, on a key that
+		// isn't boolean or auto-increment.
+		tmp := newKey(key.s, key.name, vals[0])
 		for _, val := range vals[1:] {
-			if err := keyWithShadows.AddShadow(val); err != nil {
+			if err := tmp.addShadow(val); err != nil {
 				return err
 			}
 		}
 		key.s.f.wlock()
-		key.value, key.hashValue, key.shadows = keyWithShadows.value, keyWithShadows.hashValue, keyWithShadows.shadows
+		key.value, key.shadows = tmp.value, tmp.shadows
 		key.s.f.wunlock()
 		return nil
 	}
@@ -697,7 +702,7 @@ func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 			}
 
 			// Add comment from comment tag
-			s.f.defaultComment(&sec.Comment, tpField.Tag.Get("comment"))
+			s.f.defaultComment(&sec.comment, tpField.Tag.Get("comment"))
 
 			if err = sec.encodeStruct(field, path); err != nil {
 				return fmt.Errorf("reflect from field %q: %v", fieldName, err)
@@ -732,7 +737,7 @@ func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 				}
 
 				// Add comment from comment tag
-				s.f.defaultComment(&sec.Comment, tpField.Tag.Get("comment"))
+				s.f.defaultComment(&sec.comment, tpField.Tag.Get("comment"))
 
 				if err := sec.encodeStruct(elem, path); err != nil {
 					return fmt.Errorf("reflect from field %q: %v", fieldName, err)
@@ -748,7 +753,7 @@ func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 		}
 
 		// Add comment from comment tag
-		s.f.defaultComment(&key.Comment, tpField.Tag.Get("comment"))
+		s.f.defaultComment(&key.comment, tpField.Tag.Get("comment"))
 
 		delim := parseDelim(tpField.Tag.Get("delim"))
 		if err = encodeValue(tpField.Type, key, field, delim, allowShadow); err != nil {

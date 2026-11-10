@@ -409,9 +409,9 @@ func TestFile_WriteTo(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
-		f.Section("author").Comment = `Information about package author
-# Bio can be written in multiple lines.`
-		f.Section("author").Key("NAME").Comment = "This is author name"
+		f.Section("author").SetComment(`Information about package author
+# Bio can be written in multiple lines.`)
+		f.Section("author").Key("NAME").SetComment("This is author name")
 		_, _ = f.Section("note").NewBooleanKey("boolean_key")
 		_, _ = f.Section("note").NewKey("more", "notes")
 
@@ -439,7 +439,7 @@ domain      = mydomain.com
 `))
 		require.NoError(t, err)
 
-		f.Section("").Key("test").Comment = "Multiline\nComment"
+		f.Section("").Key("test").SetComment("Multiline\nComment")
 
 		var buf bytes.Buffer
 		_, err = f.WriteTo(&buf)
@@ -689,12 +689,14 @@ func TestFile_Concurrency(t *testing.T) {
 	run(func(int) {
 		for _, sec := range f.Sections() {
 			_ = sec.Body()
+			_ = sec.Comment()
 			_ = sec.KeyNames()
 			_ = sec.KeyValues()
 			_ = sec.ChildSections()
 			for _, k := range sec.Keys() {
 				_ = k.String()
 				_ = k.Value()
+				_ = k.Comment()
 				_ = k.Values()
 				_ = k.IsBoolean()
 				_ = k.NestedValues()
@@ -713,6 +715,8 @@ func TestFile_Concurrency(t *testing.T) {
 	run(func(i int) {
 		sec := f.Section("s")
 		sec.Key("k").SetValue(strconv.Itoa(i))
+		sec.SetComment("; c" + strconv.Itoa(i))
+		sec.Key("k").SetComment("; c" + strconv.Itoa(i))
 		_ = sec.Key("k").AddShadow("z")
 		_ = sec.Key("m").MustInt(3)
 		_, _ = f.Section("new").NewKey("n", "v")

@@ -106,18 +106,18 @@ func TestKey_Helpers(t *testing.T) {
 			assert.Equal(t, "ini", sec.Key("NAME").Validate(func(in string) string {
 				return in
 			}))
-			assert.Equal(t, "; Package name", sec.Key("NAME").Comment)
+			assert.Equal(t, "; Package name", sec.Key("NAME").Comment())
 			assert.Equal(t, "gopkg.in/ini.v1", sec.Key("IMPORT_PATH").String())
 
 			t.Run("with ValueMapper", func(t *testing.T) {
-				f.ValueMapper = func(in string) string {
+				f, err := Load(fullConf, ValueMapping(func(in string) string {
 					if in == "gopkg.in/%(NAME)s.%(VERSION)s" {
 						return "github.com/go-ini/ini"
 					}
 					return in
-				}
-				t.Cleanup(func() { f.ValueMapper = nil })
-				assert.Equal(t, "github.com/go-ini/ini", sec.Key("IMPORT_PATH").String())
+				}))
+				require.NoError(t, err)
+				assert.Equal(t, "github.com/go-ini/ini", f.Section("").Key("IMPORT_PATH").String())
 			})
 		})
 
@@ -481,16 +481,14 @@ bar = %(missing)s
 		f, err := Load([]byte(`
 ACCOUNT_ID = ${LFSD_R2_ACCOUNT_ID}
 ENDPOINT = https://%(ACCOUNT_ID)s.r2.cloudflarestorage.com
-`))
-		require.NoError(t, err)
-		require.NotNil(t, f)
-
-		f.ValueMapper = func(in string) string {
+`), ValueMapping(func(in string) string {
 			if in == "${LFSD_R2_ACCOUNT_ID}" {
 				return "abc123"
 			}
 			return in
-		}
+		}))
+		require.NoError(t, err)
+		require.NotNil(t, f)
 
 		assert.Equal(t, "https://abc123.r2.cloudflarestorage.com", f.Section("").Key("ENDPOINT").String())
 	})

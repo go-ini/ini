@@ -49,9 +49,11 @@ Without options, v2 parses every input exactly as v1's `Load` does. The parity t
 | `LoadOptions.Loose`, `ShortCircuit`, `UnparseableSections` | `ini.IgnoreMissingFiles()`, `ini.FirstSourceOnly()`, `ini.RawSections(names...)` |
 | `File.BlockMode = false` | `ini.NoLocking()` |
 | `MapToWithMapper(v, m, src)`, `StrictMapToWithMapper` | `MapTo(v, src, ini.NameMapping(m))`, `StrictMapTo(v, src, ini.NameMapping(m))` |
-| `ReflectFrom(f, v)`, `ReflectFromWithMapper(f, v, m)` | `f.ReflectFrom(v)`; set `f.NameMapper = m` or load with `ini.NameMapping(m)` |
+| `ReflectFrom(f, v)`, `ReflectFromWithMapper(f, v, m)` | `f.ReflectFrom(v)`, with the file loaded with `ini.NameMapping(m)` |
+| `f.NameMapper = m`, `f.ValueMapper = fn` | load with `ini.NameMapping(m)`, `ini.ValueMapping(fn)` |
+| `s.Comment`, `k.Comment` fields | `Comment()` and `SetComment(c)` methods |
 | `IsErrDelimiterNotFound(err)`, `IsErrEmptyKeyName(err)` | `errors.Is(err, ini.ErrDelimiterNotFound)`, `errors.Is(err, ini.ErrEmptyKeyName)` |
-| `File.SectionStrings`, `Section.KeyStrings`, `Section.KeysHash` | `SectionNames`, `KeyNames`, `KeyValues` |
+| `File.SectionStrings`, `Section.KeyStrings`, `Section.KeysHash` | `SectionNames`, `KeyNames`, `KeyValues`; `KeyValues` includes the defaults `Must*` methods stored, which v1's `KeysHash` left out |
 | `Key.ValueWithShadows`, `Key.IsBooleanType`, `Section.Haskey` | `Values`, `IsBoolean`, `HasKey` |
 | `k.Ints(",")`, `k.ValidInts(",")`, `k.StrictInts(",")` and the same for the other types | `ini.List[int](k, ",")`, `ini.ValidList[int](k, ",")`, `ini.StrictList[int](k, ",")`, with the same behavior; any `Scalar` type works, such as `int8`, `time.Duration` or a named string type |
 | `k.InInt(def, cands)`, `k.In(def, cands)` and the others | `ini.In(k, def, cands)` |
@@ -75,7 +77,7 @@ New in v2:
   - Nil pointer fields aren't written.
   - Fields after an empty `nonunique` slice or a `StructReflector` field are written.
   - A `nonunique` field with no sections is left empty instead of failing.
-- Unless loaded with `NoLocking()`, a `File` can be read from many goroutines while others call `Reload`, `Append`, `SetValue`, `NewKey`, `NewSection`, the delete methods, `ReflectFrom` or `Write`; v1 locked only some writes. `Comment` fields are plain fields: set them before sharing the `File`.
+- Unless loaded with `NoLocking()`, a `File` can be read from many goroutines while others call `Reload`, `Append`, `SetValue`, `NewKey`, `NewSection`, the delete methods, `ReflectFrom` or `Write`; v1 locked only some writes.
 - `Unmarshal` reads what `Marshal` writes, including `allowshadow` slices with repeated, empty or delimiter-containing elements and `nonunique` sections.
 - Loading is O(n) in the number of keys; a 10,000-key section loads in about 6 ms instead of about 150 ms with v1.67.3.
 

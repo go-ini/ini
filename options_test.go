@@ -69,9 +69,9 @@ func TestCommentSymbols(t *testing.T) {
 	require.NoError(t, err)
 
 	sec := f.Section("s")
-	assert.Equal(t, "// header\n// section", sec.Comment)
+	assert.Equal(t, "// header\n// section", sec.Comment())
 	assert.Equal(t, "http://x/#a;b", sec.Key("url").String())
-	assert.Equal(t, "// note", sec.Key("url").Comment)
+	assert.Equal(t, "// note", sec.Key("url").Comment())
 	assert.Equal(t, "a//b", sec.Key("k").String())
 
 	t.Run("multi-byte symbols", func(t *testing.T) {
@@ -81,9 +81,9 @@ func TestCommentSymbols(t *testing.T) {
 
 		sec := f.Section("")
 		assert.Equal(t, []string{"→ arrow", "k", "j", "u"}, sec.KeyNames())
-		assert.Equal(t, "€ head", sec.Key("→ arrow").Comment)
+		assert.Equal(t, "€ head", sec.Key("→ arrow").Comment())
 		assert.Equal(t, "a", sec.Key("k").String())
-		assert.Equal(t, "€c", sec.Key("k").Comment)
+		assert.Equal(t, "€c", sec.Key("k").Comment())
 		assert.Equal(t, "x€y", sec.Key("j").String())
 		assert.Equal(t, `\→`, sec.Key("u").String())
 
@@ -91,7 +91,7 @@ func TestCommentSymbols(t *testing.T) {
 		require.NoError(t, err)
 		_, err = f.Section("").NewKey("n", "1")
 		require.NoError(t, err)
-		f.Section("").Key("n").Comment = "note"
+		f.Section("").Key("n").SetComment("note")
 		var b bytes.Buffer
 		_, err = f.WriteTo(&b)
 		require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestCommentSymbols(t *testing.T) {
 		assert.Equal(t, "k = v\n", b.String())
 
 		// A comment can't be written so that it reads back as a comment.
-		k.Comment = "set x = y"
+		k.SetComment("set x = y")
 		_, err = f.WriteTo(&b)
 		assert.Error(t, err)
 	})
@@ -118,7 +118,7 @@ func TestCommentSymbols(t *testing.T) {
 		f := Empty(CommentSymbols("#"))
 		k, err := f.Section("").NewKey("k", "v;w")
 		require.NoError(t, err)
-		k.Comment = "note"
+		k.SetComment("note")
 
 		var b bytes.Buffer
 		_, err = f.WriteTo(&b)

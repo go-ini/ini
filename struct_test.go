@@ -293,16 +293,14 @@ func Test_MapToStruct(t *testing.T) {
 		})
 
 		t.Run("map to unsupported type", func(t *testing.T) {
-			f, err := Load([]byte(confDataStruct))
-			require.NoError(t, err)
-			require.NotNil(t, f)
-
-			f.NameMapper = func(raw string) string {
+			f, err := Load([]byte(confDataStruct), NameMapping(func(raw string) string {
 				if raw == "Byte" {
 					return "NAME"
 				}
 				return raw
-			}
+			}))
+			require.NoError(t, err)
+			require.NotNil(t, f)
 			assert.Error(t, f.MapTo(&unsupport{}))
 			assert.Error(t, f.MapTo(&unsupport2{}))
 			assert.Error(t, f.MapTo(&unsupport4{}))
@@ -825,11 +823,10 @@ func Test_NameGetter(t *testing.T) {
 	t.Run("test name mappers", func(t *testing.T) {
 		assert.NoError(t, MapTo(&testMapper{}, []byte("packag_name=ini"), NameMapping(TitleUnderscore)))
 
-		cfg, err := Load([]byte("PACKAGE_NAME=ini"))
+		cfg, err := Load([]byte("PACKAGE_NAME=ini"), NameMapping(SnakeCase))
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 
-		cfg.NameMapper = SnakeCase
 		tg := new(testMapper)
 		assert.NoError(t, cfg.MapTo(tg))
 		assert.Equal(t, "ini", tg.PackageName)

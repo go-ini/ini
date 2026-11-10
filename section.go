@@ -17,16 +17,18 @@ package ini
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
 // Section represents a config section.
 type Section struct {
 	f       *File
-	Comment string
 	name    string
-	keys    map[string]*Key
-	keyList []string
+	comment string
+	// keys are in the order they were added; byName indexes them by name.
+	keys   []*Key
+	byName map[string]*Key
 
 	isRawSection bool
 	rawBody      string
@@ -34,16 +36,32 @@ type Section struct {
 
 func newSection(f *File, name string) *Section {
 	return &Section{
-		f:       f,
-		name:    name,
-		keys:    make(map[string]*Key),
-		keyList: make([]string, 0, 10),
+		f:      f,
+		name:   name,
+		keys:   make([]*Key, 0, 10),
+		byName: make(map[string]*Key),
 	}
 }
 
 // Name returns name of Section.
 func (s *Section) Name() string {
 	return s.name
+}
+
+// Comment returns the comment lines before the section header, with their
+// comment symbols.
+func (s *Section) Comment() string {
+	s.f.rlock()
+	defer s.f.runlock()
+	return s.comment
+}
+
+// SetComment sets the comment lines written before the section header.
+// Lines without a comment symbol get one.
+func (s *Section) SetComment(comment string) {
+	s.f.wlock()
+	defer s.f.wunlock()
+	s.comment = comment
 }
 
 // Body returns rawBody of Section if the section was marked as unparseable.
@@ -79,21 +97,21 @@ func (s *Section) addKey(name, val string) (*Key, error) {
 		name = strings.ToLower(name)
 	}
 
-	if _, ok := s.keys[name]; ok {
+	if key := s.byName[name]; key != nil {
 		if s.f.options.AllowShadows {
-			if err := s.keys[name].addShadow(val); err != nil {
+			if err := key.addShadow(val); err != nil {
 				return nil, err
 			}
 		} else {
-			s.keys[name].value = val
-			s.keys[name].hashValue = val
+			key.value = val
 		}
-		return s.keys[name], nil
+		return key, nil
 	}
 
-	s.keyList = append(s.keyList, name)
-	s.keys[name] = newKey(s, name, val)
-	return s.keys[name], nil
+	key := newKey(s, name, val)
+	s.keys = append(s.keys, key)
+	s.byName[name] = key
+	return key, nil
 }
 
 // NewBooleanKey creates a new boolean type key to given section.
@@ -122,7 +140,7 @@ func (s *Section) GetKey(name string) (*Key, error) {
 	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
 		name = strings.ToLower(name)
 	}
-	key := s.keys[name]
+	key := s.byName[name]
 	if s.f.locking {
 		s.f.lock.RUnlock()
 	}
@@ -184,11 +202,7 @@ func (s *Section) Key(name string) *Key {
 func (s *Section) Keys() []*Key {
 	s.f.rlock()
 	defer s.f.runlock()
-	keys := make([]*Key, len(s.keyList))
-	for i, name := range s.keyList {
-		keys[i] = s.keys[name]
-	}
-	return keys
+	return slices.Clone(s.keys)
 }
 
 // ParentKeys returns list of keys of parent section.
@@ -215,12 +229,14 @@ func (s *Section) ParentKeys() []*Key {
 func (s *Section) KeyNames() []string {
 	s.f.rlock()
 	defer s.f.runlock()
-	list := make([]string, len(s.keyList))
-	copy(list, s.keyList)
-	return list
+	names := make([]string, len(s.keys))
+	for i, k := range s.keys {
+		names[i] = k.name
+	}
+	return names
 }
 
-// KeyValues returns keys hash consisting of names and values.
+// KeyValues returns the names and raw values of the section's keys.
 func (s *Section) KeyValues() map[string]string {
 	if s.f.locking {
 		s.f.lock.RLock()
@@ -228,8 +244,8 @@ func (s *Section) KeyValues() map[string]string {
 	}
 
 	hash := make(map[string]string, len(s.keys))
-	for name, k := range s.keys {
-		hash[name] = k.hashValue
+	for _, k := range s.keys {
+		hash[k.name] = k.value
 	}
 	return hash
 }
@@ -244,12 +260,9 @@ func (s *Section) DeleteKey(name string) {
 		defer s.f.lock.Unlock()
 	}
 
-	for i, k := range s.keyList {
-		if k == name {
-			s.keyList = append(s.keyList[:i], s.keyList[i+1:]...)
-			delete(s.keys, name)
-			return
-		}
+	if key := s.byName[name]; key != nil {
+		delete(s.byName, name)
+		s.keys = slices.DeleteFunc(s.keys, func(k *Key) bool { return k == key })
 	}
 }
 
@@ -261,9 +274,9 @@ func (s *Section) ChildSections() []*Section {
 	defer s.f.runlock()
 	prefix := s.name + s.f.options.ChildSectionDelimiter
 	children := make([]*Section, 0, 3)
-	for i, name := range s.f.sectionList {
-		if strings.HasPrefix(name, prefix) {
-			children = append(children, s.f.sections[name][s.f.sectionIndexes[i]])
+	for _, sec := range s.f.sections {
+		if strings.HasPrefix(sec.name, prefix) {
+			children = append(children, sec)
 		}
 	}
 	return children

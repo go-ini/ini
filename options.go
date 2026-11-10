@@ -55,6 +55,7 @@ type loadOptions struct {
 	KeepEmptyShadowValues       bool
 	NoLocking                   bool
 	NameMapper                  NameMapper
+	ValueMapper                 ValueMapper
 }
 
 func newLoadOptions(opts []LoadOption) loadOptions {
@@ -79,6 +80,12 @@ func NoLocking() LoadOption { return func(o *loadOptions) { o.NoLocking = true }
 // and key names, for MapTo, StrictMapTo and ReflectFrom.
 func NameMapping(mapper NameMapper) LoadOption {
 	return func(o *loadOptions) { o.NameMapper = mapper }
+}
+
+// ValueMapping sets the ValueMapper applied to raw values, such as
+// os.ExpandEnv, by Key.String and the accessors built on it.
+func ValueMapping(mapper ValueMapper) LoadOption {
+	return func(o *loadOptions) { o.ValueMapper = mapper }
 }
 
 // DebugFunc is the type of function called to log parse events.

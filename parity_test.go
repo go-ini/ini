@@ -94,10 +94,10 @@ func v2Options(o v1.LoadOptions) []LoadOption {
 	return append(opts, KeyValueDelimiters(o.KeyValueDelimiters))
 }
 
-// dumpFile describes everything stored in a v1 or v2 *File. It reads the
-// unexported fields both versions share by reflection, so the comparison
-// covers state the public API doesn't expose, such as empty shadow values.
-func dumpFile(f any) string {
+// dumpV1 describes everything the parser stores in a v1 *File, by
+// reflection, so the comparison covers state the public API doesn't
+// expose, such as empty shadow values. dumpV2 gives the same for v2.
+func dumpV1(f any) string {
 	v := reflect.ValueOf(f).Elem()
 	names, indexes, sections := v.FieldByName("sectionList"), v.FieldByName("sectionIndexes"), v.FieldByName("sections")
 
@@ -105,33 +105,60 @@ func dumpFile(f any) string {
 	for i := 0; i < names.Len(); i++ {
 		name := names.Index(i)
 		s := sections.MapIndex(name).Index(int(indexes.Index(i).Int())).Elem()
-		fmt.Fprintf(&b, "[%q] comment=%q raw=%v body=%q\n", s.FieldByName("name").String(),
-			s.FieldByName("Comment").String(), s.FieldByName("isRawSection").Bool(), s.FieldByName("rawBody").String())
+		dumpSection(&b, s.FieldByName("name").String(), s.FieldByName("Comment").String(),
+			s.FieldByName("isRawSection").Bool(), s.FieldByName("rawBody").String())
 		keyList, keys := s.FieldByName("keyList"), s.FieldByName("keys")
 		for j := 0; j < keyList.Len(); j++ {
-			dumpKey(&b, "  ", keys.MapIndex(keyList.Index(j)).Elem())
+			dumpV1Key(&b, "  ", keys.MapIndex(keyList.Index(j)).Elem())
 		}
 	}
 	return b.String()
 }
 
-func dumpKey(b *strings.Builder, indent string, k reflect.Value) {
+func dumpV1Key(b *strings.Builder, indent string, k reflect.Value) {
 	nested := k.FieldByName("nestedValues")
-	fmt.Fprintf(b, "%s%q=%q comment=%q auto=%v bool=%v shadow=%v nested=%d",
-		indent, k.FieldByName("name").String(), k.FieldByName("value").String(), k.FieldByName("Comment").String(),
-		k.FieldByName("isAutoIncrement").Bool(), k.FieldByName("isBooleanType").Bool(), k.FieldByName("isShadow").Bool(), nested.Len())
-	for i := 0; i < nested.Len(); i++ {
-		fmt.Fprintf(b, " %q", nested.Index(i).String())
+	vals := make([]string, nested.Len())
+	for i := range vals {
+		vals[i] = nested.Index(i).String()
 	}
-	b.WriteString("\n")
+	dumpKey(b, indent, k.FieldByName("name").String(), k.FieldByName("value").String(), k.FieldByName("Comment").String(),
+		k.FieldByName("isAutoIncrement").Bool(), k.FieldByName("isBooleanType").Bool(), k.FieldByName("isShadow").Bool(), vals)
 	shadows := k.FieldByName("shadows")
 	for i := 0; i < shadows.Len(); i++ {
-		dumpKey(b, indent+"  ", shadows.Index(i).Elem())
+		dumpV1Key(b, indent+"  ", shadows.Index(i).Elem())
 	}
 }
 
-// loadResult describes the outcome of loading: the stored File or the error.
-func loadResult(load func() (any, error)) (out string) {
+// dumpV2 describes f in the format of dumpV1. v1 stored each shadow as a
+// key with only a name and value.
+func dumpV2(f *File) string {
+	var b strings.Builder
+	for _, s := range f.sections {
+		dumpSection(&b, s.name, s.comment, s.isRawSection, s.rawBody)
+		for _, k := range s.keys {
+			dumpKey(&b, "  ", k.name, k.value, k.comment, k.isAutoIncrement, k.isBooleanType, false, k.nestedValues)
+			for _, v := range k.shadows {
+				dumpKey(&b, "    ", k.name, v, "", false, false, true, nil)
+			}
+		}
+	}
+	return b.String()
+}
+
+func dumpSection(b *strings.Builder, name, comment string, raw bool, body string) {
+	fmt.Fprintf(b, "[%q] comment=%q raw=%v body=%q\n", name, comment, raw, body)
+}
+
+func dumpKey(b *strings.Builder, indent, name, value, comment string, auto, boolean, shadow bool, nested []string) {
+	fmt.Fprintf(b, "%s%q=%q comment=%q auto=%v bool=%v shadow=%v nested=%d", indent, name, value, comment, auto, boolean, shadow, len(nested))
+	for _, v := range nested {
+		fmt.Fprintf(b, " %q", v)
+	}
+	b.WriteString("\n")
+}
+
+// loadResult describes the outcome of loading: the File dumped, or the error.
+func loadResult[F any](load func() (F, error), dump func(F) string) (out string) {
 	defer func() {
 		if r := recover(); r != nil {
 			out = fmt.Sprintf("panic: %v", r)
@@ -146,7 +173,7 @@ func loadResult(load func() (any, error)) (out string) {
 	if err != nil {
 		return "error: " + err.Error()
 	}
-	return dumpFile(f)
+	return dump(f)
 }
 
 // checkParity loads data twice, as two sources of one File, with v1 and v2.
@@ -159,8 +186,8 @@ func checkParity(t *testing.T, data []byte, flags uint32) {
 		return
 	}
 
-	want := loadResult(func() (any, error) { return v1.LoadSources(opts, data, data) })
-	got := loadResult(func() (any, error) { return LoadSources([]any{data, data}, v2Options(opts)...) })
+	want := loadResult(func() (*v1.File, error) { return v1.LoadSources(opts, data, data) }, func(f *v1.File) string { return dumpV1(f) })
+	got := loadResult(func() (*File, error) { return LoadSources([]any{data, data}, v2Options(opts)...) }, dumpV2)
 	if want != got {
 		t.Fatalf("v1 and v2 differ\ninput: %q\noptions: %+v\nv1:\n%s\nv2:\n%s", data, opts, want, got)
 	}

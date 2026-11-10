@@ -404,7 +404,7 @@ func (f *File) parse(reader io.Reader) error {
 			if section, err = f.addSection(tok.name); err != nil {
 				return tok.errorf(err)
 			}
-			section.Comment = tok.comment
+			section.comment = tok.comment
 			count = 1
 
 		case tokRawBody:
@@ -421,7 +421,7 @@ func (f *File) parse(reader io.Reader) error {
 			if err != nil {
 				return tok.errorf(err)
 			}
-			key.Comment = tok.comment
+			key.comment = tok.comment
 
 		case tokKey:
 			name, isAutoIncr := tok.name, tok.name == "-"
@@ -434,7 +434,7 @@ func (f *File) parse(reader io.Reader) error {
 				return tok.errorf(err)
 			}
 			key.isAutoIncrement = isAutoIncr
-			key.Comment = tok.comment
+			key.comment = tok.comment
 			lastRegularKey = key
 		}
 	}
