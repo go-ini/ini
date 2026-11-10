@@ -266,6 +266,7 @@ func TestKey_Helpers(t *testing.T) {
 			assert.Equal(t, 165*time.Minute, In(sec.Key("DURATION"), 0, []time.Duration{time.Hour, 165 * time.Minute}))
 			ti := time.Date(2015, 1, 1, 20, 17, 5, 0, time.UTC)
 			assert.Equal(t, ti, In(sec.Key("TIME"), time.Time{}, []time.Time{ti}))
+			assert.Equal(t, ti, In(sec.Key("TIME"), time.Time{}, []time.Time{ti.In(time.FixedZone("x", 3600))}), "same instant, other zone")
 
 			t.Run("default when not a candidate or not parsable", func(t *testing.T) {
 				assert.Equal(t, "x", In(sec.Key("STRING"), "x", []string{"arr"}))
@@ -281,6 +282,9 @@ func TestKey_Helpers(t *testing.T) {
 			assert.Equal(t, 10, Range(sec.Key("INT"), 0, 10, 20))
 			assert.Equal(t, uint16(0x3000), Range(sec.Key("HEX_NUMBER"), uint16(0), 0, 0xffff))
 			assert.Equal(t, 165*time.Minute, Range(sec.Key("DURATION"), 0, time.Hour, 3*time.Hour))
+			ti := time.Date(2015, 1, 1, 20, 17, 5, 0, time.UTC)
+			assert.Equal(t, ti, Range(sec.Key("TIME"), time.Time{}, ti, ti.Add(time.Hour)))
+			assert.Equal(t, time.Time{}, Range(sec.Key("TIME"), time.Time{}, ti.Add(time.Nanosecond), ti.Add(time.Hour)))
 
 			t.Run("default when out of range or not parsable", func(t *testing.T) {
 				assert.Equal(t, 5.0, Range(sec.Key("FLOAT64"), 5.0, 0, 1))
@@ -295,44 +299,44 @@ func TestKey_Helpers(t *testing.T) {
 			assert.Equal(t, "en,zh,de", strings.Join(sec.Key("STRINGS").Strings(","), ","))
 			assert.Equal(t, 0, len(sec.Key("STRINGS_404").Strings(",")))
 
-			floats, err := List[float64](sec.Key("FLOAT64S"), ",")
-			require.NoError(t, err)
-			assert.Equal(t, []float64{1.1, 2.2, 3.3}, floats)
-
-			ints, err := List[int](sec.Key("INTS"), ",")
-			require.NoError(t, err)
-			assert.Equal(t, []int{1, 2, 3}, ints)
-
-			uints, err := List[uint8](sec.Key("UINTS"), ",")
-			require.NoError(t, err)
-			assert.Equal(t, []uint8{1, 2, 3}, uints)
-
-			bools, err := List[bool](sec.Key("BOOLS"), ",")
-			require.NoError(t, err)
-			assert.Equal(t, []bool{true, false, false}, bools)
-
+			assert.Equal(t, []float64{1.1, 2.2, 3.3}, List[float64](sec.Key("FLOAT64S"), ","))
+			assert.Equal(t, []int{1, 2, 3}, List[int](sec.Key("INTS"), ","))
+			assert.Equal(t, []uint8{1, 2, 3}, List[uint8](sec.Key("UINTS"), ","))
+			assert.Equal(t, []bool{true, false, false}, List[bool](sec.Key("BOOLS"), ","))
 			ti := time.Date(2015, 1, 1, 20, 17, 5, 0, time.UTC)
-			times, err := List[time.Time](sec.Key("TIMES"), ",")
-			require.NoError(t, err)
-			assert.Equal(t, []time.Time{ti, ti, ti}, times)
-
+			assert.Equal(t, []time.Time{ti, ti, ti}, List[time.Time](sec.Key("TIMES"), ","))
 			type lang string
-			langs, err := List[lang](sec.Key("STRINGS"), ",")
+			assert.Equal(t, []lang{"en", "zh", "de"}, List[lang](sec.Key("STRINGS"), ","))
+			assert.Equal(t, []int{}, List[int](sec.Key("INTS_404"), ","))
+
+			// v1's Ints, ValidInts and StrictInts for any type.
+			k := f.Section("").Key("mixed_list")
+			k.SetValue("1, x, 300, 3")
+			assert.Equal(t, []int8{1, 0, 0, 3}, List[int8](k, ","), "invalid and out-of-range elements are zero")
+			assert.Equal(t, []int8{1, 3}, ValidList[int8](k, ","))
+			vals, err := StrictList[int8](k, ",")
+			assert.Error(t, err)
+			assert.Nil(t, vals)
+			strict, err := StrictList[int](sec.Key("INTS"), ",")
 			require.NoError(t, err)
-			assert.Equal(t, []lang{"en", "zh", "de"}, langs)
+			assert.Equal(t, []int{1, 2, 3}, strict)
+		})
 
-			empty, err := List[int](sec.Key("INTS_404"), ",")
-			require.NoError(t, err)
-			assert.Empty(t, empty)
+		t.Run("get times with a layout", func(t *testing.T) {
+			k := f.Section("").Key("dates")
+			k.SetValue("2015-01-01, bad, 2016-02-03")
+			d1 := time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)
+			d2 := time.Date(2016, 2, 3, 0, 0, 0, 0, time.UTC)
+			assert.Equal(t, []time.Time{d1, {}, d2}, k.TimesFormat("2006-01-02", ","))
+			assert.Equal(t, []time.Time{d1, d2}, k.ValidTimesFormat("2006-01-02", ","))
+			_, err := k.StrictTimesFormat("2006-01-02", ",")
+			assert.Error(t, err)
 
-			t.Run("error on the first invalid element", func(t *testing.T) {
-				vals, err := List[int](sec.Key("STRINGS"), ",")
-				assert.Error(t, err)
-				assert.Nil(t, vals)
-
-				_, err = List[time.Time](sec.Key("INTS"), ",")
-				assert.Error(t, err)
-			})
+			k.SetValue("2015-01-01")
+			assert.Equal(t, d1, k.InTimeFormat("2006-01-02", d2, []time.Time{d1.In(time.FixedZone("x", 3600))}), "same instant, other zone")
+			assert.Equal(t, d2, k.InTimeFormat("2006-01-02", d2, []time.Time{d2}))
+			assert.Equal(t, d1, k.RangeTimeFormat("2006-01-02", d2, d1, d2), "bounds are inclusive")
+			assert.Equal(t, d2, k.RangeTimeFormat("2006-01-02", d2, d1.Add(time.Nanosecond), d2))
 		})
 
 		t.Run("test string slice escapes", func(t *testing.T) {

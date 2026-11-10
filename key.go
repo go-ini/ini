@@ -17,6 +17,7 @@ package ini
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -295,6 +296,48 @@ func (k *Key) Duration() (time.Duration, error) {
 // TimeFormat parses with given format and returns time.Time type value.
 func (k *Key) TimeFormat(format string) (time.Time, error) {
 	return time.Parse(format, k.String())
+}
+
+// TimesFormat parses the elements of the value, split at delim, with the
+// given layout. An element that doesn't parse is the zero time. For RFC 3339
+// times, use List[time.Time].
+func (k *Key) TimesFormat(format, delim string) []time.Time {
+	vals, _ := parseList(k.Strings(delim), timeParser(format), true, false)
+	return vals
+}
+
+// ValidTimesFormat is TimesFormat without the elements that don't parse.
+func (k *Key) ValidTimesFormat(format, delim string) []time.Time {
+	vals, _ := parseList(k.Strings(delim), timeParser(format), false, false)
+	return vals
+}
+
+// StrictTimesFormat is TimesFormat that returns an error for the first
+// element that doesn't parse.
+func (k *Key) StrictTimesFormat(format, delim string) ([]time.Time, error) {
+	return parseList(k.Strings(delim), timeParser(format), false, true)
+}
+
+// InTimeFormat returns the value parsed with the given layout when it is the
+// same instant as one of candidates, and defaultVal otherwise.
+func (k *Key) InTimeFormat(format string, defaultVal time.Time, candidates []time.Time) time.Time {
+	if v, err := k.TimeFormat(format); err == nil && slices.ContainsFunc(candidates, v.Equal) {
+		return v
+	}
+	return defaultVal
+}
+
+// RangeTimeFormat returns the value parsed with the given layout when it is
+// between min and max inclusive, and defaultVal otherwise.
+func (k *Key) RangeTimeFormat(format string, defaultVal, min, max time.Time) time.Time {
+	if v, err := k.TimeFormat(format); err == nil && !v.Before(min) && !v.After(max) {
+		return v
+	}
+	return defaultVal
+}
+
+func timeParser(format string) func(string) (time.Time, error) {
+	return func(s string) (time.Time, error) { return time.Parse(format, s) }
 }
 
 // Time parses with RFC3339 format and returns time.Time type value.

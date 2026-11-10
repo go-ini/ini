@@ -53,10 +53,9 @@ Without options, v2 parses every input exactly as v1's `Load` does. The parity t
 | `IsErrDelimiterNotFound(err)`, `IsErrEmptyKeyName(err)` | `errors.Is(err, ini.ErrDelimiterNotFound)`, `errors.Is(err, ini.ErrEmptyKeyName)` |
 | `File.SectionStrings`, `Section.KeyStrings`, `Section.KeysHash` | `SectionNames`, `KeyNames`, `KeyValues` |
 | `Key.ValueWithShadows`, `Key.IsBooleanType`, `Section.Haskey` | `Values`, `IsBoolean`, `HasKey` |
-| `k.Ints(",")`, `k.StrictInts(",")`, `k.ValidInts(",")` and the same for the other types | `ini.List[int](k, ",")`, which returns an error for an invalid element; any `Scalar` type works, such as `int8`, `time.Duration` or a named string type |
+| `k.Ints(",")`, `k.ValidInts(",")`, `k.StrictInts(",")` and the same for the other types | `ini.List[int](k, ",")`, `ini.ValidList[int](k, ",")`, `ini.StrictList[int](k, ",")`, with the same behavior; any `Scalar` type works, such as `int8`, `time.Duration` or a named string type |
 | `k.InInt(def, cands)`, `k.In(def, cands)` and the others | `ini.In(k, def, cands)` |
-| `k.RangeInt(def, lo, hi)` and the others | `ini.Range(k, def, lo, hi)`; type the default for non-int types, as in `ini.Range(k, 0.5, 0, 1)`. Times compare with `Key.Time` |
-| `TimesFormat`, `InTimeFormat`, `RangeTimeFormat` | `Strings` with `time.Parse`; `TimeFormat` and `MustTimeFormat` remain |
+| `k.RangeInt(def, lo, hi)`, `k.RangeTime(def, lo, hi)` and the others | `ini.Range(k, def, lo, hi)`; type the default for non-int types, as in `ini.Range(k, 0.5, 0, 1)` |
 | `Reload` merged sources into the current contents; `Append` re-read every source | `Reload` replaces the contents with the sources (kept `*Section`/`*Key` pointers see new values; on error nothing changes); `Append` reads only the new sources; readers are buffered so they can be reloaded |
 
 New in v2:
