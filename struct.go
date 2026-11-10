@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -835,15 +836,17 @@ func (f *File) ReflectFrom(v any) error {
 // as File.MapTo does. It reads what Marshal writes: when v has allowshadow
 // fields it loads with AllowShadows, AllowDuplicateShadowValues and
 // PreserveEmptyShadowValues, and when it has nonunique fields with
-// AllowNonUniqueSections, as those tags need.
+// AllowNonUniqueSections, as those tags need. These come after opts, so
+// passing one of them as false doesn't drop the values the tags read.
 func Unmarshal(data []byte, v any, opts ...LoadOption) error {
 	if v != nil {
 		shadows, nonUnique := tagOptions(reflect.TypeOf(v), map[reflect.Type]bool{})
+		opts = slices.Clone(opts)
 		if shadows {
-			opts = append([]LoadOption{AllowShadows(true), AllowDuplicateShadowValues(true), PreserveEmptyShadowValues(true)}, opts...)
+			opts = append(opts, AllowShadows(true), AllowDuplicateShadowValues(true), PreserveEmptyShadowValues(true))
 		}
 		if nonUnique {
-			opts = append([]LoadOption{AllowNonUniqueSections(true)}, opts...)
+			opts = append(opts, AllowNonUniqueSections(true))
 		}
 	}
 	return MapTo(v, data, opts...)

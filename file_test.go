@@ -653,7 +653,7 @@ func TestFile_EdgeCases(t *testing.T) {
 	})
 }
 
-// Unless loaded with NoLocking, a File can be read while other goroutines
+// Unless loaded with Locking(false), a File can be read while other goroutines
 // change it. Run with -race.
 func TestFile_Concurrency(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "app.ini")

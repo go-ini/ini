@@ -1333,4 +1333,10 @@ func TestMarshalUnmarshal_AllowShadowElements(t *testing.T) {
 	var out cfg
 	require.NoError(t, Unmarshal(data, &out))
 	assert.Equal(t, in, out, "written: %q", data)
+
+	// The tags need these options; turning them off, as with a config
+	// flag that defaults to false, must not drop elements.
+	out = cfg{}
+	require.NoError(t, Unmarshal(data, &out, AllowShadows(false), AllowDuplicateShadowValues(false), PreserveEmptyShadowValues(false)))
+	assert.Equal(t, in, out, "written: %q", data)
 }

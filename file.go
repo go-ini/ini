@@ -31,7 +31,7 @@ type File struct {
 	options     loadOptions
 	dataSources []dataSource
 
-	// locking guards the contents with lock, unless NoLocking is set.
+	// locking guards the contents with lock, unless loaded with Locking(false).
 	locking bool
 	lock    sync.RWMutex
 
@@ -45,7 +45,7 @@ type File struct {
 func newFile(dataSources []dataSource, opts []LoadOption) *File {
 	o := newLoadOptions(opts)
 	return &File{
-		locking:     !o.NoLocking,
+		locking:     o.Locking,
 		dataSources: dataSources,
 		byName:      make(map[string][]*Section),
 		options:     o,

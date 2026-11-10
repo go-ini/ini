@@ -53,13 +53,14 @@ type loadOptions struct {
 	DefaultSection              string
 	CommentSymbols              string
 	PreserveEmptyShadowValues   bool
-	NoLocking                   bool
+	Locking                     bool
 	NameMapper                  NameMapper
 	ValueMapper                 ValueMapper
 }
 
 func newLoadOptions(opts []LoadOption) loadOptions {
 	o := loadOptions{
+		Locking:               true,
 		KeyValueDelimiters:    "=:",
 		ChildSectionDelimiter: ".",
 		DefaultSection:        DefaultSection,
@@ -71,10 +72,10 @@ func newLoadOptions(opts []LoadOption) loadOptions {
 	return o
 }
 
-// NoLocking turns off the lock that lets a File be read from many goroutines
-// while others change it. Use it for a File only one goroutine uses, to save
-// the cost of locking.
-func NoLocking(v bool) LoadOption { return func(o *loadOptions) { o.NoLocking = v } }
+// Locking sets whether a File takes a lock so it can be read from many
+// goroutines while others change it. The default is true; turn it off for a
+// File only one goroutine uses, to save the cost of locking.
+func Locking(v bool) LoadOption { return func(o *loadOptions) { o.Locking = v } }
 
 // NameMapping sets the NameMapper that maps struct field names to section
 // and key names, for MapTo, StrictMapTo and ReflectFrom.
