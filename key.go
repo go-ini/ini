@@ -59,8 +59,8 @@ func (k *Key) AddShadow(val string) error {
 	if !k.s.f.options.AllowShadows {
 		return errors.New("shadow key is not allowed")
 	}
-	k.s.f.lock()
-	defer k.s.f.unlock()
+	k.s.f.maybeLock()
+	defer k.s.f.maybeUnlock()
 	return k.addShadow(val)
 }
 
@@ -78,8 +78,8 @@ func (k *Key) AddNestedValue(val string) error {
 	if !k.s.f.options.AllowNestedValues {
 		return errors.New("nested value is not allowed")
 	}
-	k.s.f.lock()
-	defer k.s.f.unlock()
+	k.s.f.maybeLock()
+	defer k.s.f.maybeUnlock()
 	return k.addNestedValue(val)
 }
 
@@ -94,16 +94,16 @@ func (k *Key) Name() string {
 // Comment returns the comment lines before the key, with their comment
 // symbols.
 func (k *Key) Comment() string {
-	k.s.f.rlock()
-	defer k.s.f.runlock()
+	k.s.f.maybeRLock()
+	defer k.s.f.maybeRUnlock()
 	return k.comment
 }
 
 // SetComment sets the comment lines written before the key. Lines without a
 // comment symbol get one.
 func (k *Key) SetComment(comment string) {
-	k.s.f.lock()
-	defer k.s.f.unlock()
+	k.s.f.maybeLock()
+	defer k.s.f.maybeUnlock()
 	k.comment = comment
 }
 
@@ -123,8 +123,8 @@ func (k *Key) Value() string {
 // values are left out, unless the file was loaded with
 // PreserveEmptyShadowValues.
 func (k *Key) Values() []string {
-	k.s.f.rlock()
-	defer k.s.f.runlock()
+	k.s.f.maybeRLock()
+	defer k.s.f.maybeRUnlock()
 	keepEmpty := k.s.f.options.PreserveEmptyShadowValues
 	vals := make([]string, 0, len(k.shadows)+1)
 	if keepEmpty || k.value != "" {
@@ -141,16 +141,16 @@ func (k *Key) Values() []string {
 // IsBoolean reports whether the key was read as a boolean key, a line
 // without a delimiter loaded with AllowBooleanKeys.
 func (k *Key) IsBoolean() bool {
-	k.s.f.rlock()
-	defer k.s.f.runlock()
+	k.s.f.maybeRLock()
+	defer k.s.f.maybeRUnlock()
 	return k.isBooleanType
 }
 
 // NestedValues returns nested values stored in the key.
 // It is possible returned value is nil if no nested values stored in the key.
 func (k *Key) NestedValues() []string {
-	k.s.f.rlock()
-	defer k.s.f.runlock()
+	k.s.f.maybeRLock()
+	defer k.s.f.maybeRUnlock()
 	return k.nestedValues
 }
 
@@ -512,8 +512,8 @@ func (k *Key) StringsWithShadows(delim string) []string {
 
 // SetValue changes key value.
 func (k *Key) SetValue(v string) {
-	k.s.f.lock()
-	defer k.s.f.unlock()
+	k.s.f.maybeLock()
+	defer k.s.f.maybeUnlock()
 	k.value = v
 }
 

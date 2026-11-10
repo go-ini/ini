@@ -60,29 +60,30 @@ func (f *File) defaultSectionName() string {
 	return f.options.DefaultSection
 }
 
-// lock, unlock, rlock and runlock call the same methods of mu when locking
-// is set. They guard the file's sections, keys and values. Unexported
-// methods that change them expect the caller to hold the lock, or the file
-// not to be shared yet, as while parsing.
-func (f *File) rlock() {
+// maybeLock, maybeUnlock, maybeRLock and maybeRUnlock call Lock, Unlock,
+// RLock and RUnlock of mu when locking is set, and do nothing otherwise.
+// They guard the file's sections, keys and values. Unexported methods that
+// change them expect the caller to hold the lock, or the file not to be
+// shared yet, as while parsing.
+func (f *File) maybeRLock() {
 	if f.locking {
 		f.mu.RLock()
 	}
 }
 
-func (f *File) runlock() {
+func (f *File) maybeRUnlock() {
 	if f.locking {
 		f.mu.RUnlock()
 	}
 }
 
-func (f *File) lock() {
+func (f *File) maybeLock() {
 	if f.locking {
 		f.mu.Lock()
 	}
 }
 
-func (f *File) unlock() {
+func (f *File) maybeUnlock() {
 	if f.locking {
 		f.mu.Unlock()
 	}
@@ -90,8 +91,8 @@ func (f *File) unlock() {
 
 // NewSection creates a new section.
 func (f *File) NewSection(name string) (*Section, error) {
-	f.lock()
-	defer f.unlock()
+	f.maybeLock()
+	defer f.maybeUnlock()
 	return f.addSection(name)
 }
 
@@ -117,8 +118,8 @@ func (f *File) addSection(name string) (*Section, error) {
 
 // NewRawSection creates a new section with an unparseable body.
 func (f *File) NewRawSection(name, body string) (*Section, error) {
-	f.lock()
-	defer f.unlock()
+	f.maybeLock()
+	defer f.maybeUnlock()
 	section, err := f.addSection(name)
 	if err != nil {
 		return nil, err
@@ -146,8 +147,8 @@ func (f *File) GetSection(name string) (*Section, error) {
 
 // sectionWithIndex returns the index-th section with the given name.
 func (f *File) sectionWithIndex(name string, index int) (*Section, error) {
-	f.rlock()
-	defer f.runlock()
+	f.maybeRLock()
+	defer f.maybeRUnlock()
 	secs, err := f.sectionsByName(name)
 	if err != nil {
 		return nil, err
@@ -166,8 +167,8 @@ func (f *File) HasSection(name string) bool {
 
 // SectionsByName returns all sections with given name.
 func (f *File) SectionsByName(name string) ([]*Section, error) {
-	f.rlock()
-	defer f.runlock()
+	f.maybeRLock()
+	defer f.maybeRUnlock()
 	secs, err := f.sectionsByName(name)
 	// A copy, as deleting a section shifts the ones after it in place.
 	return slices.Clone(secs), err
@@ -218,8 +219,8 @@ func (f *File) SectionWithIndex(name string, index int) *Section {
 
 // Sections returns a list of Section stored in the current instance.
 func (f *File) Sections() []*Section {
-	f.rlock()
-	defer f.runlock()
+	f.maybeRLock()
+	defer f.maybeRUnlock()
 	return slices.Clone(f.sections)
 }
 
@@ -230,8 +231,8 @@ func (f *File) ChildSections(name string) []*Section {
 
 // SectionNames returns list of section names.
 func (f *File) SectionNames() []string {
-	f.rlock()
-	defer f.runlock()
+	f.maybeRLock()
+	defer f.maybeRUnlock()
 	names := make([]string, len(f.sections))
 	for i, sec := range f.sections {
 		names[i] = sec.name
@@ -270,8 +271,8 @@ func (f *File) DeleteSectionWithIndex(name string, index int) error {
 		name = strings.ToLower(name)
 	}
 
-	f.lock()
-	defer f.unlock()
+	f.maybeLock()
+	defer f.maybeUnlock()
 	secs := f.byName[name]
 	if index >= len(secs) {
 		return nil
@@ -303,16 +304,16 @@ func (f *File) loadSource(s dataSource) error {
 // same values, so pointers to them see the new contents. On error the file
 // is unchanged.
 func (f *File) Reload() error {
-	f.rlock()
+	f.maybeRLock()
 	sources := f.dataSources
-	f.runlock()
+	f.maybeRUnlock()
 	next := &File{options: f.options, byName: make(map[string][]*Section)}
 	if err := next.load(sources); err != nil {
 		return err
 	}
 
-	f.lock()
-	defer f.unlock()
+	f.maybeLock()
+	defer f.maybeUnlock()
 	for name, secs := range next.byName {
 		old := f.byName[name]
 		for i, sec := range secs {
@@ -380,20 +381,20 @@ func (f *File) Append(source any, others ...any) error {
 		}
 		sources = append(sources, ds)
 	}
-	f.lock()
+	f.maybeLock()
 	f.dataSources = append(f.dataSources, sources...)
 	if f.options.ShortCircuit {
-		f.unlock()
+		f.maybeUnlock()
 		// Only the first source that loads counts.
 		return f.Reload()
 	}
-	defer f.unlock()
+	defer f.maybeUnlock()
 	return f.load(sources)
 }
 
 func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
-	f.rlock()
-	defer f.runlock()
+	f.maybeRLock()
+	defer f.maybeRUnlock()
 	o := newWriteOptions(opts)
 	indent, lineBreak := o.indent, o.lineBreak
 	equalSign := o.formatLeft + o.keyValueDelimiter + o.formatRight
