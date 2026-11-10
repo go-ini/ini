@@ -31,6 +31,8 @@ func parserInputs(tb testing.TB) []string {
 	}
 	var inputs []string
 	for i, line := range strings.Split(string(data), "\n") {
+		// Git on Windows may check the file out with CRLF line endings.
+		line = strings.TrimSuffix(line, "\r")
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
