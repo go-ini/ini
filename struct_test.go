@@ -1459,14 +1459,10 @@ func FuzzStructMapping(f *testing.F) {
 			return
 		}
 		var back fzCfg
-		if err := Unmarshal(out, &back); err != nil {
-			t.Fatalf("Unmarshal of Marshal output failed: %v\nmarshaled: %q", err, out)
-		}
+		require.NoError(t, Unmarshal(out, &back), "marshaled: %q", out)
 		normalizeFz(&cfg)
 		normalizeFz(&back)
-		if !reflect.DeepEqual(cfg, back) {
-			t.Fatalf("Marshal/Unmarshal changed the value\nbefore: %+v\nafter:  %+v\nmarshaled: %q", cfg, back, out)
-		}
+		require.Equal(t, cfg, back, "Marshal/Unmarshal changed the value\nmarshaled: %q", out)
 
 		// ReflectFrom into the loaded file must not panic and must write.
 		if err := file.ReflectFrom(&cfg); err == nil {

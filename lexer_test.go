@@ -75,13 +75,7 @@ func TestParsePythonMultilineLongerThanBuffer(t *testing.T) {
 	b.WriteString("next = ok\n")
 
 	f, err := Load([]byte(b.String()), AllowPythonMultilineValues(true))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := strings.Count(f.Section("s").Key("key").Value(), "\n"); got != 200 {
-		t.Fatalf("value has %d continuation lines, want 200", got)
-	}
-	if got := f.Section("s").Key("next").Value(); got != "ok" {
-		t.Fatalf("next = %q, want ok", got)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, 200, strings.Count(f.Section("s").Key("key").Value(), "\n"), "continuation lines")
+	assert.Equal(t, "ok", f.Section("s").Key("next").Value())
 }

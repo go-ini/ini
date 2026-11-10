@@ -2,6 +2,8 @@ package ini
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func newTestFile(block bool) *File {
@@ -106,9 +108,7 @@ func Benchmark_Key_SetValue_VisSection(b *testing.B) {
 
 func Benchmark_Key_Strings_LargeArray(b *testing.B) {
 	c, err := Load("testdata/large_array.ini")
-	if err != nil {
-		b.Fatal(err)
-	}
+	require.NoError(b, err)
 	key := c.Section("").Key("ARRAY")
 	b.ReportAllocs()
 	b.ResetTimer()

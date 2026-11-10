@@ -776,12 +776,8 @@ func checkRoundTrip(t *testing.T, data []byte, opts []LoadOption, wopts ...Write
 		return
 	}
 	g, err := Load(out.Bytes(), opts...)
-	if err != nil {
-		t.Fatalf("written file doesn't load: %v\ninput: %q\nwritten: %q", err, data, out.String())
-	}
-	if got := describeFile(g); got != want {
-		t.Fatalf("written file loads differently\ninput: %q\nwritten: %q\nloaded:\n%s\nreloaded:\n%s", data, out.String(), want, got)
-	}
+	require.NoError(t, err, "written file doesn't load\ninput: %q\nwritten: %q", data, out.String())
+	require.Equal(t, want, describeFile(g), "written file loads differently\ninput: %q\nwritten: %q", data, out.String())
 }
 
 func FuzzWriteRoundTrip(f *testing.F) {
@@ -821,12 +817,9 @@ func TestWriteReadsBack(t *testing.T) {
 		{"[DEFAULT] ; c\n[s]\nk = v\n", nil}, // comment of an empty default section
 	} {
 		f, err := Load([]byte(tc.data), tc.opts...)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := f.Write(io.Discard); err != nil {
-			t.Fatalf("%q: %v", tc.data, err)
-		}
+		require.NoError(t, err)
+		_, err = f.Write(io.Discard)
+		require.NoError(t, err, "%q", tc.data)
 		checkRoundTrip(t, []byte(tc.data), tc.opts)
 	}
 
@@ -835,19 +828,15 @@ func TestWriteReadsBack(t *testing.T) {
 		_, _ = f.NewRawSection("raw", "body")
 		_, _ = f.Section("s").NewKey("k", "v")
 		var b bytes.Buffer
-		if _, err := f.Write(&b); err != nil {
-			t.Fatal(err)
-		}
-		if want := "[raw]\nbody\n\n[s]\nk = v\n"; b.String() != want {
-			t.Fatalf("got %q, want %q", b.String(), want)
-		}
+		_, err := f.Write(&b)
+		require.NoError(t, err)
+		assert.Equal(t, "[raw]\nbody\n\n[s]\nk = v\n", b.String())
 	})
 
 	t.Run("unwritable key", func(t *testing.T) {
 		f := Empty()
 		_, _ = f.Section("").NewKey("a\nb", "v")
-		if _, err := f.Write(io.Discard); err == nil {
-			t.Fatal("want an error for a key name with a line break")
-		}
+		_, err := f.Write(io.Discard)
+		assert.Error(t, err, "a key name with a line break")
 	})
 }

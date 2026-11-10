@@ -446,7 +446,7 @@ expires = %(expires)s`))
 			case v := <-done:
 				assert.LessOrEqual(t, len(v), maxExpandedLen)
 			case <-time.After(5 * time.Second):
-				t.Fatalf("%q: String didn't return", data)
+				require.FailNowf(t, "String didn't return", "%q", data)
 			}
 		}
 	})

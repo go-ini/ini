@@ -45,9 +45,7 @@ var update = flag.Bool("update", false, "Update .golden files")
 func parserInputs(tb testing.TB) []string {
 	tb.Helper()
 	data, err := os.ReadFile("testdata/inputs.txt")
-	if err != nil {
-		tb.Fatal(err)
-	}
+	require.NoError(tb, err)
 	var inputs []string
 	for i, line := range strings.Split(string(data), "\n") {
 		// Git on Windows may check the file out with CRLF line endings.
@@ -61,9 +59,7 @@ func parserInputs(tb testing.TB) []string {
 			in, err = strconv.Unquote(quoted)
 			inputs = append(inputs, in)
 		}
-		if err != nil {
-			tb.Fatalf("testdata/inputs.txt:%d: %v", i+1, err)
-		}
+		require.NoError(tb, err, "testdata/inputs.txt:%d", i+1)
 	}
 	return inputs
 }
@@ -76,9 +72,7 @@ func fuzzInputs(tb testing.TB) []string {
 	files, _ := filepath.Glob("testdata/*.ini")
 	for _, name := range files {
 		data, err := os.ReadFile(name)
-		if err != nil {
-			tb.Fatal(err)
-		}
+		require.NoError(tb, err)
 		inputs = append(inputs, string(data))
 	}
 	return inputs
