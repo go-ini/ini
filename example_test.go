@@ -26,6 +26,10 @@ func Example() {
 		panic(err)
 	}
 
+	// Keys before the first header are in the default section, "DEFAULT".
+	for _, sec := range f.Sections() {
+		fmt.Println(sec.Name(), sec.KeyNames())
+	}
 	fmt.Println(f.Section("").Key("app_name").String())
 
 	server := f.Section("server")
@@ -36,11 +40,27 @@ func Example() {
 	fmt.Println(server.Key("logs").String())
 	fmt.Println(server.Key("missing").MustString("fallback"))
 	// Output:
+	// DEFAULT [app_name]
+	// server [port timeout hosts root logs]
 	// demo
 	// 8080 30s
 	// [a.example.com b.example.com]
 	// /srv/demo/logs
 	// fallback
+}
+
+// Programs often ship defaults and let an optional file override them.
+func ExampleLoadSources() {
+	defaults := []byte("[server]\nport = 8080\nhost = localhost\n")
+	custom := []byte("[server]\nport = 9090\n")
+
+	f, err := ini.LoadSources([]any{defaults, custom, "missing.ini"}, ini.IgnoreMissingFiles(true))
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(f.Section("server").KeyValues())
+	// Output:
+	// map[host:localhost port:9090]
 }
 
 func ExampleLoad_options() {
@@ -72,10 +92,11 @@ func ExampleList() {
 	// List gives the zero value for an element that doesn't parse,
 	// ValidList leaves it out, and StrictList returns an error.
 	fmt.Println(ini.List[int](k, ","))
-	fmt.Println(ini.ValidList[uint16](k, ","))
+	fmt.Println(ini.ValidList[int](k, ","))
 	_, err = ini.StrictList[int](k, ",")
 	fmt.Println(err != nil)
 
+	// 1.5 is outside [0, 1], so Range returns the default.
 	ratio := f.Section("").Key("ratio")
 	fmt.Println(ini.Range(ratio, 1.0, 0, 1))
 	// Output:
@@ -88,10 +109,29 @@ func ExampleList() {
 type Config struct {
 	AppName string `ini:"app_name"`
 	Server  struct {
-		Port    int
-		Timeout time.Duration
+		Port    int           `comment:"Port to listen on"`
+		Timeout time.Duration `ini:",omitempty"`
 		Hosts   []string
 	} `ini:"server"`
+}
+
+// Fields keep their values when the section has no key for them, so a
+// struct can be filled with defaults first.
+func ExampleSection_MapTo() {
+	f, err := ini.Load([]byte("[server]\nPort = 9090\n"))
+	if err != nil {
+		panic(err)
+	}
+
+	var cfg Config
+	cfg.Server.Port = 8080
+	cfg.Server.Timeout = 30 * time.Second
+	if err := f.Section("server").MapTo(&cfg.Server); err != nil {
+		panic(err)
+	}
+	fmt.Println(cfg.Server.Port, cfg.Server.Timeout)
+	// Output:
+	// 9090 30s
 }
 
 func ExampleUnmarshal() {
@@ -126,9 +166,9 @@ func ExampleMarshal() {
 	// app_name = demo
 	//
 	// [server]
-	// Port    = 8080
-	// Timeout = 0
-	// Hosts   = a.example.com,b.example.com
+	// ; Port to listen on
+	// Port  = 8080
+	// Hosts = a.example.com,b.example.com
 }
 
 func ExampleFile_Write() {
