@@ -1326,7 +1326,7 @@ func TestMarshalUnmarshal_AllowShadowElements(t *testing.T) {
 		Sh []string `ini:"sh,,allowshadow"`
 		N  []int    `ini:"n,,allowshadow"`
 	}
-	in := cfg{Sh: []string{"a", "a", "b,c", "", `d\`}, N: []int{1, 1, 2}}
+	in := cfg{Sh: []string{"a", "a", `b\\c`, "", `d\`}, N: []int{1, 1, 2}}
 	data, err := Marshal(in)
 	require.NoError(t, err)
 
@@ -1339,4 +1339,9 @@ func TestMarshalUnmarshal_AllowShadowElements(t *testing.T) {
 	out = cfg{}
 	require.NoError(t, Unmarshal(data, &out, AllowShadows(false), AllowDuplicateShadowValues(false), PreserveEmptyShadowValues(false)))
 	assert.Equal(t, in, out, "written: %q", data)
+
+	// v1 read each value split at the delimiter, so an element containing
+	// it can't be written.
+	_, err = Marshal(cfg{Sh: []string{"b,c"}})
+	assert.Error(t, err)
 }

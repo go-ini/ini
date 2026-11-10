@@ -225,20 +225,18 @@ func decodeSlice(key *Key, field reflect.Value, delim string, allowShadow, isStr
 
 	var strs []string
 	if allowShadow {
-		// Each value is split as Key.Strings splits one, so that escaped
-		// elements read back as Marshal wrote them. An empty value, kept
-		// with PreserveEmptyShadowValues, is an empty element, unless it is the
-		// only one: an empty slice is written as one empty value.
+		// As in v1, each value is split at delim with no escapes, and each
+		// element trimmed and expanded. An empty value, kept with
+		// PreserveEmptyShadowValues, is an empty element, unless it is the only
+		// one: an empty slice is written as one empty value.
 		vals := key.Values()
 		if len(vals) == 1 && vals[0] == "" {
 			vals = nil
 		}
 		for _, v := range vals {
-			if v == "" {
-				strs = append(strs, "")
-				continue
+			for _, s := range strings.Split(v, delim) {
+				strs = append(strs, key.expandValue(strings.TrimSpace(s)))
 			}
-			strs = append(strs, splitList(key.expandValue(v), delim)...)
 		}
 	} else {
 		strs = key.Strings(delim)
@@ -537,10 +535,14 @@ func encodeSlice(key *Key, field reflect.Value, delim string, allowShadow bool) 
 		vals[i] = formatValue(field.Index(i))
 	}
 
-	for i := range vals {
-		vals[i] = escapeSliceElem(vals[i], delim)
-	}
 	if allowShadow {
+		// Each element is a value of its own, and the reader splits values
+		// at delim without escapes, as v1 did.
+		for _, v := range vals {
+			if strings.Contains(v, delim) {
+				return fmt.Errorf("element %q contains the delimiter %q, which an allowshadow slice can't hold", v, delim)
+			}
+		}
 		if len(vals) > 1 && !key.s.f.options.AllowShadows {
 			return errors.New("shadow key is not allowed")
 		}
@@ -556,6 +558,9 @@ func encodeSlice(key *Key, field reflect.Value, delim string, allowShadow bool) 
 		key.value, key.shadows = tmp.value, tmp.shadows
 		key.s.f.wunlock()
 		return nil
+	}
+	for i := range vals {
+		vals[i] = escapeSliceElem(vals[i], delim)
 	}
 	key.SetValue(strings.Join(vals, delim))
 	return nil

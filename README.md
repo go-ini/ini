@@ -79,7 +79,7 @@ New in v2:
   - Fields after an empty `nonunique` slice or a `StructReflector` field are written.
   - A `nonunique` field with no sections is left empty instead of failing.
 - Unless loaded with `Locking(false)`, a `File` can be read from many goroutines while others call `Reload`, `Append`, `SetValue`, `NewKey`, `NewSection`, the delete methods, `ReflectFrom` or `Write`; v1 locked only some writes.
-- `Unmarshal` reads what `Marshal` writes, including `allowshadow` slices with repeated, empty or delimiter-containing elements and `nonunique` sections.
+- `Unmarshal` reads what `Marshal` writes, including `allowshadow` slices with repeated or empty elements and `nonunique` sections. An `allowshadow` element that contains the delimiter can't be read back, as each value is split at it, so `Marshal` and `ReflectFrom` return an error for it; v1 wrote it and read it back as two elements.
 - Loading is O(n) in the number of keys; a 10,000-key section loads in about 6 ms instead of about 150 ms with v1.67.3.
 
 ## Getting Help
