@@ -1,76 +1,69 @@
 # Migrating from v1 to v2
 
-v2 lives at a new import path, and the package name is still `ini`:
-
 ```go
-import "unknwon.dev/ini/v2" // was "gopkg.in/ini.v1"
+import "unknwon.dev/ini/v2" // was "gopkg.in/ini.v1"; the package is still ini
 ```
 
-It needs Go 1.26 or later. Both versions can be used in one program, so a large codebase can migrate one package at a time.
+v2 needs Go 1.26 or later. v1 and v2 can be used in the same program, so you can migrate one package at a time.
 
-**Parsing doesn't change.** Without options, v2 parses every input exactly as v1's `Load` does: the same sections, keys, values, comments and errors. The one exception is a Python-style multiline value longer than 4 KiB, which v1 cut at its read buffer and then failed on; v2 reads it in full.
+**Parsing is unchanged.** Without options, v2 parses every input exactly as v1 does: same sections, keys, values, comments and errors. The one exception is a Python-style multiline value longer than 4 KiB. v1 cut it at its read buffer and failed; v2 reads it in full.
 
-Most API changes are renames and stop the build, so the compiler finds them for you; the [API changes](#api-changes) tables list the replacements. Start with the next section, though: these changes compile fine and only show up at run time.
+Most API changes are renames, and the compiler finds them; the tables under [API changes](#api-changes) list the replacements. The changes in the next section still compile, so read it first.
 
 ## Changes the compiler won't catch
 
-### `Must*` methods no longer store the default
+### `Must*` no longer stores the default
 
-In v1, `k.MustInt(3)` returned 3 for a missing or invalid value **and wrote "3" into the key**. Later reads, `MapTo` and `Write` then saw the default, so saving a config wrote out every default the program had asked for. In v2, `Must*` methods only read. If your code reads a default back later, or relies on it being saved, store it yourself:
+In v1, `k.MustInt(3)` returned 3 for a missing or invalid value and also wrote `3` into the key, so later reads, `MapTo` and `Write` saw it. In v2, `Must*` only reads. If you need the default stored, set it:
 
 ```go
-// v1
-port := sec.Key("PORT").MustInt(3000) // also set PORT = 3000
-
-// v2
 port := sec.Key("PORT").MustInt(3000)
-sec.Key("PORT").SetValue(strconv.Itoa(port)) // only if you need it stored
+sec.Key("PORT").SetValue(strconv.Itoa(port))
 ```
 
 ### `Reload` and `Append`
 
-- `Reload` replaces the contents with what the sources hold now. In v1 it merged them into the current contents, so keys removed from a file stayed and shadow values piled up. `*Section` and `*Key` values you hold see the new values, and if loading fails, nothing changes.
-- `Append` reads only the sources it is given, so changes you made in memory survive it. In v1 it read every source again.
-- `io.Reader` sources are read once and kept, so `Reload` works with them; in v1 it failed on the exhausted reader.
+- `Reload` replaces the contents with what the sources hold now. v1 merged them in, so removed keys stayed and shadow values piled up. `*Section` and `*Key` values you hold see the new values; on error, nothing changes.
+- `Append` reads only the new sources, so changes made in memory survive. v1 read every source again.
+- `io.Reader` sources are read once and kept, so `Reload` works with them. In v1 it failed.
 
 ### Lists
 
-`ini.List` (v1's `Ints`, `Float64s` and friends) gives 0 for an element that is out of range for the type, as it does for any element that doesn't parse. v1 kept the clamped value that `strconv` returns, such as `math.MaxInt64` or `+Inf`.
+`ini.List` gives 0 for an out-of-range element, as for any element that doesn't parse. v1's `Ints` and friends kept the clamped value, such as `math.MaxInt64` or `+Inf`.
 
 ### Struct mapping
 
-`MapTo`, `StrictMapTo` and `ReflectFrom` return errors instead of panicking on unsupported, named, pointer, nil and recursive types. Valid input can see these differences:
+`MapTo`, `StrictMapTo` and `ReflectFrom` return errors instead of panicking on unsupported, named, pointer, nil and recursive types. Valid input can also behave differently:
 
-- An out-of-range number, such as `300` for an `int8` field, is an error in `StrictMapTo` and leaves the field unchanged in `MapTo`. v1 wrapped it to 44.
-- `StrictMapTo` reports invalid slice elements; v1 set them to zero.
-- Durations of `0` and negative durations are applied; v1 skipped them.
-- `uint8` fields map; v1 returned an error.
-- An embedded struct pointer that is already set keeps its values; v1 replaced it.
-- A `nonunique` field with no matching sections is left empty; v1 failed.
+- An out-of-range number, such as `300` for an `int8`, leaves the field unchanged in `MapTo` and is an error in `StrictMapTo`. v1 wrapped it to 44.
+- `StrictMapTo` reports invalid slice elements. v1 set them to zero.
+- Zero and negative durations are applied. v1 skipped them.
+- `uint8` fields map. v1 returned an error.
+- An embedded struct pointer that is already set keeps its values. v1 replaced it.
+- A `nonunique` field with no matching sections is left empty. v1 failed.
 - When writing:
   - times keep sub-second precision;
-  - slice elements that contain the delimiter or end in a backslash are escaped, so they read back as one element;
-  - nil pointer fields aren't written;
+  - slice elements containing the delimiter or ending in a backslash are escaped;
+  - nil pointer fields are skipped;
   - fields after an empty `nonunique` slice or a `StructReflector` field are written;
-  - an `allowshadow` element that contains the delimiter is an error, because it would read back as two elements.
+  - an `allowshadow` element containing the delimiter is an error, since it would read back as two elements.
 
 ### Writing
 
-`Write` output is byte-identical to v1's for ordinary files. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error:
+For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error. For example:
 
 - values ending in `\`, containing `"""`, or starting with a delimiter are quoted;
-- empty shadow values are written;
-- comments of keys written on several lines are kept;
+- empty shadow values and the comments of multi-line keys are kept;
 - with `CaseInsensitive`, an explicit `[DEFAULT]` section is written with its own keys;
 - a raw section body without a final newline no longer runs into the next header.
 
-### Smaller fixes you might notice
+### Other fixes
 
-- A `%(name)s` reference cycle is left unexpanded. In v1 it overflowed the stack and crashed the program.
-- With `CaseInsensitive`, `DeleteKey("Name")` deletes the key; v1 ignored the case-folded name.
-- `ChildSections` lists each child once with `AllowNonUniqueSections`.
+- A `%(name)s` reference cycle is left unexpanded. v1 overflowed the stack and crashed.
+- With `CaseInsensitive`, `DeleteKey` matches names in any case.
+- With `AllowNonUniqueSections`, `ChildSections` lists each child once.
 - `Key.Strings("")`, a negative section index and `Section.Key("")` no longer hang or panic.
-- Reading a key takes the file's read lock, so reads are safe while other goroutines change the file. That costs about 10 ns per read; load with `ini.Locking(false)` if the file never changes after loading.
+- Reads take the file's read lock, so they are safe while other goroutines change the file. This adds about 10 ns per read. If the file never changes after loading, load it with `ini.Locking(false)`.
 
 ## API changes
 
@@ -85,9 +78,9 @@ sec.Key("PORT").SetValue(strconv.Itoa(port)) // only if you need it stored
 | `MapToWithMapper(v, m, a)`, `StrictMapToWithMapper` | `MapTo(v, a, ini.NameMapping(m))`, `StrictMapTo(v, a, ini.NameMapping(m))` |
 | `f.NameMapper = m`, `f.ValueMapper = fn` | load with `ini.NameMapping(m)`, `ini.ValueMapping(fn)` |
 | `f.BlockMode = false` | load with `ini.Locking(false)` |
-| `ini.DefaultSection = "default"` | load with `ini.DefaultSectionName("default")`; `ini.DefaultSection` is now a constant |
+| `ini.DefaultSection = "default"` | load with `ini.DefaultSectionName("default")`; `DefaultSection` is now a constant |
 
-Every `LoadOptions` field is now an option function of the same name that takes its value, such as `ini.SkipUnrecognizableLines(true)` or `ini.KeyValueDelimiters("=")`. A later option overrides an earlier one. These were renamed:
+Each `LoadOptions` field becomes an option function of the same name, such as `ini.SkipUnrecognizableLines(true)` or `ini.KeyValueDelimiters("=")`. Later options override earlier ones. These were renamed:
 
 | `LoadOptions` field | v2 option |
 |---|---|
@@ -97,14 +90,14 @@ Every `LoadOptions` field is now an option function of the same name that takes 
 | `UnparseableSections` | `RawSections(names...)` |
 | `PreserveSurroundedQuote` | `PreserveSurroundingQuotes` |
 | `DebugFunc` | `Debug(fn)` |
-| `KeyValueDelimiterOnWrite` | `WriteDelimiter(d)`, an option of `Write` |
+| `KeyValueDelimiterOnWrite` | `WriteDelimiter(d)`, a write option |
 | `ReaderBufferSize` | removed; nothing is cut at a buffer size |
 
 New options: `CommentSymbols`, `PreserveEmptyShadowValues` and `DefaultSectionName`.
 
 ### Writing
 
-The package variables that changed every file's output are options of `File.Write` and `File.SaveTo`, so one caller can't change another's output. The defaults write what v1 wrote.
+The package variables that changed every file's output are now options of `File.Write` and `File.SaveTo`. Their defaults write what v1 wrote.
 
 | v1 | v2 |
 |---|---|
@@ -117,13 +110,13 @@ The package variables that changed every file's output are options of `File.Writ
 | `f.WriteToIndent(w, "\t")`, `f.SaveToIndent(name, "\t")` | `f.Write(w, ini.Indent("\t"))`, `f.SaveTo(name, ini.Indent("\t"))` |
 | `ReflectFrom(f, v)`, `ReflectFromWithMapper(f, v, m)` | `f.ReflectFrom(v)`, with `f` loaded with `ini.NameMapping(m)` |
 
-`WriteTo` stays, so a `*File` is still an `io.WriterTo`.
+`WriteTo` stays, so `*File` is still an `io.WriterTo`.
 
 ### Sections and keys
 
 | v1 | v2 |
 |---|---|
-| `s.Comment`, `k.Comment` fields | `Comment()` and `SetComment(c)` methods |
+| `s.Comment`, `k.Comment` fields | `Comment()` and `SetComment(c)` |
 | `f.SectionStrings()`, `s.KeyStrings()`, `s.KeysHash()` | `SectionNames()`, `KeyNames()`, `KeyValues()` |
 | `k.ValueWithShadows()` | `k.Values()` |
 | `s.Haskey(name)` | `s.HasKey(name)` |
@@ -131,7 +124,7 @@ The package variables that changed every file's output are options of `File.Writ
 
 ### Typed values
 
-The typed list, candidate and range methods are generic functions. They behave as before, and work for any `Scalar` type, such as `int8`, `time.Duration` or a named string type.
+The typed list, candidate and range methods are now generic functions. They behave the same and accept any `Scalar` type, such as `int8`, `time.Duration` or a named string type.
 
 | v1 | v2 |
 |---|---|
@@ -139,9 +132,9 @@ The typed list, candidate and range methods are generic functions. They behave a
 | `k.ValidInts(",")`… | `ini.ValidList[int](k, ",")`… |
 | `k.StrictInts(",")`… | `ini.StrictList[int](k, ",")`… |
 | `k.In(def, cands)`, `k.InInt(def, cands)`, `k.InTime(def, cands)`… | `ini.In(k, def, cands)` |
-| `k.RangeInt(def, lo, hi)`, `k.RangeTime(def, lo, hi)`… | `ini.Range(k, def, lo, hi)`; type the default for other types, as in `ini.Range(k, 0.5, 0, 1)` |
+| `k.RangeInt(def, lo, hi)`, `k.RangeTime(def, lo, hi)`… | `ini.Range(k, def, lo, hi)`; type the default for non-int types, as in `ini.Range(k, 0.5, 0, 1)` |
 
-`String`, `Int`, `Bool`, `Duration`, `Strings`, the `Must*` methods, and the custom-layout time methods (`TimesFormat`, `InTimeFormat`, `RangeTimeFormat` and their `Valid` and `Strict` forms) stay on `Key`.
+`String`, `Int`, `Bool`, `Duration`, `Strings`, the `Must*` methods and the custom-layout time methods (`TimesFormat`, `InTimeFormat`, `RangeTimeFormat` and their `Valid` and `Strict` forms) stay on `Key`.
 
 ### Errors
 
@@ -150,4 +143,4 @@ The typed list, candidate and range methods are generic functions. They behave a
 | `ini.IsErrDelimiterNotFound(err)` | `errors.Is(err, ini.ErrDelimiterNotFound)` |
 | `ini.IsErrEmptyKeyName(err)` | `errors.Is(err, ini.ErrEmptyKeyName)` |
 
-Parse errors are `*ini.ParseError` values with the 1-based `Line` and `Column` of the problem; the message under the position is the same as v1's.
+Parse errors are `*ini.ParseError` values with a 1-based `Line` and `Column`. The message after the position is the same as v1's.
