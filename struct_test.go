@@ -1473,8 +1473,8 @@ func FuzzStructMapping(f *testing.F) {
 }
 
 // normalizeFz clears what the format can't carry: trailing empty strings in
-// slices, empty slices and nil
-// versus empty, monotonic clock readings and locations of times.
+// slices, empty slices and nil versus empty, monotonic clock readings and
+// locations of times.
 func normalizeFz(c *fzCfg) {
 	v := reflect.ValueOf(c).Elem()
 	normalizeFzValue(v)
