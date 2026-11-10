@@ -5,7 +5,9 @@ import (
 	"fmt"
 )
 
-// Errors a ParseError wraps, for errors.Is.
+// ErrDelimiterNotFound and ErrEmptyKeyName are the parse errors that
+// errors.Is can identify. Other parse errors, such as an unclosed section,
+// have no sentinel.
 var (
 	// ErrDelimiterNotFound: a line that should be a key has no key-value
 	// delimiter.
@@ -14,8 +16,9 @@ var (
 	ErrEmptyKeyName = errors.New("empty key name")
 )
 
-// ParseError reports where in a data source parsing failed. Err is the
-// error at that position, such as ErrDelimiterNotFound.
+// ParseError reports where in a data source parsing failed. Err describes
+// the problem and wraps ErrDelimiterNotFound or ErrEmptyKeyName when one
+// applies.
 type ParseError struct {
 	Line   int // 1-based line number
 	Column int // 1-based column, in characters, where the line's content starts

@@ -57,8 +57,8 @@ func (k *Key) AddShadow(val string) error {
 	if !k.s.f.options.AllowShadows {
 		return errors.New("shadow key is not allowed")
 	}
-	k.s.f.wlock()
-	defer k.s.f.wunlock()
+	k.s.f.lock()
+	defer k.s.f.unlock()
 	return k.addShadow(val)
 }
 
@@ -76,8 +76,8 @@ func (k *Key) AddNestedValue(val string) error {
 	if !k.s.f.options.AllowNestedValues {
 		return errors.New("nested value is not allowed")
 	}
-	k.s.f.wlock()
-	defer k.s.f.wunlock()
+	k.s.f.lock()
+	defer k.s.f.unlock()
 	return k.addNestedValue(val)
 }
 
@@ -100,8 +100,8 @@ func (k *Key) Comment() string {
 // SetComment sets the comment lines written before the key. Lines without a
 // comment symbol get one.
 func (k *Key) SetComment(comment string) {
-	k.s.f.wlock()
-	defer k.s.f.wunlock()
+	k.s.f.lock()
+	defer k.s.f.unlock()
 	k.comment = comment
 }
 
@@ -111,9 +111,9 @@ func (k *Key) Value() string {
 	if !f.locking {
 		return k.value
 	}
-	f.lock.RLock()
+	f.mu.RLock()
 	v := k.value
-	f.lock.RUnlock()
+	f.mu.RUnlock()
 	return v
 }
 
@@ -510,7 +510,7 @@ func (k *Key) StringsWithShadows(delim string) []string {
 
 // SetValue changes key value.
 func (k *Key) SetValue(v string) {
-	k.s.f.wlock()
-	defer k.s.f.wunlock()
+	k.s.f.lock()
+	defer k.s.f.unlock()
 	k.value = v
 }

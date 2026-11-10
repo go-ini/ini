@@ -181,8 +181,8 @@ func formatValue(v reflect.Value) string {
 
 // defaultComment sets *c to comment if it is empty, under the file's lock.
 func (f *File) defaultComment(c *string, comment string) {
-	f.wlock()
-	defer f.wunlock()
+	f.lock()
+	defer f.unlock()
 	if *c == "" {
 		*c = comment
 	}
@@ -540,9 +540,9 @@ func encodeSlice(key *Key, field reflect.Value, delim string, allowShadow bool) 
 				return err
 			}
 		}
-		key.s.f.wlock()
+		key.s.f.lock()
 		key.value, key.shadows = tmp.value, tmp.shadows
-		key.s.f.wunlock()
+		key.s.f.unlock()
 		return nil
 	}
 	for i := range vals {

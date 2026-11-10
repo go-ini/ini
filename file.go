@@ -17,9 +17,9 @@ type File struct {
 	options     loadOptions
 	dataSources []dataSource
 
-	// locking guards the contents with lock, unless loaded with Locking(false).
+	// locking guards the contents with mu, unless loaded with Locking(false).
 	locking bool
-	lock    sync.RWMutex
+	mu      sync.RWMutex
 
 	// sections are in the order they were added, and byName indexes
 	// them, in the same order, by name.
@@ -60,37 +60,38 @@ func (f *File) defaultSectionName() string {
 	return f.options.DefaultSection
 }
 
-// The lock helpers guard the file's sections, keys and values when
-// locking is set. Unexported methods that change them expect the caller to
-// hold the lock, or the file not to be shared yet, as while parsing.
+// lock, unlock, rlock and runlock call the same methods of mu when locking
+// is set. They guard the file's sections, keys and values. Unexported
+// methods that change them expect the caller to hold the lock, or the file
+// not to be shared yet, as while parsing.
 func (f *File) rlock() {
 	if f.locking {
-		f.lock.RLock()
+		f.mu.RLock()
 	}
 }
 
 func (f *File) runlock() {
 	if f.locking {
-		f.lock.RUnlock()
+		f.mu.RUnlock()
 	}
 }
 
-func (f *File) wlock() {
+func (f *File) lock() {
 	if f.locking {
-		f.lock.Lock()
+		f.mu.Lock()
 	}
 }
 
-func (f *File) wunlock() {
+func (f *File) unlock() {
 	if f.locking {
-		f.lock.Unlock()
+		f.mu.Unlock()
 	}
 }
 
 // NewSection creates a new section.
 func (f *File) NewSection(name string) (*Section, error) {
-	f.wlock()
-	defer f.wunlock()
+	f.lock()
+	defer f.unlock()
 	return f.addSection(name)
 }
 
@@ -116,8 +117,8 @@ func (f *File) addSection(name string) (*Section, error) {
 
 // NewRawSection creates a new section with an unparseable body.
 func (f *File) NewRawSection(name, body string) (*Section, error) {
-	f.wlock()
-	defer f.wunlock()
+	f.lock()
+	defer f.unlock()
 	section, err := f.addSection(name)
 	if err != nil {
 		return nil, err
@@ -269,8 +270,8 @@ func (f *File) DeleteSectionWithIndex(name string, index int) error {
 		name = strings.ToLower(name)
 	}
 
-	f.wlock()
-	defer f.wunlock()
+	f.lock()
+	defer f.unlock()
 	secs := f.byName[name]
 	if index >= len(secs) {
 		return nil
@@ -310,8 +311,8 @@ func (f *File) Reload() error {
 		return err
 	}
 
-	f.wlock()
-	defer f.wunlock()
+	f.lock()
+	defer f.unlock()
 	for name, secs := range next.byName {
 		old := f.byName[name]
 		for i, sec := range secs {
@@ -379,14 +380,14 @@ func (f *File) Append(source any, others ...any) error {
 		}
 		sources = append(sources, ds)
 	}
-	f.wlock()
+	f.lock()
 	f.dataSources = append(f.dataSources, sources...)
 	if f.options.ShortCircuit {
-		f.wunlock()
+		f.unlock()
 		// Only the first source that loads counts.
 		return f.Reload()
 	}
-	defer f.wunlock()
+	defer f.unlock()
 	return f.load(sources)
 }
 

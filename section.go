@@ -45,8 +45,8 @@ func (s *Section) Comment() string {
 // SetComment sets the comment lines written before the section header.
 // Lines without a comment symbol get one.
 func (s *Section) SetComment(comment string) {
-	s.f.wlock()
-	defer s.f.wunlock()
+	s.f.lock()
+	defer s.f.unlock()
 	s.comment = comment
 }
 
@@ -60,8 +60,8 @@ func (s *Section) Body() string {
 
 // SetBody updates body content only if section is raw.
 func (s *Section) SetBody(body string) {
-	s.f.wlock()
-	defer s.f.wunlock()
+	s.f.lock()
+	defer s.f.unlock()
 	if !s.isRawSection {
 		return
 	}
@@ -70,8 +70,8 @@ func (s *Section) SetBody(body string) {
 
 // NewKey creates a new key to given section.
 func (s *Section) NewKey(name, val string) (*Key, error) {
-	s.f.wlock()
-	defer s.f.wunlock()
+	s.f.lock()
+	defer s.f.unlock()
 	return s.addKey(name, val)
 }
 
@@ -102,8 +102,8 @@ func (s *Section) addKey(name, val string) (*Key, error) {
 
 // NewBooleanKey creates a new boolean type key to given section.
 func (s *Section) NewBooleanKey(name string) (*Key, error) {
-	s.f.wlock()
-	defer s.f.wunlock()
+	s.f.lock()
+	defer s.f.unlock()
 	return s.addBooleanKey(name)
 }
 
@@ -121,14 +121,14 @@ func (s *Section) addBooleanKey(name string) (*Key, error) {
 // GetKey returns key in section by given name.
 func (s *Section) GetKey(name string) (*Key, error) {
 	if s.f.locking {
-		s.f.lock.RLock()
+		s.f.mu.RLock()
 	}
 	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
 		name = strings.ToLower(name)
 	}
 	key := s.byName[name]
 	if s.f.locking {
-		s.f.lock.RUnlock()
+		s.f.mu.RUnlock()
 	}
 
 	if key == nil {
@@ -159,8 +159,8 @@ func (s *Section) HasKey(name string) bool {
 // HasValue returns true if section contains given raw value.
 func (s *Section) HasValue(value string) bool {
 	if s.f.locking {
-		s.f.lock.RLock()
-		defer s.f.lock.RUnlock()
+		s.f.mu.RLock()
+		defer s.f.mu.RUnlock()
 	}
 
 	for _, k := range s.keys {
@@ -225,8 +225,8 @@ func (s *Section) KeyNames() []string {
 // KeyValues returns the names and raw values of the section's keys.
 func (s *Section) KeyValues() map[string]string {
 	if s.f.locking {
-		s.f.lock.RLock()
-		defer s.f.lock.RUnlock()
+		s.f.mu.RLock()
+		defer s.f.mu.RUnlock()
 	}
 
 	hash := make(map[string]string, len(s.keys))
@@ -242,8 +242,8 @@ func (s *Section) DeleteKey(name string) {
 		name = strings.ToLower(name)
 	}
 	if s.f.locking {
-		s.f.lock.Lock()
-		defer s.f.lock.Unlock()
+		s.f.mu.Lock()
+		defer s.f.mu.Unlock()
 	}
 
 	if key := s.byName[name]; key != nil {
