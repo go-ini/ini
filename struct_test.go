@@ -1208,7 +1208,7 @@ func TestMarshalUnmarshal_EscapedSliceElements(t *testing.T) {
 	assert.Equal(t, in, out)
 
 	// Key.Strings drops an empty last element, so a slice ending in an empty
-	// string cannot round trip; empty elements before the last one do.
+	// string cannot round trip. Empty elements before the last one do.
 	data, err = Marshal(cfg{S: []string{"", "a"}, P: []string{"", ""}})
 	require.NoError(t, err)
 	assert.Equal(t, "S = ,a\nP = |\n", string(data))
@@ -1320,7 +1320,7 @@ func TestMarshalUnmarshal_AllowShadowElements(t *testing.T) {
 	require.NoError(t, Unmarshal(data, &out))
 	assert.Equal(t, in, out, "written: %q", data)
 
-	// The tags need these options; turning them off, as with a config
+	// The tags need these options. Turning them off, as with a config
 	// flag that defaults to false, must not drop elements.
 	out = cfg{}
 	require.NoError(t, Unmarshal(data, &out, AllowShadows(false), AllowDuplicateShadowValues(false), PreserveEmptyShadowValues(false)))

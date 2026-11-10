@@ -21,7 +21,7 @@ type File struct {
 	locking bool
 	lock    sync.RWMutex
 
-	// sections are in the order they were added; byName indexes
+	// sections are in the order they were added, and byName indexes
 	// them, in the same order, by name.
 	sections []*Section
 	byName   map[string][]*Section
@@ -368,8 +368,8 @@ func (f *File) load(sources []dataSource) error {
 }
 
 // Append adds one or more data sources and reads them into the file. Their
-// sections and keys add to the current ones and overwrite keys they repeat;
-// changes made to the file in memory stay.
+// sections and keys add to the current ones and overwrite keys they repeat.
+// Changes made to the file in memory stay.
 func (f *File) Append(source any, others ...any) error {
 	sources := make([]dataSource, 0, 1+len(others))
 	for _, s := range append([]any{source}, others...) {
@@ -427,7 +427,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 
 	// keyLine returns the line that writes val as a value of key, written as
 	// form, or key itself for a boolean key, followed by nested values.
-	// The usual quoting comes first; when the lexer reads that back
+	// The usual quoting comes first. When the lexer reads that back
 	// differently, other quotings and a bare delimiter are tried, and when
 	// none reads back, it's an error rather than a file that loads
 	// differently. A file read with delimiters that don't include the
@@ -626,7 +626,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 
 			// regular are the values written on key lines. A boolean line
 			// after a key of the same name makes it a boolean key with the
-			// value "true" added; a value set after the boolean line
+			// value "true" added, and a value set after the boolean line
 			// replaces "true".
 			regular, boolFirst := vals, false
 			if key.isBooleanType {

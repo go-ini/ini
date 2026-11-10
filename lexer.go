@@ -198,7 +198,7 @@ func (l *lexer) key(line string) (_ token, ok bool, _ error) {
 // readValue reads a value that starts in "in", the rest of the current line,
 // and any following lines it spans. The rules apply in a fixed order, which
 // decides the result when they overlap: a value is either quoted, continued
-// with a backslash, or plain; for a plain value the inline comment is cut
+// with a backslash, or plain. For a plain value the inline comment is cut
 // before surrounding quotes are stripped, so `"a;b"` is `"a` with comment
 // `;b"`.
 func (l *lexer) readValue(in string) (string, error) {

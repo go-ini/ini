@@ -6,9 +6,9 @@ import "unknwon.dev/ini/v2" // was "gopkg.in/ini.v1"; the package is still ini
 
 v2 needs Go 1.26 or later. v1 and v2 can be used in the same program, so you can migrate one package at a time.
 
-**Parsing is unchanged.** Without options, v2 parses every input exactly as v1 does: same sections, keys, values, comments and errors. The one exception is a Python-style multiline value longer than 4 KiB. v1 cut it at its read buffer and failed; v2 reads it in full.
+**Parsing is unchanged.** Without options, v2 parses every input exactly as v1 does: same sections, keys, values, comments and errors. The one exception is a Python-style multiline value longer than 4 KiB. v1 cut it at its read buffer and failed, and v2 reads it in full.
 
-Most API changes are renames, and the compiler finds them; the tables under [API changes](#api-changes) list the replacements. The changes in the next section still compile, so read it first.
+Most API changes are renames that the compiler finds, and the tables under [API changes](#api-changes) list the replacements. The changes in the next section still compile, so read it first.
 
 ## Changes the compiler won't catch
 
@@ -23,7 +23,7 @@ sec.Key("PORT").SetValue(strconv.Itoa(port))
 
 ### `Reload` and `Append`
 
-- `Reload` replaces the contents with what the sources hold now. v1 merged them in, so removed keys stayed and shadow values piled up. `*Section` and `*Key` values you hold see the new values; on error, nothing changes.
+- `Reload` replaces the contents with what the sources hold now. v1 merged them in, so removed keys stayed and shadow values piled up. `*Section` and `*Key` values you hold see the new values. On error, nothing changes.
 - `Append` reads only the new sources, so changes made in memory survive. v1 read every source again.
 - `io.Reader` sources are read once and kept, so `Reload` works with them. In v1 it failed.
 
@@ -42,20 +42,20 @@ sec.Key("PORT").SetValue(strconv.Itoa(port))
 - An embedded struct pointer that is already set keeps its values. v1 replaced it.
 - A `nonunique` field with no matching sections is left empty. v1 failed.
 - When writing:
-  - times keep sub-second precision;
-  - slice elements containing the delimiter or ending in a backslash are escaped;
-  - nil pointer fields are skipped;
-  - fields after an empty `nonunique` slice or a `StructReflector` field are written;
-  - an `allowshadow` element containing the delimiter is an error, since it would read back as two elements.
+  - Times keep sub-second precision.
+  - Slice elements containing the delimiter or ending in a backslash are escaped.
+  - Nil pointer fields are skipped.
+  - Fields after an empty `nonunique` slice or a `StructReflector` field are written.
+  - An `allowshadow` element containing the delimiter is an error, since it would read back as two elements.
 
 ### Writing
 
 For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error. For example:
 
-- values ending in `\`, containing `"""`, or starting with a delimiter are quoted;
-- empty shadow values and the comments of multi-line keys are kept;
-- with `CaseInsensitive`, an explicit `[DEFAULT]` section is written with its own keys;
-- a raw section body without a final newline no longer runs into the next header.
+- Values ending in `\`, containing `"""`, or starting with a delimiter are quoted.
+- Empty shadow values and the comments of multi-line keys are kept.
+- With `CaseInsensitive`, an explicit `[DEFAULT]` section is written with its own keys.
+- A raw section body without a final newline no longer runs into the next header.
 
 ### Other fixes
 
@@ -71,14 +71,14 @@ For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a f
 
 | v1 | v2 |
 |---|---|
-| `Load(a, b)` | `LoadSources([]any{a, b})`; `Load(a)` is unchanged |
+| `Load(a, b)` | `LoadSources([]any{a, b})`, while `Load(a)` is unchanged |
 | `LoadSources(LoadOptions{AllowShadows: true}, a)` | `Load(a, ini.AllowShadows(true))` |
 | `LooseLoad`, `InsensitiveLoad`, `ShadowLoad` | `Load` with `ini.IgnoreMissingFiles(true)`, `ini.CaseInsensitive(true)`, `ini.AllowShadows(true)` |
 | `MapTo(v, a, b)` | `MapTo(v, a, opts...)`, with one source |
 | `MapToWithMapper(v, m, a)`, `StrictMapToWithMapper` | `MapTo(v, a, ini.NameMapping(m))`, `StrictMapTo(v, a, ini.NameMapping(m))` |
 | `f.NameMapper = m`, `f.ValueMapper = fn` | load with `ini.NameMapping(m)`, `ini.ValueMapping(fn)` |
 | `f.BlockMode = false` | load with `ini.Locking(false)` |
-| `ini.DefaultSection = "default"` | load with `ini.DefaultSectionName("default")`; `DefaultSection` is now a constant |
+| `ini.DefaultSection = "default"` | load with `ini.DefaultSectionName("default")`. `DefaultSection` is now a constant. |
 
 Each `LoadOptions` field becomes an option function of the same name, such as `ini.SkipUnrecognizableLines(true)` or `ini.KeyValueDelimiters("=")`. Later options override earlier ones. These were renamed:
 
@@ -91,7 +91,7 @@ Each `LoadOptions` field becomes an option function of the same name, such as `i
 | `PreserveSurroundedQuote` | `PreserveSurroundingQuotes` |
 | `DebugFunc` | `Debug(fn)` |
 | `KeyValueDelimiterOnWrite` | `WriteDelimiter(d)`, a write option |
-| `ReaderBufferSize` | removed; nothing is cut at a buffer size |
+| `ReaderBufferSize` | removed, since nothing is cut at a buffer size |
 
 New options: `CommentSymbols`, `PreserveEmptyShadowValues` and `DefaultSectionName`.
 
@@ -132,7 +132,7 @@ The typed list, candidate and range methods are now generic functions. They beha
 | `k.ValidInts(",")`… | `ini.ValidList[int](k, ",")`… |
 | `k.StrictInts(",")`… | `ini.StrictList[int](k, ",")`… |
 | `k.In(def, cands)`, `k.InInt(def, cands)`, `k.InTime(def, cands)`… | `ini.In(k, def, cands)` |
-| `k.RangeInt(def, lo, hi)`, `k.RangeTime(def, lo, hi)`… | `ini.Range(k, def, lo, hi)`; type the default for non-int types, as in `ini.Range(k, 0.5, 0, 1)` |
+| `k.RangeInt(def, lo, hi)`, `k.RangeTime(def, lo, hi)`… | `ini.Range(k, def, lo, hi)`. Type the default for non-int types, as in `ini.Range(k, 0.5, 0, 1)`. |
 
 `String`, `Int`, `Bool`, `Duration`, `Strings`, the `Must*` methods and the custom-layout time methods (`TimesFormat`, `InTimeFormat`, `RangeTimeFormat` and their `Valid` and `Strict` forms) stay on `Key`.
 

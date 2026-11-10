@@ -106,7 +106,7 @@ func equal[T Scalar](a, b T) bool {
 	return a == b
 }
 
-// less reports whether a < b. Times compare as instants; the rest by kind,
+// less reports whether a < b. Times compare as instants and the rest by kind,
 // as T can't use < while time.Time is in its type set.
 func less[T Ordered](a, b T) bool {
 	if t, ok := any(a).(time.Time); ok {

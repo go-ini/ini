@@ -18,8 +18,8 @@ import (
 func describeFile(f *File) string {
 	var b strings.Builder
 	for _, s := range f.Sections() {
-		// A raw body gets a final line break when a section follows it;
-		// Body trims it either way.
+		// A raw body gets a final line break when a section follows it,
+		// and Body trims it either way.
 		fmt.Fprintf(&b, "[%q] comment=%q raw=%v body=%q\n", s.name, normalizeComment(s.comment), s.isRawSection, strings.TrimRight(s.rawBody, "\n"))
 		for _, k := range s.Keys() {
 			vals := append([]string{k.value}, k.shadows...)
@@ -56,7 +56,7 @@ func checkRoundTrip(t *testing.T, data []byte, opts []LoadOption, wopts ...Write
 
 	var out bytes.Buffer
 	if _, err = f.Write(&out, wopts...); err != nil {
-		// Some files can't be written; that must be reported, not
+		// Some files can't be written. That must be reported, not
 		// written wrongly.
 		return
 	}

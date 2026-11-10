@@ -59,7 +59,7 @@ func newLoadOptions(opts []LoadOption) loadOptions {
 }
 
 // Locking sets whether a File takes a lock so it can be read from many
-// goroutines while others change it. The default is true; turn it off for a
+// goroutines while others change it. The default is true. Turn it off for a
 // File only one goroutine uses, to save the cost of locking.
 func Locking(v bool) LoadOption { return func(o *loadOptions) { o.Locking = v } }
 
@@ -157,7 +157,7 @@ func RawSections(names ...string) LoadOption {
 }
 
 // KeyValueDelimiters sets the characters that separate a key from its value.
-// The default is "=:"; an empty string keeps the default.
+// The default is "=:", and an empty string keeps the default.
 func KeyValueDelimiters(delimiters string) LoadOption {
 	return func(o *loadOptions) {
 		if delimiters != "" {
@@ -167,7 +167,7 @@ func KeyValueDelimiters(delimiters string) LoadOption {
 }
 
 // ChildSectionDelimiter sets the separator between parent and child section
-// names. The default is "."; an empty string keeps the default.
+// names. The default is ".", and an empty string keeps the default.
 func ChildSectionDelimiter(delimiter string) LoadOption {
 	return func(o *loadOptions) {
 		if delimiter != "" {
@@ -206,7 +206,7 @@ func PreserveEmptyShadowValues(v bool) LoadOption {
 
 // DefaultSectionName names the section that holds keys before the first
 // section header, such as "default" for AWS config files. The default is
-// DefaultSection; an empty string keeps the default.
+// DefaultSection, and an empty string keeps the default.
 func DefaultSectionName(name string) LoadOption {
 	return func(o *loadOptions) {
 		if name != "" {
@@ -216,7 +216,7 @@ func DefaultSectionName(name string) LoadOption {
 }
 
 // CommentSymbols sets the characters that start a comment. The default is
-// "#;"; an empty string means no line is a comment.
+// "#;", and an empty string means no line is a comment.
 func CommentSymbols(symbols string) LoadOption {
 	return func(o *loadOptions) { o.CommentSymbols = symbols }
 }

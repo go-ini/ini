@@ -12,7 +12,7 @@ type Section struct {
 	f       *File
 	name    string
 	comment string
-	// keys are in the order they were added; byName indexes them by name.
+	// keys are in the order they were added, and byName indexes them by name.
 	keys   []*Key
 	byName map[string]*Key
 
@@ -176,7 +176,7 @@ func (s *Section) Key(name string) *Key {
 	key, err := s.GetKey(name)
 	if err != nil {
 		if key, err = s.NewKey(name, ""); err != nil {
-			// An empty name can't be added; return a key that isn't.
+			// An empty name can't be added, so return a key that isn't.
 			return newKey(s, name, "")
 		}
 		return key

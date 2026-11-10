@@ -8,14 +8,14 @@
 //
 // A File holds Sections in order, and each Section holds Keys in order. The
 // default section, named DefaultSection, holds the keys before the first
-// section header; pass "" to refer to it. Key returns values as strings or
+// section header. Pass "" to refer to it. Key returns values as strings or
 // parses them, as in Key.Int or Key.Duration, and the generic List, In and
 // Range parse lists, candidates and ranges of any Scalar type. A value can
 // refer to another key of its section or of the default section as
 // %(name)s.
 //
 // MapTo and StrictMapTo fill a struct from a File, and File.ReflectFrom
-// fills a File from a struct; Unmarshal and Marshal do the same for INI
+// fills a File from a struct. Unmarshal and Marshal do the same for INI
 // text, like encoding/json. Field names map to key and section names
 // unchanged unless NameMapping sets a mapper, and the ini, delim and
 // comment struct tags adjust each field.
@@ -42,7 +42,7 @@ const (
 
 	// Maximum allowed depth when recursively substituing variable names.
 	depthValues = 99
-	// Limits of one %(name)s expansion; see Key.expand.
+	// Limits of one %(name)s expansion, described at Key.expand.
 	maxSubstitutions = 10000
 	maxExpandedLen   = 1 << 20
 )
@@ -51,7 +51,7 @@ const (
 var varPattern = regexp.MustCompile(`%\(([^)]+)\)s`)
 
 // Load loads and parses an INI data source. A source is a file name
-// (string), raw data ([]byte), or an io.Reader; an io.ReadCloser is closed
+// (string), raw data ([]byte), or an io.Reader. An io.ReadCloser is closed
 // after reading.
 func Load(source any, opts ...LoadOption) (*File, error) {
 	return LoadSources([]any{source}, opts...)
