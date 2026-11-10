@@ -771,6 +771,14 @@ func (s *Section) ReflectFrom(v any) error {
 	if typ == nil || (typ.Kind() == reflect.Pointer && val.IsNil()) {
 		return errors.New("not a pointer to a struct")
 	}
+	// v1 accepted a pointer to a pointer to a struct, as in ReflectFrom(&cfg)
+	// with cfg a *Config.
+	for typ.Kind() == reflect.Pointer && typ.Elem().Kind() == reflect.Pointer {
+		if val = val.Elem(); val.IsNil() {
+			return errors.New("not a pointer to a struct")
+		}
+		typ = typ.Elem()
+	}
 
 	if !s.f.isDefaultSection(s.name) && s.f.options.AllowNonUniqueSections &&
 		(typ.Kind() == reflect.Slice || typ.Kind() == reflect.Pointer) {

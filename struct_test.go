@@ -1100,6 +1100,21 @@ func TestReflectFrom_StructSlice(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// v1 accepted a pointer to a struct pointer, as Gogs passes &cfg with cfg a
+// package-level *Config.
+func TestReflectFrom_PointerToPointer(t *testing.T) {
+	type conf struct{ Lang string }
+	c := &conf{Lang: "en"}
+	for _, opts := range [][]LoadOption{nil, {AllowNonUniqueSections()}} {
+		f := Empty(opts...)
+		require.NoError(t, f.Section("i18n").ReflectFrom(&c))
+		assert.Equal(t, "en", f.Section("i18n").Key("Lang").String())
+	}
+
+	var nilConf *conf
+	assert.Error(t, Empty().Section("i18n").ReflectFrom(&nilConf))
+}
+
 func TestReflectFrom_NonUniqueNilAndNonStruct(t *testing.T) {
 	type peer struct{ Key string }
 	data, err := Marshal(struct {
