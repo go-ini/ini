@@ -1472,7 +1472,8 @@ func FuzzStructMapping(f *testing.F) {
 	})
 }
 
-// normalizeFz clears what the format can't carry: empty slices and nil
+// normalizeFz clears what the format can't carry: trailing empty strings in
+// slices, empty slices and nil
 // versus empty, monotonic clock readings and locations of times.
 func normalizeFz(c *fzCfg) {
 	v := reflect.ValueOf(c).Elem()
@@ -1499,6 +1500,15 @@ func normalizeFzValue(v reflect.Value) {
 			}
 		}
 	case reflect.Slice:
+		// Key.Strings drops an empty last element, so trailing empty
+		// strings can't round trip.
+		if v.Type().Elem().Kind() == reflect.String {
+			n := v.Len()
+			for n > 0 && v.Index(n-1).String() == "" {
+				n--
+			}
+			v.Set(v.Slice(0, n))
+		}
 		if v.Len() == 0 {
 			v.Set(reflect.Zero(v.Type()))
 			return
