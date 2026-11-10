@@ -35,20 +35,20 @@ Without options, v2 parses every input exactly as v1's `Load` does. The parity t
 |---|---|
 | `import "gopkg.in/ini.v1"` | `import "unknwon.dev/ini/v2"` (package name is still `ini`) |
 | `Load(a, b)` | `LoadSources([]any{a, b})`; `Load(a)` is unchanged |
-| `LoadSources(LoadOptions{AllowShadows: true}, a)` | `Load(a, ini.AllowShadows())` |
-| `LooseLoad`, `InsensitiveLoad`, `ShadowLoad` | `ini.IgnoreMissingFiles()`, `ini.CaseInsensitive()`, `ini.AllowShadows()` |
+| `LoadSources(LoadOptions{AllowShadows: true}, a)` | `Load(a, ini.AllowShadows(true))` |
+| `LooseLoad`, `InsensitiveLoad`, `ShadowLoad` | `ini.IgnoreMissingFiles(true)`, `ini.CaseInsensitive(true)`, `ini.AllowShadows(true)` |
 | `LoadOptions.DebugFunc` | `ini.Debug(fn)` |
 | `LoadOptions.ReaderBufferSize` | removed; values are never cut at a buffer size |
 | `ini.DefaultSection = "default"` | `ini.DefaultSectionName("default")` |
-| `ini.LineBreak`, `DefaultHeader`, `DefaultFormatLeft/Right` | `WriteOption`s of `File.Write` and `File.SaveTo`: `ini.LineBreak(s)`, `ini.DefaultHeader()`, `ini.DelimiterSpaces(left, right)` |
+| `ini.LineBreak`, `DefaultHeader`, `DefaultFormatLeft/Right` | `WriteOption`s of `File.Write` and `File.SaveTo`: `ini.LineBreak(s)`, `ini.DefaultHeader(true)`, `ini.DelimiterSpaces(left, right)` |
 | `ini.PrettyFormat = false`, `ini.PrettySection = false`, `ini.PrettyEqual = true` | `ini.AlignDelimiters(false)`, `ini.BlankLineBetweenSections(false)`, `ini.DelimiterSpaces(" ", " ")` |
 | `LoadOptions.KeyValueDelimiterOnWrite` | `ini.WriteDelimiter(d)` write option |
 | `WriteToIndent(w, i)`, `SaveToIndent(f, i)` | `Write(w, ini.Indent(i))`, `SaveTo(f, ini.Indent(i))` |
 | `MapTo(v, a, b)` | `MapTo(v, a, opts...)`; one source |
 | `DEFAULT_SECTION`, `AllCapsUnderscore`, `SnackCase` | `DefaultSection`, `SnakeCase` |
-| `LoadOptions.Insensitive`, `InsensitiveSections`, `InsensitiveKeys` | `ini.CaseInsensitive()`, `ini.CaseInsensitiveSections()`, `ini.CaseInsensitiveKeys()` |
-| `LoadOptions.Loose`, `ShortCircuit`, `UnparseableSections`, `PreserveSurroundedQuote` | `ini.IgnoreMissingFiles()`, `ini.FirstSourceOnly()`, `ini.RawSections(names...)`, `ini.PreserveSurroundingQuotes()` |
-| `File.BlockMode = false` | `ini.NoLocking()` |
+| `LoadOptions.Insensitive`, `InsensitiveSections`, `InsensitiveKeys` | `ini.CaseInsensitive(true)`, `ini.CaseInsensitiveSections(true)`, `ini.CaseInsensitiveKeys(true)` |
+| `LoadOptions.Loose`, `ShortCircuit`, `UnparseableSections`, `PreserveSurroundedQuote` | `ini.IgnoreMissingFiles(true)`, `ini.FirstSourceOnly(true)`, `ini.RawSections(names...)`, `ini.PreserveSurroundingQuotes(true)` |
+| `File.BlockMode = false` | `ini.NoLocking(true)` |
 | `MapToWithMapper(v, m, src)`, `StrictMapToWithMapper` | `MapTo(v, src, ini.NameMapping(m))`, `StrictMapTo(v, src, ini.NameMapping(m))` |
 | `ReflectFrom(f, v)`, `ReflectFromWithMapper(f, v, m)` | `f.ReflectFrom(v)`, with the file loaded with `ini.NameMapping(m)` |
 | `f.NameMapper = m`, `f.ValueMapper = fn` | load with `ini.NameMapping(m)`, `ini.ValueMapping(fn)` |
@@ -65,7 +65,7 @@ New in v2:
 
 - Parse errors are `*ini.ParseError` with 1-based `Line` and `Column`.
 - `ini.CommentSymbols(s)` sets the comment characters.
-- `ini.KeepEmptyShadowValues()` keeps empty values of shadow keys.
+- `ini.PreserveEmptyShadowValues(true)` keeps empty values of shadow keys.
 - `Key.IsBoolean()`, and `ini.Marshal`/`ini.Unmarshal`.
 - `File.Write` writes files that load back to the same sections, keys, values and comments: it picks a quoting the parser reads back, writes empty shadow values, and returns an error instead of writing a file that loads differently.
 - `MapTo`, `StrictMapTo`, `Unmarshal`, `ReflectFrom` and `Marshal` return errors instead of panicking on unsupported, named, pointer, nil and recursive types. Differences from v1 that valid input can show:
@@ -78,7 +78,7 @@ New in v2:
   - Nil pointer fields aren't written.
   - Fields after an empty `nonunique` slice or a `StructReflector` field are written.
   - A `nonunique` field with no sections is left empty instead of failing.
-- Unless loaded with `NoLocking()`, a `File` can be read from many goroutines while others call `Reload`, `Append`, `SetValue`, `NewKey`, `NewSection`, the delete methods, `ReflectFrom` or `Write`; v1 locked only some writes.
+- Unless loaded with `NoLocking(true)`, a `File` can be read from many goroutines while others call `Reload`, `Append`, `SetValue`, `NewKey`, `NewSection`, the delete methods, `ReflectFrom` or `Write`; v1 locked only some writes.
 - `Unmarshal` reads what `Marshal` writes, including `allowshadow` slices with repeated, empty or delimiter-containing elements and `nonunique` sections.
 - Loading is O(n) in the number of keys; a 10,000-key section loads in about 6 ms instead of about 150 ms with v1.67.3.
 

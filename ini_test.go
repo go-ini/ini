@@ -221,7 +221,7 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
 }
 
 func TestLooseLoad(t *testing.T) {
-	f, err := LoadSources([]any{notFoundConf, minimalConf}, IgnoreMissingFiles())
+	f, err := LoadSources([]any{notFoundConf, minimalConf}, IgnoreMissingFiles(true))
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
@@ -233,7 +233,7 @@ func TestLooseLoad(t *testing.T) {
 
 func TestInsensitiveLoad(t *testing.T) {
 	t.Run("insensitive to section and key names", func(t *testing.T) {
-		f, err := Load(minimalConf, CaseInsensitive())
+		f, err := Load(minimalConf, CaseInsensitive(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -265,7 +265,7 @@ e-mail = u@gogs.io
 user = unknwon
 [profile]
 email = unknwon@local
-`), CaseInsensitive())
+`), CaseInsensitive(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -276,18 +276,18 @@ email = unknwon@local
 func TestLoadSources(t *testing.T) {
 	t.Run("with true `AllowPythonMultilineValues`", func(t *testing.T) {
 		t.Run("ignore nonexistent files", func(t *testing.T) {
-			f, err := LoadSources([]any{notFoundConf, minimalConf}, AllowPythonMultilineValues(), IgnoreMissingFiles())
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, AllowPythonMultilineValues(true), IgnoreMissingFiles(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
 			t.Run("inverse case", func(t *testing.T) {
-				_, err = Load(notFoundConf, AllowPythonMultilineValues())
+				_, err = Load(notFoundConf, AllowPythonMultilineValues(true))
 				require.Error(t, err)
 			})
 		})
 
 		t.Run("insensitive to section and key names", func(t *testing.T) {
-			f, err := Load(minimalConf, AllowPythonMultilineValues(), CaseInsensitive())
+			f, err := Load(minimalConf, AllowPythonMultilineValues(true), CaseInsensitive(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -305,7 +305,7 @@ e-mail = u@gogs.io
 			})
 
 			t.Run("inverse case", func(t *testing.T) {
-				f, err := Load(minimalConf, AllowPythonMultilineValues())
+				f, err := Load(minimalConf, AllowPythonMultilineValues(true))
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -314,7 +314,7 @@ e-mail = u@gogs.io
 		})
 
 		t.Run("insensitive to sections and sensitive to key names", func(t *testing.T) {
-			f, err := Load(minimalConf, CaseInsensitiveSections())
+			f, err := Load(minimalConf, CaseInsensitiveSections(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -341,7 +341,7 @@ E-MAIL = u@gogs.io
 		})
 
 		t.Run("sensitive to sections and insensitive to key names", func(t *testing.T) {
-			f, err := Load(minimalConf, CaseInsensitiveKeys())
+			f, err := Load(minimalConf, CaseInsensitiveKeys(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -371,7 +371,7 @@ e-mail = u@gogs.io
 			f, err := Load([]byte(`
 key1=a\b\
 key2=c\d\
-key3=value`), AllowPythonMultilineValues(), IgnoreContinuation())
+key3=value`), AllowPythonMultilineValues(true), IgnoreContinuation(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -382,7 +382,7 @@ key3=value`), AllowPythonMultilineValues(), IgnoreContinuation())
 			t.Run("inverse case", func(t *testing.T) {
 				f, err := Load([]byte(`
 key1=a\b\
-key2=c\d\`), AllowPythonMultilineValues())
+key2=c\d\`), AllowPythonMultilineValues(true))
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -394,7 +394,7 @@ key2=c\d\`), AllowPythonMultilineValues())
 			f, err := Load([]byte(`
 key1=value ;comment
 key2=value2 #comment2
-key3=val#ue #comment3`), AllowPythonMultilineValues(), IgnoreInlineComment())
+key3=val#ue #comment3`), AllowPythonMultilineValues(true), IgnoreInlineComment(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -405,7 +405,7 @@ key3=val#ue #comment3`), AllowPythonMultilineValues(), IgnoreInlineComment())
 			t.Run("inverse case", func(t *testing.T) {
 				f, err := Load([]byte(`
 key1=value ;comment
-key2=value2 #comment2`), AllowPythonMultilineValues())
+key2=value2 #comment2`), AllowPythonMultilineValues(true))
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -430,7 +430,7 @@ BiomeGroup(NormalBiomes, 3, 99, RoofedForestEnchanted, ForestSakura, FloatingJun
 BiomeGroup(IceBiomes, 4, 85, Ice Plains)
 
 = RainForest
-`), SkipUnrecognizableLines())
+`), SkipUnrecognizableLines(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -443,7 +443,7 @@ BiomeGroup(IceBiomes, 4, 85, Ice Plains)
 			f, err := Load([]byte(`
 key1=hello
 #key2
-key3`), AllowPythonMultilineValues(), AllowBooleanKeys())
+key3`), AllowPythonMultilineValues(true), AllowBooleanKeys(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -466,7 +466,7 @@ key3
 				_, err := Load([]byte(`
 key1=hello
 #key2
-key3`), AllowPythonMultilineValues())
+key3`), AllowPythonMultilineValues(true))
 				require.Error(t, err)
 			})
 		})
@@ -476,7 +476,7 @@ key3`), AllowPythonMultilineValues())
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git
-fetch = +refs/heads/*:refs/remotes/origin/*`), AllowShadows(), AllowPythonMultilineValues())
+fetch = +refs/heads/*:refs/remotes/origin/*`), AllowShadows(true), AllowPythonMultilineValues(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -508,7 +508,7 @@ fetch = +refs/heads/*:refs/remotes/origin/*
 				f, err := Load([]byte(`
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
-url = https://github.com/Antergone/test2.git`), AllowPythonMultilineValues())
+url = https://github.com/Antergone/test2.git`), AllowPythonMultilineValues(true))
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -518,7 +518,7 @@ url = https://github.com/Antergone/test2.git`), AllowPythonMultilineValues())
 
 		t.Run("unescape double quotes inside value", func(t *testing.T) {
 			f, err := Load([]byte(`
-create_repo="创建了仓库 <a href=\"%s\">%s</a>"`), AllowPythonMultilineValues(), UnescapeValueDoubleQuotes())
+create_repo="创建了仓库 <a href=\"%s\">%s</a>"`), AllowPythonMultilineValues(true), UnescapeValueDoubleQuotes(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -526,7 +526,7 @@ create_repo="创建了仓库 <a href=\"%s\">%s</a>"`), AllowPythonMultilineValue
 
 			t.Run("inverse case", func(t *testing.T) {
 				f, err := Load([]byte(`
-create_repo="创建了仓库 <a href=\"%s\">%s</a>"`), AllowPythonMultilineValues())
+create_repo="创建了仓库 <a href=\"%s\">%s</a>"`), AllowPythonMultilineValues(true))
 				require.NoError(t, err)
 				require.NotNil(t, f)
 
@@ -537,7 +537,7 @@ create_repo="创建了仓库 <a href=\"%s\">%s</a>"`), AllowPythonMultilineValue
 		t.Run("unescape comment symbols inside value", func(t *testing.T) {
 			f, err := Load([]byte(`
 key = test value <span style="color: %s\; background: %s">more text</span>
-`), AllowPythonMultilineValues(), IgnoreInlineComment(), UnescapeValueCommentSymbols())
+`), AllowPythonMultilineValues(true), IgnoreInlineComment(true), UnescapeValueCommentSymbols(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -547,7 +547,7 @@ key = test value <span style="color: %s\; background: %s">more text</span>
 		t.Run("unescape double quotes with backslash continuation", func(t *testing.T) {
 			f, err := Load([]byte(`hello = "!f() { \
   echo "hello world"; \
-};f"`), UnescapeValueDoubleQuotes())
+};f"`), UnescapeValueDoubleQuotes(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -559,7 +559,7 @@ key = test value <span style="color: %s\; background: %s">more text</span>
 			t.Run("inverse case", func(t *testing.T) {
 				_, err := Load([]byte(`hello = "!f() { \
   echo "hello world"; \
-};f"`), UnescapeValueDoubleQuotes(), IgnoreContinuation())
+};f"`), UnescapeValueDoubleQuotes(true), IgnoreContinuation(true))
 				require.Error(t, err)
 			})
 		})
@@ -577,7 +577,7 @@ multiline_list =
   first
   second
   third
-`), AllowPythonMultilineValues(), CaseInsensitive(), RawSections("core_lesson", "comments"))
+`), AllowPythonMultilineValues(true), CaseInsensitive(true), RawSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -686,7 +686,7 @@ long_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----
    95foobar
    96barfoo
    -----END RSA PRIVATE KEY-----
-`), AllowPythonMultilineValues(), CaseInsensitive(), RawSections("core_lesson", "comments"))
+`), AllowPythonMultilineValues(true), CaseInsensitive(true), RawSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -805,7 +805,7 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 [COMMENTS]
 <1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
-`), AllowPythonMultilineValues(), CaseInsensitive(), RawSections("core_lesson", "comments"))
+`), AllowPythonMultilineValues(true), CaseInsensitive(true), RawSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -841,7 +841,7 @@ my lesson state data – 1111111111111111111000000000000000001110000
 				_, err := Load([]byte(`
 [CORE_LESSON]
 my lesson state data – 1111111111111111111000000000000000001110000
-111111111111111111100000000000111000000000 – end my lesson state data`), AllowPythonMultilineValues())
+111111111111111111100000000000111000000000 – end my lesson state data`), AllowPythonMultilineValues(true))
 				require.Error(t, err)
 			})
 		})
@@ -869,7 +869,7 @@ GITHUB = U;n;k;n;w;o;n
 [author]
 NAME = U#n#k#n#w#o#n
 GITHUB = U;n;k;n;w;o;n
-`), SpaceBeforeInlineComment())
+`), SpaceBeforeInlineComment(true))
 				require.NoError(t, err)
 				require.NotNil(t, f)
 				sec := f.Section("author")
@@ -883,7 +883,7 @@ GITHUB = U;n;k;n;w;o;n
 
 	t.Run("with false `AllowPythonMultilineValues`", func(t *testing.T) {
 		t.Run("ignore nonexistent files", func(t *testing.T) {
-			f, err := LoadSources([]any{notFoundConf, minimalConf}, IgnoreMissingFiles())
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, IgnoreMissingFiles(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -894,7 +894,7 @@ GITHUB = U;n;k;n;w;o;n
 		})
 
 		t.Run("insensitive to section and key names", func(t *testing.T) {
-			f, err := Load(minimalConf, CaseInsensitive())
+			f, err := Load(minimalConf, CaseInsensitive(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -924,7 +924,7 @@ e-mail = u@gogs.io
 			f, err := Load([]byte(`
 key1=a\b\
 key2=c\d\
-key3=value`), IgnoreContinuation())
+key3=value`), IgnoreContinuation(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -947,7 +947,7 @@ key2=c\d\`))
 			f, err := Load([]byte(`
 key1=value ;comment
 key2=value2 #comment2
-key3=val#ue #comment3`), IgnoreInlineComment())
+key3=val#ue #comment3`), IgnoreInlineComment(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -973,7 +973,7 @@ key2=value2 #comment2`))
 			f, err := Load([]byte(`
 key1=hello
 #key2
-key3`), AllowBooleanKeys())
+key3`), AllowBooleanKeys(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1006,7 +1006,7 @@ key3`))
 [remote "origin"]
 url = https://github.com/Antergone/test1.git
 url = https://github.com/Antergone/test2.git
-fetch = +refs/heads/*:refs/remotes/origin/*`), AllowShadows())
+fetch = +refs/heads/*:refs/remotes/origin/*`), AllowShadows(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1048,7 +1048,7 @@ url = https://github.com/Antergone/test2.git`))
 
 		t.Run("unescape double quotes inside value", func(t *testing.T) {
 			f, err := Load([]byte(`
-create_repo="创建了仓库 <a href=\"%s\">%s</a>"`), UnescapeValueDoubleQuotes())
+create_repo="创建了仓库 <a href=\"%s\">%s</a>"`), UnescapeValueDoubleQuotes(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1067,7 +1067,7 @@ create_repo="创建了仓库 <a href=\"%s\">%s</a>"`))
 		t.Run("unescape comment symbols inside value", func(t *testing.T) {
 			f, err := Load([]byte(`
 key = test value <span style="color: %s\; background: %s">more text</span>
-`), IgnoreInlineComment(), UnescapeValueCommentSymbols())
+`), IgnoreInlineComment(true), UnescapeValueCommentSymbols(true))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1209,7 +1209,7 @@ my lesson state data – 1111111111111111111000000000000000001110000
 
 [COMMENTS]
 <1><L.Slide#2> This slide has the fuel listed in the wrong units <e.1>
-`), CaseInsensitive(), RawSections("core_lesson", "comments"))
+`), CaseInsensitive(true), RawSections("core_lesson", "comments"))
 			require.NoError(t, err)
 			require.NotNil(t, f)
 
@@ -1256,7 +1256,7 @@ my lesson state data – 1111111111111111111000000000000000001110000
 [author]
 NAME = U#n#k#n#w#o#n
 GITHUB = U;n;k;n;w;o;n
-`), AllowPythonMultilineValues())
+`), AllowPythonMultilineValues(true))
 				require.NoError(t, err)
 				require.NotNil(t, f)
 				sec := f.Section("author")
@@ -1273,7 +1273,7 @@ GITHUB = U;n;k;n;w;o;n
 [author]
 NAME = U#n#k#n#w#o#n
 GITHUB = U;n;k;n;w;o;n
-`), AllowPythonMultilineValues(), SpaceBeforeInlineComment())
+`), AllowPythonMultilineValues(true), SpaceBeforeInlineComment(true))
 				require.NoError(t, err)
 				require.NotNil(t, f)
 				sec := f.Section("author")
@@ -1349,7 +1349,7 @@ GITHUB = U;n;k;n;w;o;n
 
 	t.Run("FirstSourceOnly", func(t *testing.T) {
 		t.Run("load the first available configuration, ignore other configuration", func(t *testing.T) {
-			f, err := LoadSources([]any{minimalConf, []byte(`key1 = value1`)}, FirstSourceOnly())
+			f, err := LoadSources([]any{minimalConf, []byte(`key1 = value1`)}, FirstSourceOnly(true))
 			require.NotNil(t, f)
 			require.NoError(t, err)
 			var buf bytes.Buffer
@@ -1363,13 +1363,13 @@ E-MAIL = u@gogs.io
 		})
 
 		t.Run("return an error when fail to load", func(t *testing.T) {
-			f, err := LoadSources([]any{notFoundConf, minimalConf}, FirstSourceOnly())
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, FirstSourceOnly(true))
 			assert.Nil(t, f)
 			require.Error(t, err)
 		})
 
 		t.Run("used with IgnoreMissingFiles to ignore errors that the file does not exist", func(t *testing.T) {
-			f, err := LoadSources([]any{notFoundConf, minimalConf}, FirstSourceOnly(), IgnoreMissingFiles())
+			f, err := LoadSources([]any{notFoundConf, minimalConf}, FirstSourceOnly(true), IgnoreMissingFiles(true))
 			require.NotNil(t, f)
 			require.NoError(t, err)
 			var buf bytes.Buffer
@@ -1421,7 +1421,7 @@ func Test_PreserveSurroundingQuotes(t *testing.T) {
 [section]
 key1 = "value1"
 key2 = value2
-`), PreserveSurroundingQuotes())
+`), PreserveSurroundingQuotes(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -1455,7 +1455,7 @@ func TestPythonMultiline(t *testing.T) {
 	}
 
 	path := filepath.Join("testdata", "multiline.ini")
-	f, err := Load(path, AllowPythonMultilineValues())
+	f, err := Load(path, AllowPythonMultilineValues(true))
 	require.NoError(t, err)
 	require.NotNil(t, f)
 	assert.Len(t, f.Sections(), 1)
@@ -1501,7 +1501,7 @@ func TestPythonMultiline_EOF(t *testing.T) {
 	}
 
 	path := filepath.Join("testdata", "multiline_eof.ini")
-	f, err := Load(path, AllowPythonMultilineValues())
+	f, err := Load(path, AllowPythonMultilineValues(true))
 	require.NoError(t, err)
 	require.NotNil(t, f)
 	assert.Len(t, f.Sections(), 1)
@@ -1522,7 +1522,7 @@ func Test_NestedValuesSpanningSections(t *testing.T) {
 key1 = value1
 key2 =
   nested1 = nestedvalue1
-`), AllowNestedValues())
+`), AllowNestedValues(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -1536,7 +1536,7 @@ key2 =
 [section]
 key1 = value1
 key2 =
-`), AllowNestedValues())
+`), AllowNestedValues(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -1552,7 +1552,7 @@ key2 =
 
 [section2]
 key3 = value3
-`), AllowNestedValues())
+`), AllowNestedValues(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -1569,7 +1569,7 @@ key2 =
 
 [section2]
   key3 = value3
-`), AllowNestedValues())
+`), AllowNestedValues(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 

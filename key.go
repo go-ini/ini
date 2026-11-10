@@ -54,8 +54,8 @@ func (k *Key) addShadow(val string) error {
 	}
 
 	// Deduplicate shadows based on their values. Empty values kept with
-	// KeepEmptyShadowValues each reset the values before them, so they stay.
-	keptEmpty := val == "" && k.s.f.options.KeepEmptyShadowValues
+	// PreserveEmptyShadowValues each reset the values before them, so they stay.
+	keptEmpty := val == "" && k.s.f.options.PreserveEmptyShadowValues
 	if !k.s.f.options.AllowDuplicateShadowValues && !keptEmpty {
 		if k.value == val || slices.Contains(k.shadows, val) {
 			return nil
@@ -133,11 +133,11 @@ func (k *Key) Value() string {
 
 // Values returns raw values of key and its shadows if any. Empty
 // values are left out, unless the file was loaded with
-// KeepEmptyShadowValues.
+// PreserveEmptyShadowValues.
 func (k *Key) Values() []string {
 	k.s.f.rlock()
 	defer k.s.f.runlock()
-	keepEmpty := k.s.f.options.KeepEmptyShadowValues
+	keepEmpty := k.s.f.options.PreserveEmptyShadowValues
 	vals := make([]string, 0, len(k.shadows)+1)
 	if keepEmpty || k.value != "" {
 		vals = append(vals, k.value)

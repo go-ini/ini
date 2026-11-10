@@ -25,7 +25,7 @@ import (
 func newTestFile(block bool) *File {
 	var opts []LoadOption
 	if !block {
-		opts = append(opts, NoLocking())
+		opts = append(opts, NoLocking(true))
 	}
 	c, _ := Load([]byte(confData), opts...)
 	return c

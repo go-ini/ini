@@ -81,7 +81,7 @@ AllowedIPs = 192.168.2.2/32
 
 [Peer]
 PublicKey = <client2's publickey>
-AllowedIPs = 192.168.2.3/32`), AllowNonUniqueSections())
+AllowedIPs = 192.168.2.3/32`), AllowNonUniqueSections(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -133,7 +133,7 @@ AllowedIPs = 192.168.2.3/32
 PublicKey  = <client3's publickey>
 AllowedIPs = 192.168.2.4/32
 
-`), AllowNonUniqueSections())
+`), AllowNonUniqueSections(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -160,7 +160,7 @@ AllowedIPs = 192.168.2.4/32
 	})
 
 	t.Run("delete all sections", func(t *testing.T) {
-		f := Empty(AllowNonUniqueSections())
+		f := Empty(AllowNonUniqueSections(true))
 		require.NotNil(t, f)
 
 		_ = f.NewSections("Interface", "Peer", "Peer")
@@ -270,7 +270,7 @@ func TestFile_Section(t *testing.T) {
 		f, err := Load([]byte(`
 [default]
 NAME = ini
-VERSION = v1`), CaseInsensitive())
+VERSION = v1`), CaseInsensitive(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -375,7 +375,7 @@ key1 = value1
 	})
 
 	t.Run("delete a section with CaseInsensitiveSections", func(t *testing.T) {
-		f := Empty(CaseInsensitiveSections())
+		f := Empty(CaseInsensitiveSections(true))
 		require.NotNil(t, f)
 
 		_ = f.NewSections("author", "package", "features")
@@ -524,7 +524,7 @@ func TestReloadAfterShadowLoad(t *testing.T) {
 v = 1
 v = 2
 v = 3
-`), AllowShadows())
+`), AllowShadows(true))
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
@@ -558,7 +558,7 @@ func TestFile_Reload(t *testing.T) {
 	// https://github.com/go-ini/ini/issues/273
 	t.Run("shadows don't pile up", func(t *testing.T) {
 		write("[log]\nlevel = info\nlevel = warn\n")
-		f, err := Load(path, AllowShadows(), AllowDuplicateShadowValues())
+		f, err := Load(path, AllowShadows(true), AllowDuplicateShadowValues(true))
 		require.NoError(t, err)
 
 		write("[log]\nlevel = debug\n")
@@ -610,7 +610,7 @@ func TestFile_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("negative and out-of-range section indexes", func(t *testing.T) {
-		f, err := Load([]byte("a = 1\n[x]\nb = 2\n"), AllowNonUniqueSections())
+		f, err := Load([]byte("a = 1\n[x]\nb = 2\n"), AllowNonUniqueSections(true))
 		require.NoError(t, err)
 		assert.NotNil(t, f.SectionWithIndex("x", -1))
 		assert.Error(t, f.DeleteSectionWithIndex("x", -1))
@@ -619,7 +619,7 @@ func TestFile_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("default section after deleting it, case-insensitive", func(t *testing.T) {
-		f, err := Load([]byte("a = 1\n"), CaseInsensitive(), AllowNonUniqueSections())
+		f, err := Load([]byte("a = 1\n"), CaseInsensitive(true), AllowNonUniqueSections(true))
 		require.NoError(t, err)
 		f.DeleteSection("")
 		f.Section("").Key("k").SetValue("v")
@@ -629,7 +629,7 @@ func TestFile_EdgeCases(t *testing.T) {
 
 	// https://github.com/go-ini/ini/issues/340
 	t.Run("DeleteKey with CaseInsensitive", func(t *testing.T) {
-		f, err := Load([]byte("TestKey = 1\n"), CaseInsensitive())
+		f, err := Load([]byte("TestKey = 1\n"), CaseInsensitive(true))
 		require.NoError(t, err)
 		f.Section("").DeleteKey("TestKey")
 		assert.False(t, f.Section("").HasKey("TestKey"))
@@ -644,7 +644,7 @@ func TestFile_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("child sections with non-unique names", func(t *testing.T) {
-		f, err := Load([]byte("[a]\n[a.b]\nx = 1\n[a.b]\nx = 2\n"), AllowNonUniqueSections())
+		f, err := Load([]byte("[a]\n[a.b]\nx = 1\n[a.b]\nx = 2\n"), AllowNonUniqueSections(true))
 		require.NoError(t, err)
 		children := f.Section("a").ChildSections()
 		require.Len(t, children, 2)
@@ -658,7 +658,7 @@ func TestFile_EdgeCases(t *testing.T) {
 func TestFile_Concurrency(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "app.ini")
 	require.NoError(t, os.WriteFile(path, []byte("name = %(base)s/x\nbase = /srv\n[s]\nk = a\nk = b\n[s.child]\nc = 1\n[raw]\nbody\n"), 0o600))
-	f, err := Load(path, AllowShadows(), RawSections("raw"))
+	f, err := Load(path, AllowShadows(true), RawSections("raw"))
 	require.NoError(t, err)
 
 	type cfg struct {

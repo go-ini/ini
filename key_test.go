@@ -30,7 +30,7 @@ func TestKey_AddShadow(t *testing.T) {
 	t.Run("add shadow to a key", func(t *testing.T) {
 		f, err := Load([]byte(`
 [notes]
--: note1`), AllowShadows())
+-: note1`), AllowShadows(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -67,7 +67,7 @@ func TestKey_AddShadow(t *testing.T) {
 	})
 
 	t.Run("allow duplicate shadowed values", func(t *testing.T) {
-		f := Empty(AllowShadows(), AllowDuplicateShadowValues())
+		f := Empty(AllowShadows(true), AllowDuplicateShadowValues(true))
 		require.NotNil(t, f)
 
 		k, err := f.Section("").NewKey("NAME", "ini")
@@ -357,7 +357,7 @@ func TestKey_Values(t *testing.T) {
 		f, err := Load([]byte(`
 keyName = value1
 keyName = value2
-`), AllowShadows())
+`), AllowShadows(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -373,7 +373,7 @@ keyName = value2
 
 func TestKey_StringsWithShadows(t *testing.T) {
 	t.Run("get strings of shadows of a key", func(t *testing.T) {
-		f, err := Load([]byte(""), AllowShadows())
+		f, err := Load([]byte(""), AllowShadows(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -411,7 +411,7 @@ aws_secret_access_key = bar
 region = us-west-2
 s3 =
   max_concurrent_requests=10
-  max_queue_size=1000`), AllowNestedValues())
+  max_queue_size=1000`), AllowNestedValues(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 

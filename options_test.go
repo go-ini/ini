@@ -29,7 +29,7 @@ func TestWriteOptions(t *testing.T) {
 
 	// Expected output is what v1 wrote with the same package globals set.
 	var b bytes.Buffer
-	_, err = f.Write(&b, AlignDelimiters(false), BlankLineBetweenSections(false), DelimiterSpaces("", " "), LineBreak("\r\n"), DefaultHeader())
+	_, err = f.Write(&b, AlignDelimiters(false), BlankLineBetweenSections(false), DelimiterSpaces("", " "), LineBreak("\r\n"), DefaultHeader(true))
 	require.NoError(t, err)
 	assert.Equal(t, "[DEFAULT]\r\na= 1\r\n[s]\r\nbb= 2\r\n", b.String())
 
@@ -65,7 +65,7 @@ func TestDefaultSectionName(t *testing.T) {
 
 func TestCommentSymbols(t *testing.T) {
 	f, err := Load([]byte("// header\n[s] // section\nurl = http://x/#a;b // note\nk = a\\/\\/b\n"),
-		CommentSymbols("/"), UnescapeValueCommentSymbols(), SpaceBeforeInlineComment())
+		CommentSymbols("/"), UnescapeValueCommentSymbols(true), SpaceBeforeInlineComment(true))
 	require.NoError(t, err)
 
 	sec := f.Section("s")
@@ -76,7 +76,7 @@ func TestCommentSymbols(t *testing.T) {
 
 	t.Run("multi-byte symbols", func(t *testing.T) {
 		f, err := Load([]byte("€ head\n→ arrow = 1\nk = a €c\nj = x\\€y\nu = \\→\n"),
-			CommentSymbols("€"), SpaceBeforeInlineComment(), UnescapeValueCommentSymbols())
+			CommentSymbols("€"), SpaceBeforeInlineComment(true), UnescapeValueCommentSymbols(true))
 		require.NoError(t, err)
 
 		sec := f.Section("")
@@ -153,14 +153,14 @@ func TestParseErrorPosition(t *testing.T) {
 	}
 }
 
-func TestKeepEmptyShadowValues(t *testing.T) {
+func TestPreserveEmptyShadowValues(t *testing.T) {
 	data := []byte("[Service]\nExecStart=/bin/a\nExecStart=\nExecStart=/bin/b\n")
 
-	f, err := Load(data, AllowShadows())
+	f, err := Load(data, AllowShadows(true))
 	require.NoError(t, err)
 	assert.Equal(t, []string{"/bin/a", "/bin/b"}, f.Section("Service").Key("ExecStart").Values())
 
-	f, err = Load(data, AllowShadows(), KeepEmptyShadowValues())
+	f, err = Load(data, AllowShadows(true), PreserveEmptyShadowValues(true))
 	require.NoError(t, err)
 	assert.Equal(t, []string{"/bin/a", "", "/bin/b"}, f.Section("Service").Key("ExecStart").Values())
 
@@ -171,14 +171,14 @@ func TestKeepEmptyShadowValues(t *testing.T) {
 
 	t.Run("every empty value is kept", func(t *testing.T) {
 		f, err := Load([]byte("[u]\nExecStart=\nExecStart=a\nExecStart=\nExecStart=b\nExecStart=a\n"),
-			AllowShadows(), KeepEmptyShadowValues())
+			AllowShadows(true), PreserveEmptyShadowValues(true))
 		require.NoError(t, err)
 		assert.Equal(t, []string{"", "a", "", "b"}, f.Section("u").Key("ExecStart").Values())
 	})
 }
 
 func TestKey_IsBooleanType(t *testing.T) {
-	f, err := Load([]byte("[mysqld]\nskip-name-resolve\nuser = mysql\n"), AllowBooleanKeys())
+	f, err := Load([]byte("[mysqld]\nskip-name-resolve\nuser = mysql\n"), AllowBooleanKeys(true))
 	require.NoError(t, err)
 	assert.True(t, f.Section("mysqld").Key("skip-name-resolve").IsBoolean())
 	assert.False(t, f.Section("mysqld").Key("user").IsBoolean())

@@ -120,14 +120,14 @@ func TestWriteReadsBack(t *testing.T) {
 		data string
 		opts []LoadOption
 	}{
-		{"a = 'x\\'\nb = 1\n", nil},                                      // value ending in a backslash
-		{"k = `a\"\"\"\nb`\n", nil},                                      // value containing """
-		{"k=`= v`\n", []LoadOption{KeyValueDelimiters(" =")}},            // value starting with a delimiter
-		{"[u]\nExecStart=\nExecStart=a\n", []LoadOption{AllowShadows()}}, // empty value resets
-		{"k = a\n; c\nk = b\n", []LoadOption{AllowShadows()}},            // comment of a shadowed key
-		{"k =\n  n\nk\n", []LoadOption{AllowNestedValues(), AllowBooleanKeys()}},
-		{"k = \"\"\n  n\n", []LoadOption{AllowNestedValues(), AllowPythonMultilineValues()}},
-		{"NAME = x\n[DEFAULT]\nk1 = v1\n", []LoadOption{CaseInsensitive(), AllowNonUniqueSections()}},
+		{"a = 'x\\'\nb = 1\n", nil},                                          // value ending in a backslash
+		{"k = `a\"\"\"\nb`\n", nil},                                          // value containing """
+		{"k=`= v`\n", []LoadOption{KeyValueDelimiters(" =")}},                // value starting with a delimiter
+		{"[u]\nExecStart=\nExecStart=a\n", []LoadOption{AllowShadows(true)}}, // empty value resets
+		{"k = a\n; c\nk = b\n", []LoadOption{AllowShadows(true)}},            // comment of a shadowed key
+		{"k =\n  n\nk\n", []LoadOption{AllowNestedValues(true), AllowBooleanKeys(true)}},
+		{"k = \"\"\n  n\n", []LoadOption{AllowNestedValues(true), AllowPythonMultilineValues(true)}},
+		{"NAME = x\n[DEFAULT]\nk1 = v1\n", []LoadOption{CaseInsensitive(true), AllowNonUniqueSections(true)}},
 		{"[DEFAULT] ; c\n[s]\nk = v\n", nil}, // comment of an empty default section
 	} {
 		f, err := Load([]byte(tc.data), tc.opts...)

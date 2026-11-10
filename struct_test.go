@@ -314,7 +314,7 @@ func Test_MapToStruct(t *testing.T) {
 		})
 
 		t.Run("map with shadows", func(t *testing.T) {
-			f, err := Load([]byte(confDataStruct), AllowShadows())
+			f, err := Load([]byte(confDataStruct), AllowShadows(true))
 			require.NoError(t, err)
 			ts := new(testStruct)
 			assert.NoError(t, f.MapTo(ts))
@@ -387,7 +387,7 @@ names=alice, bruce`))
 func Test_MapToStructNonUniqueSections(t *testing.T) {
 	t.Run("map to struct non unique", func(t *testing.T) {
 		t.Run("map file to struct non unique", func(t *testing.T) {
-			f, err := Load([]byte(confNonUniqueSectionDataStruct), AllowNonUniqueSections())
+			f, err := Load([]byte(confNonUniqueSectionDataStruct), AllowNonUniqueSections(true))
 			require.NoError(t, err)
 			ts := new(testNonUniqueSectionsStruct)
 
@@ -412,7 +412,7 @@ func Test_MapToStructNonUniqueSections(t *testing.T) {
 			newPeer := new(testPeer)
 			newPeerSlice := make([]testPeer, 0)
 
-			f, err := Load([]byte(confNonUniqueSectionDataStruct), AllowNonUniqueSections())
+			f, err := Load([]byte(confNonUniqueSectionDataStruct), AllowNonUniqueSections(true))
 			require.NoError(t, err)
 
 			// try only first one
@@ -446,7 +446,7 @@ FieldInSection = 3
 FieldInSubSection = 4
 FieldInSubSection2 = 5
 FieldInSection = 6
-`), AllowNonUniqueSections())
+`), AllowNonUniqueSections(true))
 			require.NoError(t, err)
 
 			type SubSection struct {
@@ -647,7 +647,7 @@ func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
 			},
 		}
 
-		cfg := Empty(AllowNonUniqueSections())
+		cfg := Empty(AllowNonUniqueSections(true))
 
 		assert.NoError(t, cfg.ReflectFrom(nonUnique))
 
@@ -730,7 +730,7 @@ func TestMapToAndReflectFromStructWithShadows(t *testing.T) {
 		cfg, err := Load([]byte(`
 [include]
 path = /tmp/gpm-profiles/test5.profile
-path = /tmp/gpm-profiles/test1.profile`), AllowShadows())
+path = /tmp/gpm-profiles/test1.profile`), AllowShadows(true))
 		require.NoError(t, err)
 
 		sec := cfg.Section("include")
@@ -752,7 +752,7 @@ path = /tmp/gpm-profiles/test1.profile
 		)
 
 		t.Run("reflect from struct with shadows", func(t *testing.T) {
-			cfg := Empty(AllowShadows())
+			cfg := Empty(AllowShadows(true))
 			type ShadowStruct struct {
 				StringArray      []string    `ini:"sa,allowshadow"`
 				EmptyStringArrat []string    `ini:"empty,omitempty,allowshadow"`
@@ -941,7 +941,7 @@ func TestMarshal_ShadowsAndNonUniqueSections(t *testing.T) {
 	assert.Equal(t, "path = a\npath = b\npath = c\n\n[Peer]\nkey = x\n\n[Peer]\nkey = y\n", string(data))
 
 	var out config
-	require.NoError(t, Unmarshal(data, &out, AllowShadows(), AllowNonUniqueSections()))
+	require.NoError(t, Unmarshal(data, &out, AllowShadows(true), AllowNonUniqueSections(true)))
 	assert.Equal(t, in, out)
 }
 
@@ -1056,7 +1056,7 @@ func TestMapTo_NonUniqueSlices(t *testing.T) {
 		After string
 	}
 	var c cfg
-	require.NoError(t, MapTo(&c, []byte("After = a\n[Peer]\nKey = x\n[Peer]\nKey = y\n"), AllowNonUniqueSections()))
+	require.NoError(t, MapTo(&c, []byte("After = a\n[Peer]\nKey = x\n[Peer]\nKey = y\n"), AllowNonUniqueSections(true)))
 	require.Len(t, c.Peers, 2)
 	assert.Equal(t, "x", c.Peers[0].Key)
 	assert.Equal(t, "y", c.Peers[1].Key)
@@ -1066,7 +1066,7 @@ func TestMapTo_NonUniqueSlices(t *testing.T) {
 	var s struct {
 		Names []string `ini:"Name,nonunique"`
 	}
-	assert.Error(t, MapTo(&s, []byte("[Name]\nk = v\n"), AllowNonUniqueSections()))
+	assert.Error(t, MapTo(&s, []byte("[Name]\nk = v\n"), AllowNonUniqueSections(true)))
 }
 
 type testNode struct {
@@ -1077,7 +1077,7 @@ type testNode struct {
 
 func TestMapToReflectFrom_RecursiveType(t *testing.T) {
 	var n testNode
-	require.NoError(t, MapTo(&n, []byte("X = 1\n[Child]\nX = 2\n[Kid]\nX = 3\n[Kid]\nX = 4\n"), AllowNonUniqueSections()))
+	require.NoError(t, MapTo(&n, []byte("X = 1\n[Child]\nX = 2\n[Kid]\nX = 3\n[Kid]\nX = 4\n"), AllowNonUniqueSections(true)))
 	assert.Equal(t, 1, n.X)
 	require.NotNil(t, n.Child)
 	assert.Equal(t, 2, n.Child.X)
@@ -1105,7 +1105,7 @@ func TestReflectFrom_StructSlice(t *testing.T) {
 func TestReflectFrom_PointerToPointer(t *testing.T) {
 	type conf struct{ Lang string }
 	c := &conf{Lang: "en"}
-	for _, opts := range [][]LoadOption{nil, {AllowNonUniqueSections()}} {
+	for _, opts := range [][]LoadOption{nil, {AllowNonUniqueSections(true)}} {
 		f := Empty(opts...)
 		require.NoError(t, f.Section("i18n").ReflectFrom(&c))
 		assert.Equal(t, "en", f.Section("i18n").Key("Lang").String())
@@ -1129,7 +1129,7 @@ func TestReflectFrom_NonUniqueNilAndNonStruct(t *testing.T) {
 	}{Ints: []*int{&n}})
 	assert.Error(t, err)
 
-	f := Empty(AllowNonUniqueSections())
+	f := Empty(AllowNonUniqueSections(true))
 	require.NoError(t, f.Section("Peer").ReflectFrom([]*peer{nil, {"y"}}))
 	secs, err := f.SectionsByName("Peer")
 	require.NoError(t, err)
@@ -1280,8 +1280,8 @@ func TestReflectFrom_AllowShadow(t *testing.T) {
 }
 
 func TestReflectFrom_InsensitiveDefaultSection(t *testing.T) {
-	for _, opt := range []LoadOption{CaseInsensitive(), CaseInsensitiveSections()} {
-		f, err := Load([]byte("a=1\n[x]\nb=2\n"), opt, AllowNonUniqueSections())
+	for _, opt := range []LoadOption{CaseInsensitive(true), CaseInsensitiveSections(true)} {
+		f, err := Load([]byte("a=1\n[x]\nb=2\n"), opt, AllowNonUniqueSections(true))
 		require.NoError(t, err)
 		require.NoError(t, f.ReflectFrom(&struct{ C int }{3}))
 		assert.Equal(t, "1", f.Section("").Key("a").String())

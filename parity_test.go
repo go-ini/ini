@@ -62,31 +62,23 @@ func parityOptions(flags uint32) v1.LoadOptions {
 
 // v2Options returns the v2 equivalent of v1 load options.
 func v2Options(o v1.LoadOptions) []LoadOption {
-	var opts []LoadOption
-	for _, flag := range []struct {
-		set bool
-		opt func() LoadOption
-	}{
-		{o.Insensitive, CaseInsensitive},
-		{o.InsensitiveSections, CaseInsensitiveSections},
-		{o.InsensitiveKeys, CaseInsensitiveKeys},
-		{o.IgnoreContinuation, IgnoreContinuation},
-		{o.IgnoreInlineComment, IgnoreInlineComment},
-		{o.SkipUnrecognizableLines, SkipUnrecognizableLines},
-		{o.AllowBooleanKeys, AllowBooleanKeys},
-		{o.AllowShadows, AllowShadows},
-		{o.AllowNestedValues, AllowNestedValues},
-		{o.AllowPythonMultilineValues, AllowPythonMultilineValues},
-		{o.SpaceBeforeInlineComment, SpaceBeforeInlineComment},
-		{o.UnescapeValueDoubleQuotes, UnescapeValueDoubleQuotes},
-		{o.UnescapeValueCommentSymbols, UnescapeValueCommentSymbols},
-		{o.PreserveSurroundedQuote, PreserveSurroundingQuotes},
-		{o.AllowNonUniqueSections, AllowNonUniqueSections},
-		{o.AllowDuplicateShadowValues, AllowDuplicateShadowValues},
-	} {
-		if flag.set {
-			opts = append(opts, flag.opt())
-		}
+	opts := []LoadOption{
+		CaseInsensitive(o.Insensitive),
+		CaseInsensitiveSections(o.InsensitiveSections),
+		CaseInsensitiveKeys(o.InsensitiveKeys),
+		IgnoreContinuation(o.IgnoreContinuation),
+		IgnoreInlineComment(o.IgnoreInlineComment),
+		SkipUnrecognizableLines(o.SkipUnrecognizableLines),
+		AllowBooleanKeys(o.AllowBooleanKeys),
+		AllowShadows(o.AllowShadows),
+		AllowNestedValues(o.AllowNestedValues),
+		AllowPythonMultilineValues(o.AllowPythonMultilineValues),
+		SpaceBeforeInlineComment(o.SpaceBeforeInlineComment),
+		UnescapeValueDoubleQuotes(o.UnescapeValueDoubleQuotes),
+		UnescapeValueCommentSymbols(o.UnescapeValueCommentSymbols),
+		PreserveSurroundingQuotes(o.PreserveSurroundedQuote),
+		AllowNonUniqueSections(o.AllowNonUniqueSections),
+		AllowDuplicateShadowValues(o.AllowDuplicateShadowValues),
 	}
 	if o.UnparseableSections != nil {
 		opts = append(opts, RawSections(o.UnparseableSections...))
@@ -355,7 +347,7 @@ func TestParsePythonMultilineLongerThanBuffer(t *testing.T) {
 	}
 	b.WriteString("next = ok\n")
 
-	f, err := Load([]byte(b.String()), AllowPythonMultilineValues())
+	f, err := Load([]byte(b.String()), AllowPythonMultilineValues(true))
 	if err != nil {
 		t.Fatal(err)
 	}

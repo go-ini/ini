@@ -226,7 +226,7 @@ func decodeSlice(key *Key, field reflect.Value, delim string, allowShadow, isStr
 	if allowShadow {
 		// Each value is split as Key.Strings splits one, so that escaped
 		// elements read back as Marshal wrote them. An empty value, kept
-		// with KeepEmptyShadowValues, is an empty element, unless it is the
+		// with PreserveEmptyShadowValues, is an empty element, unless it is the
 		// only one: an empty slice is written as one empty value.
 		vals := key.Values()
 		if len(vals) == 1 && vals[0] == "" {
@@ -834,16 +834,16 @@ func (f *File) ReflectFrom(v any) error {
 // Unmarshal parses INI data with opts and maps it to the struct v points to,
 // as File.MapTo does. It reads what Marshal writes: when v has allowshadow
 // fields it loads with AllowShadows, AllowDuplicateShadowValues and
-// KeepEmptyShadowValues, and when it has nonunique fields with
+// PreserveEmptyShadowValues, and when it has nonunique fields with
 // AllowNonUniqueSections, as those tags need.
 func Unmarshal(data []byte, v any, opts ...LoadOption) error {
 	if v != nil {
 		shadows, nonUnique := tagOptions(reflect.TypeOf(v), map[reflect.Type]bool{})
 		if shadows {
-			opts = append([]LoadOption{AllowShadows(), AllowDuplicateShadowValues(), KeepEmptyShadowValues()}, opts...)
+			opts = append([]LoadOption{AllowShadows(true), AllowDuplicateShadowValues(true), PreserveEmptyShadowValues(true)}, opts...)
 		}
 		if nonUnique {
-			opts = append([]LoadOption{AllowNonUniqueSections()}, opts...)
+			opts = append([]LoadOption{AllowNonUniqueSections(true)}, opts...)
 		}
 	}
 	return MapTo(v, data, opts...)
@@ -878,7 +878,7 @@ func Marshal(v any, opts ...WriteOption) ([]byte, error) {
 	}
 	// Shadows and non-unique sections let allowshadow and nonunique fields
 	// write all their values.
-	f := Empty(AllowShadows(), AllowDuplicateShadowValues(), AllowNonUniqueSections())
+	f := Empty(AllowShadows(true), AllowDuplicateShadowValues(true), AllowNonUniqueSections(true))
 	if err := f.ReflectFrom(v); err != nil {
 		return nil, err
 	}

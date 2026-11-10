@@ -75,7 +75,7 @@ func TestSection_NewKey(t *testing.T) {
 	})
 
 	t.Run("create keys with same name and allow shadow", func(t *testing.T) {
-		f, err := Load([]byte(""), AllowShadows())
+		f, err := Load([]byte(""), AllowShadows(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
