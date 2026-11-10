@@ -298,7 +298,7 @@ file = b.log
 		}
 	})
 
-	t.Run("reports current values, Must* defaults included", func(t *testing.T) {
+	t.Run("reports values as loaded or set", func(t *testing.T) {
 		f, err := Load([]byte("empty =\nset = 1\ngone = 2\n"))
 		require.NoError(t, err)
 		sec := f.Section("")
@@ -307,7 +307,7 @@ file = b.log
 		sec.Key("set").SetValue("3")
 		sec.DeleteKey("gone")
 
-		assert.Equal(t, map[string]string{"empty": "fallback", "set": "3"}, sec.KeyValues())
+		assert.Equal(t, map[string]string{"empty": "", "set": "3"}, sec.KeyValues())
 	})
 }
 

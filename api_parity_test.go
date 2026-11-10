@@ -290,18 +290,25 @@ func (c *apiChecker) checkKey(name string, k1 *v1.Key, k2 *Key, expand bool) {
 		c.same(name+" InTime", k1.InTime(day(9), []time.Time{day(2)}), In(k2, day(9), []time.Time{day(2)}))
 	}
 
-	// Must* last: they store the default when the value doesn't parse.
-	c.same(name+" MustString", k1.MustString("d"), k2.MustString("d"))
-	c.same(name+" MustBool", k1.MustBool(true), k2.MustBool(true))
-	c.same(name+" MustInt", k1.MustInt(7), k2.MustInt(7))
-	c.same(name+" MustInt64", k1.MustInt64(7), k2.MustInt64(7))
-	c.same(name+" MustUint", k1.MustUint(7), k2.MustUint(7))
-	c.same(name+" MustUint64", k1.MustUint64(7), k2.MustUint64(7))
-	if v, err := k1.Float64(); err != nil || v == v {
-		c.same(name+" MustFloat64", k1.MustFloat64(7), k2.MustFloat64(7))
+	// v1's Must* stored the default in the key when the value didn't parse;
+	// v2's only read. Put v1's value back after each call so both see the
+	// same value, then check that v2 left the key as it was.
+	v1Value := k1.Value()
+	must := func(what string, v1, v2 any) {
+		c.same(name+" "+what, v1, v2)
+		k1.SetValue(v1Value)
 	}
-	c.same(name+" MustDuration", k1.MustDuration(7), k2.MustDuration(7))
-	c.same(name+" MustTime", k1.MustTime(day(9)), k2.MustTime(day(9)))
+	must("MustString", k1.MustString("d"), k2.MustString("d"))
+	must("MustBool", k1.MustBool(true), k2.MustBool(true))
+	must("MustInt", k1.MustInt(7), k2.MustInt(7))
+	must("MustInt64", k1.MustInt64(7), k2.MustInt64(7))
+	must("MustUint", k1.MustUint(7), k2.MustUint(7))
+	must("MustUint64", k1.MustUint64(7), k2.MustUint64(7))
+	if v, err := k1.Float64(); err != nil || v == v {
+		must("MustFloat64", k1.MustFloat64(7), k2.MustFloat64(7))
+	}
+	must("MustDuration", k1.MustDuration(7), k2.MustDuration(7))
+	must("MustTime", k1.MustTime(day(9)), k2.MustTime(day(9)))
 	c.same(name+" String after Must", k1.String(), k2.String())
 }
 
@@ -436,6 +443,40 @@ func (c *apiChecker) checkMapping(f1 *v1.File, f2 *File) {
 			continue
 		}
 		c.same(what+" error", errStr(e1), errStr(e2))
+		if m2.Dur <= 0 && m1.Dur > 0 {
+			if d, err := f2.Section("").Key("Dur").Duration(); err == nil && d == m2.Dur {
+				// Deliberate: v2 applies zero and negative durations, which
+				// v1 skipped.
+				m1.Dur = m2.Dur
+			}
+		}
+		if !strict {
+			// Deliberate: an out-of-range list element maps to zero, as in
+			// ini.List.
+			sec := f1.Section("")
+			if k, err := sec.GetKey("Ints"); err == nil && len(m1.Ints) == len(m2.Ints) {
+				m1.Ints = outOfRangeToZero(k, "|", m1.Ints)
+			}
+			if k, err := sec.GetKey("Int64s"); err == nil && len(m1.Int64s) == len(m2.Int64s) {
+				m1.Int64s = outOfRangeToZero(k, ",", m1.Int64s)
+			}
+			if k, err := sec.GetKey("Uints"); err == nil && len(m1.Uints) == len(m2.Uints) {
+				m1.Uints = outOfRangeToZero(k, ",", m1.Uints)
+			}
+			if k, err := sec.GetKey("Floats"); err == nil && len(m1.Floats) == len(m2.Floats) {
+				m1.Floats = outOfRangeToZero(k, ",", m1.Floats)
+			}
+		}
+		// NaN never equals itself.
+		m1.Floats, m2.Floats = nanToZero(m1.Floats), nanToZero(m2.Floats)
+		for _, m := range []*apiCfg{m1, m2} {
+			if m.Float != m.Float {
+				m.Float = 0
+			}
+			if m.PFloat != nil && *m.PFloat != *m.PFloat {
+				*m.PFloat = 0
+			}
+		}
 		if e1 == nil {
 			c.same(what, m1, m2)
 		}

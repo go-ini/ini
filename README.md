@@ -54,7 +54,8 @@ Without options, v2 parses every input exactly as v1's `Load` does. The parity t
 | `f.NameMapper = m`, `f.ValueMapper = fn` | load with `ini.NameMapping(m)`, `ini.ValueMapping(fn)` |
 | `s.Comment`, `k.Comment` fields | `Comment()` and `SetComment(c)` methods |
 | `IsErrDelimiterNotFound(err)`, `IsErrEmptyKeyName(err)` | `errors.Is(err, ini.ErrDelimiterNotFound)`, `errors.Is(err, ini.ErrEmptyKeyName)` |
-| `File.SectionStrings`, `Section.KeyStrings`, `Section.KeysHash` | `SectionNames`, `KeyNames`, `KeyValues`; `KeyValues` includes the defaults `Must*` methods stored, which v1's `KeysHash` left out |
+| `File.SectionStrings`, `Section.KeyStrings`, `Section.KeysHash` | `SectionNames`, `KeyNames`, `KeyValues` |
+| `k.MustInt(3)` and the other `Must*` stored the default in the key, so later reads, `MapTo` and `Write` saw it | `Must*` return the default without storing it; where code reads the default back later, call `k.SetValue` |
 | `Key.ValueWithShadows`, `Key.IsBooleanType`, `Section.Haskey` | `Values`, `IsBoolean`, `HasKey` |
 | `k.Ints(",")`, `k.ValidInts(",")`, `k.StrictInts(",")` and the same for the other types | `ini.List[int](k, ",")`, `ini.ValidList[int](k, ",")`, `ini.StrictList[int](k, ",")`, with the same behavior; any `Scalar` type works, such as `int8`, `time.Duration` or a named string type |
 | `k.InInt(def, cands)`, `k.In(def, cands)` and the others | `ini.In(k, def, cands)` |

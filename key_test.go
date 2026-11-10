@@ -241,17 +241,16 @@ func TestKey_Helpers(t *testing.T) {
 
 					assert.Equal(t, dur.Seconds(), sec.Key("DURATION_404").MustDuration(dur).Seconds())
 
-					t.Run("must should set default as key value", func(t *testing.T) {
-						assert.Equal(t, "404", sec.Key("STRING_404").String())
-						assert.Equal(t, "true", sec.Key("BOOL_404").String())
-						assert.Equal(t, "2.5", sec.Key("FLOAT64_404").String())
-						assert.Equal(t, "15", sec.Key("INT_404").String())
-						assert.Equal(t, "15", sec.Key("INT64_404").String())
-						assert.Equal(t, "6", sec.Key("UINT_404").String())
-						assert.Equal(t, "6", sec.Key("UINT64_404").String())
-						assert.Equal(t, "2014-01-01T20:17:05Z", sec.Key("TIME_404").String())
-						assert.Equal(t, "2h45m0s", sec.Key("DURATION_404").String())
-						assert.Equal(t, "12289", sec.Key("HEX_NUMBER_404").String())
+					t.Run("must doesn't store the default", func(t *testing.T) {
+						for _, name := range []string{"STRING_404", "BOOL_404", "FLOAT64_404", "INT_404", "INT64_404",
+							"UINT_404", "UINT64_404", "TIME_404", "DURATION_404", "HEX_NUMBER_404"} {
+							assert.Equal(t, "", sec.Key(name).String(), name)
+						}
+						// A value that doesn't parse stays as it is.
+						k, err := sec.NewKey("BAD_INT", "x")
+						require.NoError(t, err)
+						assert.Equal(t, 7, k.MustInt(7))
+						assert.Equal(t, "x", k.Value())
 					})
 				})
 			})
