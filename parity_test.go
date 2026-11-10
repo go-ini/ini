@@ -80,7 +80,7 @@ func v2Options(o v1.LoadOptions) []LoadOption {
 		{o.SpaceBeforeInlineComment, SpaceBeforeInlineComment},
 		{o.UnescapeValueDoubleQuotes, UnescapeValueDoubleQuotes},
 		{o.UnescapeValueCommentSymbols, UnescapeValueCommentSymbols},
-		{o.PreserveSurroundedQuote, PreserveSurroundedQuote},
+		{o.PreserveSurroundedQuote, PreserveSurroundingQuotes},
 		{o.AllowNonUniqueSections, AllowNonUniqueSections},
 		{o.AllowDuplicateShadowValues, AllowDuplicateShadowValues},
 	} {

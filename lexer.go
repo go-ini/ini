@@ -239,7 +239,7 @@ func (l *lexer) readValue(in string) (string, error) {
 	}
 
 	switch {
-	case !l.opts.PreserveSurroundedQuote && (hasSurroundedQuote(line, '\'') || hasSurroundedQuote(line, '"')):
+	case !l.opts.PreserveSurroundingQuotes && (hasSurroundedQuote(line, '\'') || hasSurroundedQuote(line, '"')):
 		return line[1 : len(line)-1], nil
 	case l.opts.UnescapeValueCommentSymbols:
 		// Last symbol first, as v1 unescaped \; before \#.

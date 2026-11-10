@@ -46,7 +46,7 @@ type loadOptions struct {
 	UnparseableSections         []string
 	KeyValueDelimiters          string
 	ChildSectionDelimiter       string
-	PreserveSurroundedQuote     bool
+	PreserveSurroundingQuotes   bool
 	DebugFunc                   DebugFunc
 	AllowNonUniqueSections      bool
 	AllowDuplicateShadowValues  bool
@@ -187,9 +187,9 @@ func ChildSectionDelimiter(delimiter string) LoadOption {
 	}
 }
 
-// PreserveSurroundedQuote keeps single and double quotes around values.
-func PreserveSurroundedQuote() LoadOption {
-	return func(o *loadOptions) { o.PreserveSurroundedQuote = true }
+// PreserveSurroundingQuotes keeps single and double quotes around values.
+func PreserveSurroundingQuotes() LoadOption {
+	return func(o *loadOptions) { o.PreserveSurroundingQuotes = true }
 }
 
 // Debug calls fn with debug information while parsing, currently about
@@ -240,9 +240,8 @@ type writeOptions struct {
 	lineBreak         string
 	keyValueDelimiter string
 	defaultHeader     bool
-	prettySection     bool
-	prettyFormat      bool
-	prettyEqual       bool
+	blankLines        bool
+	alignDelimiters   bool
 	formatLeft        string
 	formatRight       string
 }
@@ -254,8 +253,8 @@ func newWriteOptions(opts []WriteOption) writeOptions {
 	o := writeOptions{
 		lineBreak:         "\n",
 		keyValueDelimiter: "=",
-		prettySection:     true,
-		prettyFormat:      true,
+		blankLines:        true,
+		alignDelimiters:   true,
 	}
 	if runtime.GOOS == "windows" && !inTest {
 		o.lineBreak = "\r\n"
@@ -288,22 +287,22 @@ func WriteDelimiter(delimiter string) WriteOption {
 // DefaultHeader writes the header of the default section.
 func DefaultHeader() WriteOption { return func(o *writeOptions) { o.defaultHeader = true } }
 
-// PrettySection sets whether to put an empty line between sections. The
-// default is true.
-func PrettySection(pretty bool) WriteOption {
-	return func(o *writeOptions) { o.prettySection = pretty }
+// BlankLineBetweenSections sets whether to put an empty line between
+// sections. The default is true.
+func BlankLineBetweenSections(blank bool) WriteOption {
+	return func(o *writeOptions) { o.blankLines = blank }
 }
 
-// PrettyFormat sets whether to align the delimiters of a section with
-// spaces. The default is true.
-func PrettyFormat(pretty bool) WriteOption { return func(o *writeOptions) { o.prettyFormat = pretty } }
+// AlignDelimiters sets whether to pad the keys of a section with spaces so
+// that their delimiters line up, with one space on each side. The default
+// is true.
+func AlignDelimiters(align bool) WriteOption {
+	return func(o *writeOptions) { o.alignDelimiters = align }
+}
 
-// PrettyEqual puts spaces around the delimiter even when PrettyFormat is
-// false.
-func PrettyEqual() WriteOption { return func(o *writeOptions) { o.prettyEqual = true } }
-
-// DelimiterSpaces puts left and right around the delimiter when neither
-// PrettyFormat nor PrettyEqual applies.
+// DelimiterSpaces puts left and right around the delimiter when
+// AlignDelimiters is false. DelimiterSpaces(" ", " ") writes "k = v"
+// without aligning.
 func DelimiterSpaces(left, right string) WriteOption {
 	return func(o *writeOptions) { o.formatLeft, o.formatRight = left, right }
 }

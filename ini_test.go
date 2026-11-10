@@ -1415,13 +1415,13 @@ key2!value2
 	})
 }
 
-func Test_PreserveSurroundedQuote(t *testing.T) {
+func Test_PreserveSurroundingQuotes(t *testing.T) {
 	t.Run("preserve surrounded quote test", func(t *testing.T) {
 		f, err := Load([]byte(`
 [section]
 key1 = "value1"
 key2 = value2
-`), PreserveSurroundedQuote())
+`), PreserveSurroundingQuotes())
 		require.NoError(t, err)
 		require.NotNil(t, f)
 

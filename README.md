@@ -40,13 +40,14 @@ Without options, v2 parses every input exactly as v1's `Load` does. The parity t
 | `LoadOptions.DebugFunc` | `ini.Debug(fn)` |
 | `LoadOptions.ReaderBufferSize` | removed; values are never cut at a buffer size |
 | `ini.DefaultSection = "default"` | `ini.DefaultSectionName("default")` |
-| `ini.LineBreak`, `PrettyFormat`, `PrettySection`, `PrettyEqual`, `DefaultHeader`, `DefaultFormatLeft/Right` | `WriteOption`s of `File.Write` and `File.SaveTo` |
+| `ini.LineBreak`, `DefaultHeader`, `DefaultFormatLeft/Right` | `WriteOption`s of `File.Write` and `File.SaveTo`: `ini.LineBreak(s)`, `ini.DefaultHeader()`, `ini.DelimiterSpaces(left, right)` |
+| `ini.PrettyFormat = false`, `ini.PrettySection = false`, `ini.PrettyEqual = true` | `ini.AlignDelimiters(false)`, `ini.BlankLineBetweenSections(false)`, `ini.DelimiterSpaces(" ", " ")` |
 | `LoadOptions.KeyValueDelimiterOnWrite` | `ini.WriteDelimiter(d)` write option |
 | `WriteToIndent(w, i)`, `SaveToIndent(f, i)` | `Write(w, ini.Indent(i))`, `SaveTo(f, ini.Indent(i))` |
 | `MapTo(v, a, b)` | `MapTo(v, a, opts...)`; one source |
 | `DEFAULT_SECTION`, `AllCapsUnderscore`, `SnackCase` | `DefaultSection`, `SnakeCase` |
 | `LoadOptions.Insensitive`, `InsensitiveSections`, `InsensitiveKeys` | `ini.CaseInsensitive()`, `ini.CaseInsensitiveSections()`, `ini.CaseInsensitiveKeys()` |
-| `LoadOptions.Loose`, `ShortCircuit`, `UnparseableSections` | `ini.IgnoreMissingFiles()`, `ini.FirstSourceOnly()`, `ini.RawSections(names...)` |
+| `LoadOptions.Loose`, `ShortCircuit`, `UnparseableSections`, `PreserveSurroundedQuote` | `ini.IgnoreMissingFiles()`, `ini.FirstSourceOnly()`, `ini.RawSections(names...)`, `ini.PreserveSurroundingQuotes()` |
 | `File.BlockMode = false` | `ini.NoLocking()` |
 | `MapToWithMapper(v, m, src)`, `StrictMapToWithMapper` | `MapTo(v, src, ini.NameMapping(m))`, `StrictMapTo(v, src, ini.NameMapping(m))` |
 | `ReflectFrom(f, v)`, `ReflectFromWithMapper(f, v, m)` | `f.ReflectFrom(v)`, with the file loaded with `ini.NameMapping(m)` |

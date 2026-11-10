@@ -410,7 +410,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 	o := newWriteOptions(opts)
 	indent, lineBreak := o.indent, o.lineBreak
 	equalSign := o.formatLeft + o.keyValueDelimiter + o.formatRight
-	if o.prettyFormat || o.prettyEqual {
+	if o.alignDelimiters {
 		equalSign = fmt.Sprintf(" %s ", o.keyValueDelimiter)
 	}
 
@@ -555,7 +555,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 				buf.WriteString(lineBreak)
 			}
 
-			if o.prettySection && !isLastSection {
+			if o.blankLines && !isLastSection {
 				// Put a line between sections
 				if _, err := buf.WriteString(lineBreak); err != nil {
 					return nil, err
@@ -568,7 +568,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		// longest key. Keys may be modified if they contain certain characters so
 		// we need to take that into account in our calculation.
 		alignLength := 0
-		if o.prettyFormat {
+		if o.alignDelimiters {
 			for _, key := range sec.keys {
 				kname := key.name
 				keyLength := len(kname)
@@ -615,7 +615,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			}
 
 			pad := ""
-			if o.prettyFormat {
+			if o.alignDelimiters {
 				pad = string(alignSpaces[:max(0, alignLength-len(form))])
 			}
 			// lines are the lines of the key, each with the nested values
@@ -723,7 +723,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			swallows = f.options.AllowPythonMultilineValues || (f.options.AllowNestedValues && empty[last])
 		}
 
-		if o.prettySection && !isLastSection {
+		if o.blankLines && !isLastSection {
 			// Put a line between sections
 			if _, err := buf.WriteString(lineBreak); err != nil {
 				return nil, err

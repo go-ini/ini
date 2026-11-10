@@ -29,7 +29,7 @@ func TestWriteOptions(t *testing.T) {
 
 	// Expected output is what v1 wrote with the same package globals set.
 	var b bytes.Buffer
-	_, err = f.Write(&b, PrettyFormat(false), PrettySection(false), DelimiterSpaces("", " "), LineBreak("\r\n"), DefaultHeader())
+	_, err = f.Write(&b, AlignDelimiters(false), BlankLineBetweenSections(false), DelimiterSpaces("", " "), LineBreak("\r\n"), DefaultHeader())
 	require.NoError(t, err)
 	assert.Equal(t, "[DEFAULT]\r\na= 1\r\n[s]\r\nbb= 2\r\n", b.String())
 
