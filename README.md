@@ -12,7 +12,7 @@ Package ini reads and writes INI files in Go.
 - **Several sources**: files, `[]byte` and `io.Reader`, with later sources overriding earlier ones.
 - **Rich INI syntax**: parent-child sections, auto-increment keys, repeated (shadow) keys, nested and multiline values, and `%(name)s` references.
 - **Typed values**: numbers, booleans, durations and times, with generic lists and candidates of any of them, and ranges of all but booleans.
-- **Struct mapping**: fill a struct from a file, or a file from a struct, guided by `ini` struct tags.
+- **Struct mapping**: fill a struct from a file, or a file from a struct, guided by `ini` struct tags. Types can format and parse their own values with `MarshalINI` and `UnmarshalINI`.
 - **Safe writes**: comments and order are kept, and what is written loads back the same, or `Write` returns an error.
 - **Precise errors**: parse errors give the line and column.
 - **Concurrency**: safe for concurrent use, or lock-free with `Locking(false)` for files that never change.

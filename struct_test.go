@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1437,6 +1438,10 @@ type fzCfg struct {
 	Named  fzName
 	PNamed *fzName
 
+	Perm  testPerm
+	PPerm *testPerm
+	Perms []testPerm
+
 	Sub     fzSub
 	PSub    *fzSub
 	Shadow  []string `ini:"shadow,,allowshadow"`
@@ -1455,6 +1460,7 @@ func FuzzStructMapping(f *testing.F) {
 		"S = s\nI = -3\nI8 = 127\nU = 4\nU8 = 255\nF32 = 1.5\nF = 2.5\nB = true\nD = 1s\nT = 2020-01-02T03:04:05.5Z\n"+
 			"PS = p\nPI = 7\nPT = 2020-01-02T03:04:05Z\nPD = 3s\nSS = a,b\\, c,d\nSI = 1,2\nSU = 3,4\nSF = 1.5,2\nSB = true,false\n"+
 			"ST = 2020-01-02T03:04:05Z\nSP = x|y\nNamed = n\nPNamed = m\nshadow = a\nshadow = b\nE = e\n"+
+			"Perm = write\nPPerm = read\nPerms = read, x, write\n"+
 			"[Sub]\nA = 1\nB = b\n[PSub]\nA = 2\n[Peer]\nA = 3\n[Peer]\nA = 4\n[PPeer]\nB = q\n[Node]\nX = 1\n[Child]\nX = 2\n",
 		"I8 = 300\nU8 = -1\nF32 = 1e300\nD = -5s\nSI = 1,x,3\nT = 2006-01-02T15:04:05.123456789+07:00\n",
 		"a = %(b)s\nb = %(a)s\nS = %(S)s%(S)s\n",
@@ -1576,4 +1582,114 @@ func normalizeFzValue(v reflect.Value) {
 			normalizeFzValue(v.Index(i))
 		}
 	}
+}
+
+// testPerm is an enum that reads and writes itself by name.
+type testPerm int
+
+var testPermNames = []string{"none", "read", "write"}
+
+func (p *testPerm) UnmarshalINI(b []byte) error {
+	for i, name := range testPermNames {
+		if string(b) == name {
+			*p = testPerm(i)
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown permission %q", b)
+}
+
+func (p testPerm) MarshalINI() ([]byte, error) {
+	if int(p) >= len(testPermNames) {
+		return nil, fmt.Errorf("invalid permission %d", int(p))
+	}
+	return []byte(testPermNames[p]), nil
+}
+
+// testHostPort is a struct that maps to one key, written as host:port.
+type testHostPort struct {
+	Host string
+	Port int
+}
+
+func (h *testHostPort) UnmarshalINI(b []byte) error {
+	host, port, ok := strings.Cut(string(b), ":")
+	if !ok {
+		return fmt.Errorf("missing port in %q", b)
+	}
+	n, err := strconv.Atoi(port)
+	if err != nil {
+		return err
+	}
+	h.Host, h.Port = host, n
+	return nil
+}
+
+func (h *testHostPort) MarshalINI() ([]byte, error) {
+	return []byte(h.Host + ":" + strconv.Itoa(h.Port)), nil
+}
+
+func TestMarshalerUnmarshaler(t *testing.T) {
+	type config struct {
+		Perm  testPerm
+		Perms []testPerm
+		PPerm *testPerm
+		Addr  testHostPort
+		Addrs []testHostPort `delim:"|"`
+	}
+
+	t.Run("read", func(t *testing.T) {
+		data := []byte("Perm = write\nPerms = read, none\nPPerm = read\nAddr = example.com:80\nAddrs = a:1|b:2\n" +
+			"[Addr]\nHost = from a section\n")
+		var c config
+		require.NoError(t, StrictMapTo(&c, data))
+		read := testPerm(1)
+		assert.Equal(t, config{
+			Perm:  2,
+			Perms: []testPerm{1, 0},
+			PPerm: &read,
+			// A struct that parses itself maps to its key, not to the
+			// section of the same name.
+			Addr:  testHostPort{"example.com", 80},
+			Addrs: []testHostPort{{"a", 1}, {"b", 2}},
+		}, c)
+	})
+
+	t.Run("write and read back", func(t *testing.T) {
+		read := testPerm(1)
+		in := config{Perm: 2, Perms: []testPerm{1, 0}, PPerm: &read, Addr: testHostPort{"h", 8}, Addrs: []testHostPort{{"a", 1}}}
+		data, err := marshal(in)
+		require.NoError(t, err)
+		assert.Equal(t, "Perm  = write\nPerms = read,none\nPPerm = read\nAddr  = h:8\nAddrs = a:1\n", string(data))
+
+		var out config
+		require.NoError(t, unmarshal(data, &out))
+		assert.Equal(t, in, out)
+	})
+
+	t.Run("errors", func(t *testing.T) {
+		c := config{Perm: 1}
+		require.NoError(t, MapTo(&c, []byte("Perm = admin\n")))
+		assert.Equal(t, testPerm(1), c.Perm, "an invalid value leaves the field unchanged")
+
+		err := StrictMapTo(&c, []byte("Perm = admin\n"))
+		assert.ErrorContains(t, err, `unknown permission "admin"`)
+		assert.ErrorContains(t, StrictMapTo(&c, []byte("Perms = read, admin\n")), "admin")
+
+		_, err = marshal(config{Perm: 9})
+		assert.ErrorContains(t, err, "invalid permission 9")
+		_, err = marshal(config{Perms: []testPerm{1, 9}})
+		assert.ErrorContains(t, err, "invalid permission 9")
+	})
+
+	t.Run("generic accessors", func(t *testing.T) {
+		f, err := Load([]byte("perms = write, x, read\nperm = write\n"))
+		require.NoError(t, err)
+		sec := f.Section("")
+		assert.Equal(t, []testPerm{2, 0, 1}, List[testPerm](sec.Key("perms"), ","))
+		assert.Equal(t, []testPerm{2, 1}, ValidList[testPerm](sec.Key("perms"), ","))
+		_, err = StrictList[testPerm](sec.Key("perms"), ",")
+		assert.Error(t, err)
+		assert.Equal(t, testPerm(2), In(sec.Key("perm"), 0, []testPerm{1, 2}))
+	})
 }
