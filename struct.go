@@ -63,19 +63,23 @@ func parseDelim(actual string) string {
 
 // Marshaler is implemented by types that format themselves as a key value.
 // ReflectFrom calls MarshalINI for fields, pointer fields and slice elements
-// of such a type, whatever its kind.
+// of such a type, whatever its kind. A struct or slice type also needs
+// Unmarshaler, as described there.
 type Marshaler interface {
 	MarshalINI() ([]byte, error)
 }
 
 // Unmarshaler is implemented by types that parse themselves from a key value.
-// MapTo, StrictMapTo, List, ValidList, StrictList, In and Range call
-// UnmarshalINI with the value as Key.String returns it, or with one element
-// of a list. An error leaves the field unchanged, and StrictMapTo and
-// StrictList return it.
+// MapTo and StrictMapTo call UnmarshalINI for fields, pointer fields and slice
+// elements of such a type, with the value as Key.String returns it, or with
+// one element of a list, and so do List, ValidList, StrictList, In and Range
+// for a Scalar type. An error is handled as for a value that doesn't parse:
+// MapTo leaves a field unchanged and makes an element of a slice field the
+// zero value, and StrictMapTo and StrictList return it.
 //
-// A struct type that implements Marshaler or Unmarshaler maps to a key, not
-// to a section.
+// A struct or slice type maps to one key, rather than to a section or a
+// list, only when it implements both Marshaler and Unmarshaler, so that it
+// maps the same way in both directions.
 type Unmarshaler interface {
 	UnmarshalINI([]byte) error
 }
@@ -97,8 +101,13 @@ func isUnmarshaler(t reflect.Type) bool {
 }
 
 // isCustomType reports whether t formats or parses itself, so that it maps
-// to a key value whatever its kind.
+// to a key value whatever its kind. A struct or slice type, which otherwise
+// maps to a section or a list, needs both methods.
 func isCustomType(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Struct, reflect.Slice:
+		return isMarshaler(t) && isUnmarshaler(t)
+	}
 	return isMarshaler(t) || isUnmarshaler(t)
 }
 

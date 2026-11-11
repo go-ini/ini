@@ -510,7 +510,8 @@ func (k *Key) SetValue(v string) {
 // Scalar is a type a value can be parsed as, as struct mapping parses
 // fields: strings, booleans, integers and floats of any size, named types of
 // those, time.Duration (as "1s" or nanoseconds) and time.Time (RFC 3339).
-// A number that doesn't fit the type doesn't parse.
+// A number that doesn't fit the type doesn't parse. A type that implements
+// Unmarshaler parses with UnmarshalINI instead.
 type Scalar interface {
 	~string | ~bool |
 		~int | ~int8 | ~int16 | ~int32 | ~int64 |

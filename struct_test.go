@@ -1692,4 +1692,36 @@ func TestMarshalerUnmarshaler(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, testPerm(2), In(sec.Key("perm"), 0, []testPerm{1, 2}))
 	})
+
+	t.Run("one method on a slice or struct type", func(t *testing.T) {
+		// Without both methods, a slice type is still a list and a struct
+		// type a section, in both directions.
+		type oneWay struct {
+			Hosts testMarshalOnlyList
+			Tags  testUnmarshalOnlyList
+			Peer  testMarshalOnlyStruct
+		}
+		var c oneWay
+		require.NoError(t, StrictMapTo(&c, []byte("Hosts = a,b\nTags = x,y\n[Peer]\nName = p\n")))
+		assert.Equal(t, oneWay{Hosts: testMarshalOnlyList{"a", "b"}, Tags: testUnmarshalOnlyList{"x", "y"}, Peer: testMarshalOnlyStruct{Name: "p"}}, c)
+
+		data, err := marshal(c)
+		require.NoError(t, err)
+		assert.Equal(t, "Hosts = a,b\nTags  = x,y\n\n[Peer]\nName = p\n", string(data))
+	})
 }
+
+// testMarshalOnlyList, testUnmarshalOnlyList and testMarshalOnlyStruct
+// implement one of Marshaler and Unmarshaler, with methods that must not be
+// called.
+type (
+	testMarshalOnlyList   []string
+	testUnmarshalOnlyList []string
+	testMarshalOnlyStruct struct{ Name string }
+)
+
+func (testMarshalOnlyList) MarshalINI() ([]byte, error) { panic("called") }
+
+func (*testUnmarshalOnlyList) UnmarshalINI([]byte) error { panic("called") }
+
+func (testMarshalOnlyStruct) MarshalINI() ([]byte, error) { panic("called") }
