@@ -878,6 +878,42 @@ func TestWriteReadsBack(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("raw default section", func(t *testing.T) {
+		f, err := Load([]byte("a = 1\n"), RawSections(DefaultSection))
+		require.NoError(t, err)
+		_, _ = f.NewRawSection(DefaultSection, "injected = 1\n")
+		var b bytes.Buffer
+		_, err = f.Write(&b)
+		require.NoError(t, err)
+		assert.Equal(t, "[DEFAULT]\ninjected = 1\n", b.String())
+		f2, err := Load(b.Bytes(), RawSections(DefaultSection))
+		require.NoError(t, err)
+		assert.Equal(t, "injected = 1", f2.Section("").Body())
+		assert.False(t, f2.Section("").HasKey("injected"))
+
+		// A raw default section that was loaded isn't dropped.
+		data := "[DEFAULT]\nsome raw text\n[s]\nk = v\n"
+		f, err = Load([]byte(data), RawSections(DefaultSection))
+		require.NoError(t, err)
+		b.Reset()
+		_, err = f.Write(&b)
+		require.NoError(t, err)
+		assert.Equal(t, "[DEFAULT]\nsome raw text\n\n[s]\nk = v\n", b.String())
+	})
+
+	t.Run("keys of a section read as raw", func(t *testing.T) {
+		f := Empty(RawSections("notes"))
+		_, _ = f.Section("notes").NewKey("k", "x\n[evil]\ninjected = 1")
+		_, err := f.Write(io.Discard)
+		assert.Error(t, err)
+
+		// Without keys, the header alone reads back.
+		f = Empty(RawSections("notes"))
+		_, _ = f.NewSection("notes")
+		_, err = f.Write(io.Discard)
+		assert.NoError(t, err)
+	})
+
 	t.Run("key named -", func(t *testing.T) {
 		f := Empty()
 		_, _ = f.Section("s").NewKey("-", "x")

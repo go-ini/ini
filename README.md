@@ -73,7 +73,7 @@ v2 loads files up to 31 times faster than v1, with a third to a fifth of the all
 
 - **Load** is linear in the number of keys. v1 compared each new key with every key before it in its section, so a large section took quadratic time.
 - **Write** is slower because it checks that every line it writes reads back as the same value. v1 could write files that loaded differently.
-- **Reads** take the file's read lock so that they are safe while other goroutines change the file. v1 read without it.
+- **Reads** take the file's read lock so that they are safe while other goroutines change the file. v1 took it only to look up sections and keys, not to read values.
 
 Measured with Go 1.26.10 on a 4-core Intel Xeon at 2.60 GHz, as the median of 8 runs.
 

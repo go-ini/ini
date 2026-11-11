@@ -370,10 +370,10 @@ func (f *File) load(sources []dataSource) error {
 }
 
 // Append adds one or more data sources and reads them into the file. Their
-// sections and keys add to the current ones and overwrite keys they repeat.
-// Changes made to the file in memory stay. With FirstSourceOnly, Append calls
-// Reload instead, so the first source that loads wins and changes made in
-// memory are lost.
+// sections and keys add to the current ones and overwrite keys they repeat,
+// or add shadow values to them with AllowShadows. Changes made to the file
+// in memory stay. With FirstSourceOnly, Append calls Reload instead, so the
+// first source that loads wins and changes made in memory are lost.
 func (f *File) Append(source any, others ...any) error {
 	sources := make([]dataSource, 0, 1+len(others))
 	for _, s := range append([]any{source}, others...) {
@@ -525,23 +525,27 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			}
 		}
 
-		// The default section's header is left out only when its name is the
-		// upper-case DefaultSection, so a renamed default section keeps its
-		// header. An empty default section is skipped whatever its name. A
-		// section that only has the default section's name in another case,
-		// after the default section was deleted, keeps its header.
-		isDefault := f.isDefaultSection(sec.name)
-		emptyDefault := i == 0 && len(sec.keys) == 0 && isDefault
-		// A comment needs the header to stay on the section.
-		if i > 0 || o.defaultHeader || len(sec.comment) > 0 || ((!isDefault || strings.ToUpper(sec.name) != f.options.DefaultSection) && !emptyDefault) {
+		// The first section's header is left out when it is the default
+		// section, unless DefaultHeader is set, it has a comment, which needs
+		// the header, or it is raw, which only a header makes it. Without
+		// keys, it is then not written at all. With keys, the header is
+		// still written when the name upper-cased isn't the configured
+		// default section name, so a default section renamed in lower case
+		// keeps its header, as in v1.
+		isDefault := i == 0 && f.isDefaultSection(sec.name)
+		emptyDefault := isDefault && len(sec.keys) == 0
+		writeHeader := !isDefault || o.defaultHeader || len(sec.comment) > 0 || sec.isRawSection ||
+			(strings.ToUpper(sec.name) != f.options.DefaultSection && !emptyDefault)
+		if writeHeader {
 			if _, err := buf.WriteString("[" + sname + "]" + lineBreak); err != nil {
 				return nil, err
 			}
-		} else {
-			// Write nothing if default section is empty
-			if len(sec.keys) == 0 {
-				continue
-			}
+		} else if len(sec.keys) == 0 {
+			continue
+		}
+		if writeHeader && !sec.isRawSection && len(sec.keys) > 0 && f.readsAsRaw(sname) {
+			// The keys would read back as the body of a raw section.
+			return nil, fmt.Errorf("cannot write the keys of section %q: it is read as a raw section", sname)
 		}
 
 		isLastSection := i == lastSectionIdx
@@ -761,15 +765,26 @@ func (f *File) readsBack(text string, boolean bool, name, val string, nested []s
 	return err == nil && tok.kind == tokEOF && len(l.comment) == 0
 }
 
+// readsAsRaw reports whether the lexer reads the section name, after its
+// header, as a raw section.
+func (f *File) readsAsRaw(name string) bool {
+	l := lexer{src: "[" + name + "]\n", opts: &f.options}
+	tok, err := l.next()
+	return err == nil && tok.kind == tokSection && l.inRaw
+}
+
 // rawBodyReadsBack reports whether the lexer reads body, under the header of
 // the raw section name, as that section's body and nothing else. Blank lines
 // and the indentation of lines aren't kept, as when loading. A section that
 // the file's options don't read as raw is written for other readers, and
 // isn't checked.
 func (f *File) rawBodyReadsBack(name, body string) bool {
-	l := lexer{src: "[" + name + "]\n" + body, opts: &f.options}
-	if tok, err := l.next(); err != nil || tok.kind != tokSection || !l.inRaw {
+	if !f.readsAsRaw(name) {
 		return true
+	}
+	l := lexer{src: "[" + name + "]\n" + body, opts: &f.options}
+	if _, err := l.next(); err != nil {
+		return false
 	}
 	tok, err := l.next()
 	if err == nil && tok.kind == tokRawBody {

@@ -10,7 +10,8 @@
 // default section, named DefaultSection, holds the keys before the first
 // section header. Pass "" to refer to it. Key returns values as strings or
 // parses them, as in Key.Int or Key.Duration, and the generic List, In and
-// Range parse lists, candidates and ranges of any Scalar type. A value can
+// Range parse lists and candidates of any Scalar type, and ranges of any
+// Ordered one. A value can
 // refer to another key of its section or of the default section as
 // %(name)s.
 //
@@ -22,8 +23,9 @@
 //
 // File.Write and File.SaveTo write a File back with its comments and in its
 // order, and WriteOption values set the formatting. What Write writes loads
-// back to the same sections, keys, values and comments, or Write returns an
-// error. Output meant for other readers isn't checked: keys written with a
+// back to the same sections, keys, values and comment text, or Write returns
+// an error. Comment lines are written with one space after their symbol.
+// Output meant for other readers isn't checked: keys written with a
 // WriteDelimiter that the file wasn't loaded with, boolean keys of a file
 // loaded without AllowBooleanKeys, and raw sections of a file loaded without
 // RawSections for them.
@@ -61,7 +63,8 @@ func Load(source any, opts ...LoadOption) (*File, error) {
 }
 
 // LoadSources loads and parses several INI data sources into one File.
-// Later sources add to earlier ones and overwrite keys they repeat.
+// Later sources add to earlier ones and overwrite keys they repeat, or add
+// shadow values to them with AllowShadows.
 func LoadSources(sources []any, opts ...LoadOption) (*File, error) {
 	dataSources := make([]dataSource, len(sources))
 	for i := range sources {

@@ -33,7 +33,7 @@ sec.Key("PORT").SetValue(strconv.Itoa(port))
 
 ### Struct mapping
 
-`MapTo`, `StrictMapTo` and `ReflectFrom` return errors instead of panicking on unsupported, named, pointer, nil and recursive types. Valid input can also behave differently:
+`MapTo`, `StrictMapTo` and `ReflectFrom` return errors instead of panicking on unsupported types and nil targets. Named types and pointer fields map, and a recursive type is followed one level deep. Valid input can also behave differently:
 
 - An out-of-range number, such as `300` for an `int8`, leaves the field unchanged in `MapTo` and is an error in `StrictMapTo`. v1 wrapped it to 44.
 - `StrictMapTo` reports invalid slice elements. v1 set them to zero.
@@ -50,13 +50,15 @@ sec.Key("PORT").SetValue(strconv.Itoa(port))
 
 ### Writing
 
-For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error. Output meant for other readers isn't checked: keys written with a `WriteDelimiter` the file wasn't loaded with, boolean keys without `AllowBooleanKeys`, and raw sections without `RawSections`. For example:
+For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error. Comments load back with the same text, with one space after the comment symbol. Output meant for other readers isn't checked: keys written with a `WriteDelimiter` the file wasn't loaded with, boolean keys without `AllowBooleanKeys`, and raw sections without `RawSections`. For example:
 
 - Values ending in `\`, containing `"""`, or starting with a delimiter are quoted.
 - Empty shadow values and the comments of multi-line keys are kept.
 - With `CaseInsensitive`, an explicit `[DEFAULT]` section is written with its own keys.
 - A raw section body without a final newline no longer runs into the next header.
 - A raw section body with a line that would start a section or be a comment is an error.
+- A raw default section is written with its header, so it stays raw. v1 left it out.
+- Keys in a section that `RawSections` reads as raw are an error.
 - Multi-line comments containing `\n` are written correctly with `LineBreak("\r\n")`.
 - A key named `-`, which would read back as an auto-increment key, is an error.
 
@@ -66,7 +68,7 @@ For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a f
 - With `CaseInsensitive`, `DeleteKey` matches names in any case.
 - With `AllowNonUniqueSections`, `ChildSections` lists each child once.
 - `Key.Strings("")`, a negative section index and `Section.Key("")` no longer hang or panic.
-- Reads take the file's read lock, so they are safe while other goroutines change the file. This adds about 10 ns per read. If the file never changes after loading, load it with `ini.Locking(false)`.
+- Reads take the file's read lock, so they are safe while other goroutines change the file. v1 took it only to look up sections and keys, not to read values. If the file never changes after loading, load it with `ini.Locking(false)`, which halves the time of a read.
 
 ## API changes
 
@@ -127,7 +129,7 @@ The package variables that changed every file's output are now options of `File.
 
 ### Typed values
 
-The typed list, candidate and range methods are now generic functions. They accept any `Scalar` type, such as `int8`, `time.Duration` or a named string type. `In` and `Range` return the default for a value that doesn't parse, where v1's `InInt`, `RangeInt` and friends read it as 0 and returned 0 when it was a candidate or in the range.
+The typed list, candidate and range methods are now generic functions. They accept any `Scalar` type, such as `int8`, `time.Duration` or a named string type, and `Range` any of them but `bool`. `In` and `Range` return the default for a value that doesn't parse, where v1's `InInt`, `RangeInt` and friends read it as 0, or as the clamped value of an out-of-range number, and returned that when it was a candidate or in the range.
 
 | v1 | v2 |
 |---|---|
