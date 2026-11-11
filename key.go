@@ -140,14 +140,26 @@ func (k *Key) NestedValues() []string {
 
 // transformValue takes a raw value and transforms to its final string.
 func (k *Key) transformValue(val string) string {
+	res, _ := k.transformValueWithVisited(val, nil)
+	return res
+}
+
+func (k *Key) transformValueWithVisited(val string, visited map[*Key]struct{}) (string, bool) {
 	if k.s.f.ValueMapper != nil {
 		val = k.s.f.ValueMapper(val)
 	}
 
 	// Fail-fast if no indicate char found for recursive value
 	if !strings.Contains(val, "%") {
-		return val
+		return val, false
 	}
+
+	if visited == nil {
+		visited = make(map[*Key]struct{})
+	}
+	visited[k] = struct{}{}
+	defer delete(visited, k)
+
 	for i := 0; i < depthValues; i++ {
 		vr := varPattern.FindString(val)
 		if len(vr) == 0 {
@@ -167,12 +179,25 @@ func (k *Key) transformValue(val string) string {
 				// and returns the value as-is.
 				break
 			}
+			if nk == k {
+				// Stop when key references itself to prevent cycle.
+				return val, true
+			}
+		}
+
+		if _, ok := visited[nk]; ok {
+			return val, true
+		}
+
+		newVal, hasCycle := nk.transformValueWithVisited(nk.value, visited)
+		if hasCycle {
+			return val, true
 		}
 
 		// Substitute by new value and take off leading '%(' and trailing ')s'.
-		val = strings.ReplaceAll(val, vr, nk.String())
+		val = strings.ReplaceAll(val, vr, newVal)
 	}
-	return val
+	return val, false
 }
 
 // String returns string representation of value.
