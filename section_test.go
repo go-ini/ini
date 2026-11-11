@@ -21,6 +21,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestEmptyUnparseableSection(t *testing.T) {
+	for _, input := range []string{"[raw]", "[raw]\n", "[raw]\n[next]\nkey=value"} {
+		t.Run(input, func(t *testing.T) {
+			f, err := LoadSources(LoadOptions{UnparseableSections: []string{"raw"}}, []byte(input))
+			require.NoError(t, err)
+			sec := f.Section("raw")
+			sec.SetBody("raw content")
+			assert.Equal(t, "raw content", sec.Body())
+		})
+	}
+}
+
 func TestSection_SetBody(t *testing.T) {
 	t.Run("set body of raw section", func(t *testing.T) {
 		f := Empty()

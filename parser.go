@@ -461,6 +461,7 @@ func (f *File) parse(reader io.Reader) (err error) {
 				if f.options.UnparseableSections[i] == name ||
 					((f.options.Insensitive || f.options.InsensitiveSections) && strings.EqualFold(f.options.UnparseableSections[i], name)) {
 					inUnparseableSection = true
+					section.isRawSection = true
 					continue
 				}
 			}
@@ -468,7 +469,6 @@ func (f *File) parse(reader io.Reader) (err error) {
 		}
 
 		if inUnparseableSection {
-			section.isRawSection = true
 			section.rawBody += string(line)
 			continue
 		}
