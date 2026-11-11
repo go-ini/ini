@@ -7,8 +7,8 @@ import (
 )
 
 // LoadOption configures how data sources are loaded and parsed. Without
-// options, parsing behaves exactly as gopkg.in/ini.v1's Load. When two options set the
-// same thing, the last one wins.
+// options, parsing behaves as gopkg.in/ini.v1's Load, apart from a few
+// fixes. When two options set the same thing, the last one wins.
 type LoadOption func(*loadOptions)
 
 // loadOptions holds the settings that LoadOption values apply. A File keeps them,

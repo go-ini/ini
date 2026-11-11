@@ -27,7 +27,50 @@ func TestBOM(t *testing.T) {
 
 		t.Run("UTF-16-BE-BOM", func(t *testing.T) {
 		})
+
+		t.Run("two BOMs", func(t *testing.T) {
+			f, err := Load([]byte("\ufeff\ufeff# comment\n[s]\nk = v\n"))
+			require.NoError(t, err)
+			assert.Equal(t, "v", f.Section("s").Key("k").String())
+			assert.Equal(t, "# comment", f.Section("s").Comment())
+		})
 	})
+}
+
+func TestInlineComments(t *testing.T) {
+	for _, tc := range []struct {
+		in             string
+		opts           []LoadOption
+		value, comment string
+	}{
+		// Comment symbols inside quotes stay in the value.
+		{in: "k = '#e18477'", value: "#e18477"},
+		{in: `k = "XXX#123"`, value: "XXX#123"},
+		{in: `k = "a;b" ; note`, value: "a;b", comment: "; note"},
+		{in: `k = "a#b"`, opts: []LoadOption{PreserveSurroundingQuotes(true)}, value: `"a#b"`},
+		// Text after the closing quote cuts at the first symbol, as before.
+		{in: `k = "a;b" x`, value: `"a`, comment: `;b" x`},
+		{in: "k = don't # note", value: "don't", comment: "# note"},
+		// With SpaceBeforeInlineComment the first " #" or " ;" cuts.
+		{in: "k = foo ; note # ticket", opts: []LoadOption{SpaceBeforeInlineComment(true)}, value: "foo", comment: "; note # ticket"},
+		{in: "k = a#b ;c", opts: []LoadOption{SpaceBeforeInlineComment(true)}, value: "a#b", comment: ";c"},
+	} {
+		f, err := Load([]byte(tc.in+"\n"), tc.opts...)
+		require.NoError(t, err, tc.in)
+		k := f.Section("").Key("k")
+		assert.Equal(t, tc.value, k.String(), tc.in)
+		assert.Equal(t, tc.comment, strings.TrimSpace(k.Comment()), tc.in)
+	}
+}
+
+func TestEmptyRawSection(t *testing.T) {
+	for _, in := range []string{"[custom]\n", "[a]\nk = v\n[custom]\n", "[custom]\n[b]\nk = v\n"} {
+		f, err := Load([]byte(in), RawSections("custom"))
+		require.NoError(t, err)
+		sec := f.Section("custom")
+		sec.SetBody("x = 1")
+		assert.Equal(t, "x = 1", sec.Body(), "an empty raw section is raw: %q", in)
+	}
 }
 
 func TestBadLoad(t *testing.T) {
@@ -78,4 +121,13 @@ func TestParsePythonMultilineLongerThanBuffer(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 200, strings.Count(f.Section("s").Key("key").Value(), "\n"), "continuation lines")
 	assert.Equal(t, "ok", f.Section("s").Key("next").Value())
+}
+
+// Empty lines inside a Python-style multiline value belong to it when an
+// indented line follows, as in configparser.
+func TestParsePythonMultilineEmptyLines(t *testing.T) {
+	f, err := Load([]byte("notes = first\n\n  second\n\n\n  third\n\nnext = 1\n"), AllowPythonMultilineValues(true))
+	require.NoError(t, err)
+	assert.Equal(t, "first\n\n  second\n\n\n  third", f.Section("").Key("notes").String())
+	assert.Equal(t, "1", f.Section("").Key("next").String())
 }

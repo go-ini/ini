@@ -80,7 +80,7 @@ Measured with Go 1.26.10 on a 4-core Intel Xeon at 2.60 GHz, as the median of 8 
 
 ## Migrating from v1
 
-Without options, v2 parses every input exactly as v1 does. The API changed: the import path is `unknwon.dev/ini/v2`, options are functions, package-level settings became options, and typed list methods became generic functions.
+Without options, v2 parses input as v1 does, apart from a few fixes such as `#` inside quoted values. The API changed: the import path is `unknwon.dev/ini/v2`, options are functions, package-level settings became options, and typed list methods became generic functions.
 
 The [migration guide](docs/migrate-v1-to-v2.md) lists every change.
 

@@ -25,8 +25,9 @@ type token struct {
 	kind         tokenKind
 	name         string
 	value        string
-	comment      string
-	line, column int // where the token starts, both from 1
+	comment      string // for tokEOF, the comment lines after the last key
+	raw          bool   // for tokSection, the section is unparseable
+	line, column int    // where the token starts, both from 1
 }
 
 // errorf reports err at the position of the token.
@@ -35,7 +36,8 @@ func (t token) errorf(err error) error {
 }
 
 // lexer turns INI input into tokens. Its rules, and the order in which they
-// apply, are those of gopkg.in/ini.v1, so every input loads as it did there.
+// apply, are those of gopkg.in/ini.v1, apart from the fixes listed in
+// docs/migrate-v1-to-v2.md.
 type lexer struct {
 	src  string
 	pos  int  // offset of the next unread byte
@@ -94,7 +96,7 @@ func (l *lexer) next() (token, error) {
 	if l.raw.Len() > 0 {
 		return l.rawBody(), nil
 	}
-	return token{kind: tokEOF}, nil
+	return token{kind: tokEOF, comment: l.takeComment()}, nil
 }
 
 // readLine returns the next line including its '\n', if any.
@@ -159,7 +161,7 @@ func (l *lexer) section(line string) (token, error) {
 			break
 		}
 	}
-	return token{kind: tokSection, name: name, comment: l.takeComment()}, nil
+	return token{kind: tokSection, name: name, comment: l.takeComment(), raw: l.inRaw}, nil
 }
 
 // key reads a "name = value" line, or a boolean key when the line has no
@@ -193,8 +195,8 @@ func (l *lexer) key(line string) (_ token, ok bool, _ error) {
 // and any following lines it spans. The rules apply in a fixed order, which
 // decides the result when they overlap: a value is either quoted, continued
 // with a backslash, or plain. For a plain value the inline comment is cut
-// before surrounding quotes are stripped, so `"a;b"` is `"a` with comment
-// `;b"`.
+// before surrounding quotes are stripped, so `"a;b" ;c` is `a;b` with comment
+// `;c`, but `"a;b" x` is `"a` with comment `;b" x`.
 func (l *lexer) readValue(in string) (string, error) {
 	line := strings.TrimLeftFunc(in, unicode.IsSpace)
 	if line == "" {
@@ -285,24 +287,41 @@ func (l *lexer) readQuoted(line, q string) (string, error) {
 }
 
 // cutInlineComment moves a trailing "# ..." or "; ..." of a plain value to
-// the comment. With SpaceBeforeInlineComment the symbol must follow a space,
-// and symbols are tried in order, so " #" wins over an earlier " ;".
+// the comment. With SpaceBeforeInlineComment the symbol must follow a space.
+// A value in single or double quotes keeps the comment symbols inside them,
+// when only spaces or a comment follow the closing quote.
 func (l *lexer) cutInlineComment(line string) string {
-	i := -1
-	if l.opts.SpaceBeforeInlineComment {
-		for _, c := range l.opts.CommentSymbols {
-			if i = strings.Index(line, " "+string(c)); i > -1 {
-				break
+	if line[0] == '\'' || line[0] == '"' {
+		if j := strings.IndexByte(line[1:], line[0]); j > -1 {
+			end := j + 2
+			if rest := line[end:]; strings.TrimSpace(rest) == "" {
+				return line
+			} else if i := l.inlineCommentIndex(rest); i > -1 && strings.TrimSpace(rest[:i]) == "" {
+				l.comment = append(l.comment, rest[i:])
+				return line[:end]
 			}
 		}
-	} else {
-		i = strings.IndexAny(line, l.opts.CommentSymbols)
 	}
+	i := l.inlineCommentIndex(line)
 	if i == -1 {
 		return line
 	}
 	l.comment = append(l.comment, line[i:])
 	return strings.TrimSpace(line[:i])
+}
+
+// inlineCommentIndex returns the index of the first comment symbol in s, or
+// with SpaceBeforeInlineComment of the first one after a space, or -1.
+func (l *lexer) inlineCommentIndex(s string) int {
+	if !l.opts.SpaceBeforeInlineComment {
+		return strings.IndexAny(s, l.opts.CommentSymbols)
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] == ' ' && startsWithAny(s[i+1:], l.opts.CommentSymbols) {
+			return i
+		}
+	}
+	return -1
 }
 
 // readContinuationLines appends trimmed following lines while they end with
@@ -325,28 +344,49 @@ func (l *lexer) readContinuationLines(val string) string {
 }
 
 // readPythonMultilines appends the following lines that start with a space,
-// tab or form feed, each on a new line with its indentation kept.
+// tab or form feed, each on a new line with its indentation kept. Empty
+// lines followed by such a line are part of the value too, as in Python's
+// configparser.
 func (l *lexer) readPythonMultilines(line string) string {
 	var b strings.Builder
 	b.WriteString(line)
-	for l.pos < len(l.src) && strings.IndexByte(" \t\f", l.src[l.pos]) > -1 {
+	for {
+		rest := l.src[l.pos:]
+		empty := len(rest) - len(strings.TrimLeft(rest, "\r\n"))
+		if empty == len(rest) || strings.IndexByte(" \t\f", rest[empty]) == -1 {
+			return b.String()
+		}
+		if empty > 0 && rest[empty-1] != '\n' {
+			// A lone "\r" before the indented line isn't an empty line.
+			return b.String()
+		}
+		for range empty {
+			if l.src[l.pos] == '\n' {
+				l.line++
+				b.WriteByte('\n')
+			}
+			l.pos++
+		}
 		next := strings.TrimSuffix(l.readLine(), "\n")
 		b.WriteByte('\n')
 		b.WriteString(next)
 	}
-	return b.String()
 }
 
-// skipBOM strips a UTF-8, UTF-16 LE or UTF-16 BE byte order mark.
+// skipBOM strips the UTF-8, UTF-16 LE and UTF-16 BE byte order marks at
+// the start of src. Some tools add a second one to a file that has one.
 // http://en.wikipedia.org/wiki/Byte_order_mark#Representations_of_byte_order_marks_by_encoding
 func skipBOM(src string) string {
-	switch {
-	case len(src) >= 2 && (src[0] == 0xFE && src[1] == 0xFF || src[0] == 0xFF && src[1] == 0xFE):
-		return src[2:]
-	case len(src) >= 3 && src[0] == 0xEF && src[1] == 0xBB && src[2] == 0xBF:
-		return src[3:]
+	for {
+		switch {
+		case len(src) >= 2 && (src[0] == 0xFE && src[1] == 0xFF || src[0] == 0xFF && src[1] == 0xFE):
+			src = src[2:]
+		case len(src) >= 3 && src[0] == 0xEF && src[1] == 0xBB && src[2] == 0xBF:
+			src = src[3:]
+		default:
+			return src
+		}
 	}
-	return src
 }
 
 // parse reads all of reader and adds its sections and keys to f. The caller
@@ -375,6 +415,14 @@ func (f *File) parse(reader io.Reader) error {
 
 		switch tok.kind {
 		case tokEOF:
+			if tok.comment != "" {
+				// Comment lines after the last key are kept on the last
+				// section, which isn't the one read last when the input
+				// reopens an earlier section, and are written after it.
+				// Sections added later are written after them.
+				last := f.sections[len(f.sections)-1]
+				last.footer = strings.TrimSpace(last.footer + "\n" + tok.comment)
+			}
 			return nil
 
 		case tokSection:
@@ -382,6 +430,9 @@ func (f *File) parse(reader io.Reader) error {
 				return tok.errorf(err)
 			}
 			section.comment = tok.comment
+			// A section with keys, such as the default one, stays a key section
+			// when its raw header has no body.
+			section.isRawSection = section.isRawSection || (tok.raw && len(section.keys) == 0)
 			count = 1
 
 		case tokRawBody:
