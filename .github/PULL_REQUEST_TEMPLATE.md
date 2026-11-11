@@ -9,3 +9,7 @@ Link to the issue: <!-- paste the issue link here, or put "n/a" if not applicabl
 - [ ] I agree to follow the [Code of Conduct](https://go.dev/conduct) by submitting this pull request.
 - [ ] I have read and acknowledge the [Contributing guide](https://github.com/go-ini/ini/blob/main/.github/contributing.md).
 - [ ] I have added test cases to cover the new code.
+
+### AI usage
+
+<!-- You must disclose any and all use of AI in PRs to help us assess how to review it. -->
