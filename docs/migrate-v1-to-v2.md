@@ -67,6 +67,9 @@ In v1, `f.Section("server").Key("PORT")` added an empty `[server]` section and `
   - Nil pointer fields are skipped.
   - Fields after an empty `nonunique` slice or a `StructReflector` field are written.
   - An `allowshadow` element containing the delimiter is an error, since it would read back as two elements.
+  - In a file loaded without `AllowShadows`, an `allowshadow` slice of several elements is written as one value joined by the delimiter, which reads back as all of them. v1 wrote only the first element.
+
+A struct field maps to a section. When a file has a key of the field's name but no such section, `MapTo` leaves the field unchanged, as v1 did, and `StrictMapTo` returns an error. To parse that key yourself, tag the field `ini:"-"` so both skip it, then read it with `Section.Key`. To have `MapTo` and `ReflectFrom` map the key, give the field's type both `MarshalINI` and `UnmarshalINI`.
 
 ### Writing
 

@@ -1041,13 +1041,24 @@ func TestMapTo_DurationPointerWithNumber(t *testing.T) {
 }
 
 func TestMapTo_StructFieldsFromKeys(t *testing.T) {
+	// A struct field maps to a section. A key of its name, which a program
+	// such as frp parses itself, leaves the field as it is, and the fields
+	// around it still map, as in v1. StrictMapTo reports it.
 	type sub struct{ A int }
-	var c1 struct{ Sub sub }
-	assert.Error(t, MapTo(&c1, []byte("Sub = 2006-01-02T15:04:05Z\n")))
-	var c2 struct{ Sub *sub }
-	assert.Error(t, MapTo(&c2, []byte("Sub = 2006-01-02T15:04:05Z\n")))
-	var c3 struct{ Items []sub }
-	assert.Error(t, MapTo(&c3, []byte("Items = x\n")))
+	type cfg struct {
+		Port int
+		Sub  sub
+		Ptr  *sub
+	}
+	data := []byte("Port = 22\nSub = 1MB\nPtr = 1MB\n")
+	c := cfg{Sub: sub{A: 7}}
+	require.NoError(t, MapTo(&c, data))
+	assert.Equal(t, cfg{Port: 22, Sub: sub{A: 7}}, c)
+	assert.Error(t, StrictMapTo(&cfg{}, []byte("Sub = 1MB\n")))
+	assert.Error(t, StrictMapTo(&cfg{}, []byte("Ptr = 1MB\n")))
+
+	var items struct{ Items []sub }
+	assert.Error(t, MapTo(&items, []byte("Items = x\n")))
 }
 
 type testTag string
@@ -1319,8 +1330,22 @@ func TestReflectFrom_AllowShadow(t *testing.T) {
 	// The comment of a key goes before its last line, as the lexer reads it.
 	assert.Equal(t, "path = a\n; search paths\npath = b\n", string(data))
 
-	assert.Error(t, Empty().ReflectFrom(&cfg{Paths: []string{"a", "b"}}), "values must not be dropped silently")
+	// Without AllowShadows the elements share one value, which reads back
+	// as all of them with or without AllowShadows.
 	f := Empty()
+	require.NoError(t, f.ReflectFrom(&cfg{Paths: []string{"a", "b", "c"}}))
+	var buf bytes.Buffer
+	_, err = f.Write(&buf)
+	require.NoError(t, err)
+	assert.Equal(t, "; search paths\npath = a,b,c\n", buf.String())
+	for _, shadows := range []bool{false, true} {
+		var out cfg
+		require.NoError(t, MapTo(&out, buf.Bytes(), AllowShadows(shadows)))
+		assert.Equal(t, []string{"a", "b", "c"}, out.Paths, "AllowShadows(%v)", shadows)
+	}
+	assert.Error(t, Empty().ReflectFrom(&cfg{Paths: []string{"a", "b,c"}}))
+
+	f = Empty()
 	require.NoError(t, f.ReflectFrom(&cfg{Paths: []string{"a"}}))
 	assert.Equal(t, "a", f.Section("").Key("path").String())
 }
