@@ -68,8 +68,8 @@ func TestKey_AddShadow(t *testing.T) {
 
 	t.Run("preserve empty shadow values", func(t *testing.T) {
 		f := Empty(LoadOptions{
-			AllowShadows:         true,
-			PreserveEmptyShadows: true,
+			AllowShadows:              true,
+			PreserveEmptyShadowValues: true,
 		})
 		require.NotNil(t, f)
 
@@ -563,8 +563,8 @@ keyName = value2
 
 	t.Run("preserve empty assignments from file", func(t *testing.T) {
 		f, err := LoadSources(LoadOptions{
-			AllowShadows:         true,
-			PreserveEmptyShadows: true,
+			AllowShadows:              true,
+			PreserveEmptyShadowValues: true,
 		}, []byte(`
 [Service]
 Environment=FOO=bar
@@ -573,6 +573,19 @@ Environment=
 		require.NoError(t, err)
 		require.NotNil(t, f)
 		assert.Equal(t, []string{"FOO=bar", ""}, f.Section("Service").Key("Environment").ValueWithShadows())
+	})
+
+	t.Run("preserve every empty assignment on write", func(t *testing.T) {
+		const data = "[Service]\nEnvironment = A\nEnvironment = \nEnvironment = B\nEnvironment = \n"
+		opts := LoadOptions{AllowShadows: true, PreserveEmptyShadowValues: true}
+		f, err := LoadSources(opts, []byte(data))
+		require.NoError(t, err)
+		assert.Equal(t, []string{"A", "", "B", ""}, f.Section("Service").Key("Environment").ValueWithShadows())
+
+		var buf bytes.Buffer
+		_, err = f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Equal(t, data, buf.String())
 	})
 
 	t.Run("default still drops empty assignments from file", func(t *testing.T) {
