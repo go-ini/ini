@@ -189,9 +189,10 @@ func AllowDuplicateShadowValues(v bool) LoadOption {
 	return func(o *loadOptions) { o.AllowDuplicateShadowValues = v }
 }
 
-// PreserveEmptyShadowValues keeps empty values in Key.Values and when
-// writing shadow keys. An empty value can be meaningful: in systemd units it
-// resets the values before it.
+// PreserveEmptyShadowValues keeps empty values in Key.Values, and keeps an
+// empty value that repeats an earlier one instead of dropping it as a
+// duplicate, so Write writes it too. An empty value can be meaningful: in
+// systemd units it resets the values before it.
 func PreserveEmptyShadowValues(v bool) LoadOption {
 	return func(o *loadOptions) { o.PreserveEmptyShadowValues = v }
 }
@@ -246,8 +247,8 @@ func newWriteOptions(opts []WriteOption) writeOptions {
 	return o
 }
 
-// Indent puts indent before the keys and comments of every section except
-// the default one. Write returns an error when an indented line would read
+// Indent puts indent before the keys of every section except the default
+// one, and before the first line of their comments. Write returns an error when an indented line would read
 // back as part of the value before it: after any value with
 // AllowPythonMultilineValues, and after an empty value with
 // AllowNestedValues.

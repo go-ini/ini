@@ -12,7 +12,7 @@ Package ini reads and writes INI files in Go.
 - Sections and keys kept in order, parent-child sections, auto-increment keys, repeated (shadow) keys, nested values, multiline values, and `%(name)s` references.
 - Typed access to values: numbers, booleans, durations, times, and lists, ranges and candidates of any of them.
 - Map files to and from structs, and `Marshal` and `Unmarshal` like `encoding/json`.
-- Write files back with their comments and order. What is written always loads back the same.
+- Write files back with their comments and order. What is written loads back the same, or `Write` returns an error.
 - Parse errors that give the line and column.
 - Safe for concurrent use.
 

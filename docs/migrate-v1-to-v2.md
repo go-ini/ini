@@ -24,7 +24,7 @@ sec.Key("PORT").SetValue(strconv.Itoa(port))
 ### `Reload` and `Append`
 
 - `Reload` replaces the contents with what the sources hold now. v1 merged them in, so removed keys stayed and shadow values piled up. `*Section` and `*Key` values you hold see the new values. On error, nothing changes.
-- `Append` reads only the new sources, so changes made in memory survive. v1 read every source again.
+- `Append` reads only the new sources, so changes made in memory survive. v1 read every source again. With `FirstSourceOnly`, `Append` still reloads every source, so that the first one that loads wins.
 - `io.Reader` sources are read once and kept, so `Reload` works with them. In v1 it failed.
 
 ### Lists
@@ -40,7 +40,7 @@ sec.Key("PORT").SetValue(strconv.Itoa(port))
 - Zero and negative durations are applied. v1 skipped them.
 - `uint8` fields map. v1 returned an error.
 - An embedded struct pointer that is already set keeps its values. v1 replaced it.
-- A `nonunique` field with no matching sections is left empty. v1 failed.
+- A `nonunique` field with no matching sections is left unchanged. v1 failed.
 - When writing:
   - Times keep sub-second precision.
   - Slice elements containing the delimiter or ending in a backslash are escaped.
@@ -50,12 +50,15 @@ sec.Key("PORT").SetValue(strconv.Itoa(port))
 
 ### Writing
 
-For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error. For example:
+For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error. Output meant for other readers isn't checked: keys written with a `WriteDelimiter` the file wasn't loaded with, boolean keys without `AllowBooleanKeys`, and raw sections without `RawSections`. For example:
 
 - Values ending in `\`, containing `"""`, or starting with a delimiter are quoted.
 - Empty shadow values and the comments of multi-line keys are kept.
 - With `CaseInsensitive`, an explicit `[DEFAULT]` section is written with its own keys.
 - A raw section body without a final newline no longer runs into the next header.
+- A raw section body with a line that would start a section or be a comment is an error.
+- Multi-line comments containing `\n` are written correctly with `LineBreak("\r\n")`.
+- A key named `-`, which would read back as an auto-increment key, is an error.
 
 ### Other fixes
 
@@ -124,7 +127,7 @@ The package variables that changed every file's output are now options of `File.
 
 ### Typed values
 
-The typed list, candidate and range methods are now generic functions. They behave the same and accept any `Scalar` type, such as `int8`, `time.Duration` or a named string type.
+The typed list, candidate and range methods are now generic functions. They accept any `Scalar` type, such as `int8`, `time.Duration` or a named string type. `In` and `Range` return the default for a value that doesn't parse, where v1's `InInt`, `RangeInt` and friends read it as 0 and returned 0 when it was a candidate or in the range.
 
 | v1 | v2 |
 |---|---|

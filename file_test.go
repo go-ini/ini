@@ -839,4 +839,67 @@ func TestWriteReadsBack(t *testing.T) {
 		_, err := f.Write(io.Discard)
 		assert.Error(t, err, "a key name with a line break")
 	})
+
+	t.Run("comments with \\n written with \\r\\n", func(t *testing.T) {
+		f := Empty()
+		sec := f.Section("s")
+		sec.SetComment("c1\nc2")
+		k, _ := sec.NewKey("a", "1")
+		k.SetComment("k1\r\nk2\n[admin]")
+		var b bytes.Buffer
+		_, err := f.Write(&b, LineBreak("\r\n"))
+		require.NoError(t, err)
+		assert.Equal(t, "; c1\r\n; c2\r\n[s]\r\n; k1\r\n; k2\r\n; [admin]\r\na = 1\r\n", b.String())
+
+		f2, err := Load(b.Bytes())
+		require.NoError(t, err)
+		assert.Equal(t, []string{DefaultSection, "s"}, f2.SectionNames())
+		assert.Equal(t, "1", f2.Section("s").Key("a").String())
+	})
+
+	t.Run("raw body that doesn't read back", func(t *testing.T) {
+		for _, body := range []string{"a\n[x]\nb", "a\n; c\n"} {
+			f := Empty(RawSections("r"))
+			_, _ = f.NewRawSection("r", body)
+			_, err := f.Write(io.Discard)
+			assert.Error(t, err, "%q", body)
+		}
+
+		// Blank lines and indentation are dropped, as when loading.
+		f := Empty(RawSections("r"))
+		_, _ = f.NewRawSection("r", "a\n\n  b\n")
+		_, err := f.Write(io.Discard)
+		assert.NoError(t, err)
+
+		// Without RawSections, the body is written for other readers.
+		f = Empty()
+		_, _ = f.NewRawSection("r", "a\n[x]\n")
+		_, err = f.Write(io.Discard)
+		assert.NoError(t, err)
+	})
+
+	t.Run("key named -", func(t *testing.T) {
+		f := Empty()
+		_, _ = f.Section("s").NewKey("-", "x")
+		_, err := f.Write(io.Discard)
+		assert.Error(t, err)
+	})
+
+	t.Run("section named like the deleted default section", func(t *testing.T) {
+		f := Empty()
+		f.DeleteSection("")
+		_, _ = f.Section("Default").NewKey("k", "v")
+		var b bytes.Buffer
+		_, err := f.Write(&b)
+		require.NoError(t, err)
+		assert.Equal(t, "[Default]\nk = v\n", b.String())
+
+		f = Empty()
+		f.DeleteSection("")
+		_, _ = f.NewSection("Default")
+		b.Reset()
+		_, err = f.Write(&b)
+		require.NoError(t, err)
+		assert.Equal(t, "[Default]\n", b.String())
+	})
 }

@@ -23,7 +23,10 @@
 // File.Write and File.SaveTo write a File back with its comments and in its
 // order, and WriteOption values set the formatting. What Write writes loads
 // back to the same sections, keys, values and comments, or Write returns an
-// error.
+// error. Output meant for other readers isn't checked: keys written with a
+// WriteDelimiter that the file wasn't loaded with, boolean keys of a file
+// loaded without AllowBooleanKeys, and raw sections of a file loaded without
+// RawSections for them.
 //
 // A File is safe for concurrent use unless loaded with Locking(false).
 // Parse errors are *ParseError values that give the line and column.

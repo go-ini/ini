@@ -371,7 +371,9 @@ func (f *File) load(sources []dataSource) error {
 
 // Append adds one or more data sources and reads them into the file. Their
 // sections and keys add to the current ones and overwrite keys they repeat.
-// Changes made to the file in memory stay.
+// Changes made to the file in memory stay. With FirstSourceOnly, Append calls
+// Reload instead, so the first source that loads wins and changes made in
+// memory are lost.
 func (f *File) Append(source any, others ...any) error {
 	sources := make([]dataSource, 0, 1+len(others))
 	for _, s := range append([]any{source}, others...) {
@@ -440,6 +442,10 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		for _, nv := range nested {
 			after += indent + "  " + nv + lineBreak
 		}
+		if !boolean && name == "-" && !key.isAutoIncrement {
+			// Any key named "-" reads back as an auto-increment key.
+			return "", fmt.Errorf("cannot write key %q in section %q: it would read back as an auto-increment key", key.name, key.s.name)
+		}
 		var line string
 		switch {
 		case boolean:
@@ -503,8 +509,10 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			return nil, fmt.Errorf("cannot write section %q: its name has a line break", sname)
 		}
 		if len(sec.comment) > 0 {
-			// Support multiline comments
-			lines := strings.Split(sec.comment, lineBreak)
+			// Support multiline comments. They are split at "\n" too, so a
+			// comment set with "\n" and written with another lineBreak has
+			// no line without a comment symbol.
+			lines := splitLines(sec.comment, lineBreak)
 			for i := range lines {
 				var err error
 				if lines[i], err = formatComment(lines[i], false); err != nil {
@@ -519,10 +527,13 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 
 		// The default section's header is left out only when its name is the
 		// upper-case DefaultSection, so a renamed default section keeps its
-		// header. An empty default section is skipped whatever its name.
-		emptyDefault := i == 0 && len(sec.keys) == 0 && strings.EqualFold(sec.name, f.options.DefaultSection)
+		// header. An empty default section is skipped whatever its name. A
+		// section that only has the default section's name in another case,
+		// after the default section was deleted, keeps its header.
+		isDefault := f.isDefaultSection(sec.name)
+		emptyDefault := i == 0 && len(sec.keys) == 0 && isDefault
 		// A comment needs the header to stay on the section.
-		if i > 0 || o.defaultHeader || len(sec.comment) > 0 || (strings.ToUpper(sec.name) != f.options.DefaultSection && !emptyDefault) {
+		if i > 0 || o.defaultHeader || len(sec.comment) > 0 || ((!isDefault || strings.ToUpper(sec.name) != f.options.DefaultSection) && !emptyDefault) {
 			if _, err := buf.WriteString("[" + sname + "]" + lineBreak); err != nil {
 				return nil, err
 			}
@@ -535,6 +546,9 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 
 		isLastSection := i == lastSectionIdx
 		if sec.isRawSection {
+			if !f.rawBodyReadsBack(sname, sec.rawBody) {
+				return nil, fmt.Errorf("cannot write the body of section %q so that it reads back: a line would start a section or be a comment", sname)
+			}
 			if _, err := buf.WriteString(sec.rawBody); err != nil {
 				return nil, err
 			}
@@ -696,7 +710,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 					return nil, err
 				}
 				// Support multiline comments
-				comments := strings.Split(key.comment, lineBreak)
+				comments := splitLines(key.comment, lineBreak)
 				for i := range comments {
 					var err error
 					if comments[i], err = formatComment(comments[i], true); err != nil {
@@ -745,6 +759,33 @@ func (f *File) readsBack(text string, boolean bool, name, val string, nested []s
 	}
 	tok, err = l.next()
 	return err == nil && tok.kind == tokEOF && len(l.comment) == 0
+}
+
+// rawBodyReadsBack reports whether the lexer reads body, under the header of
+// the raw section name, as that section's body and nothing else. Blank lines
+// and the indentation of lines aren't kept, as when loading. A section that
+// the file's options don't read as raw is written for other readers, and
+// isn't checked.
+func (f *File) rawBodyReadsBack(name, body string) bool {
+	l := lexer{src: "[" + name + "]\n" + body, opts: &f.options}
+	if tok, err := l.next(); err != nil || tok.kind != tokSection || !l.inRaw {
+		return true
+	}
+	tok, err := l.next()
+	if err == nil && tok.kind == tokRawBody {
+		tok, err = l.next()
+	}
+	return err == nil && tok.kind == tokEOF && len(l.comment) == 0
+}
+
+// splitLines splits s at lineBreak, and then at "\n", so that no line has
+// a "\n" in it.
+func splitLines(s, lineBreak string) []string {
+	var lines []string
+	for _, line := range strings.Split(s, lineBreak) {
+		lines = append(lines, strings.Split(line, "\n")...)
+	}
+	return lines
 }
 
 // Write writes the file to w, formatted by opts.
