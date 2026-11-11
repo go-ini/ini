@@ -472,8 +472,20 @@ TYPE = exact
 		assert.Equal(t, "s3", g.Subsection("storage", `r2 "x"\`).Key("TYPE").String())
 	})
 
+	t.Run("RangedAfterChange", func(t *testing.T) {
+		f := Empty()
+		seq := f.Subsections("forge")
+		_, err := f.NewSection(`forge "x"`)
+		require.NoError(t, err)
+		var subs []string
+		for sub := range seq {
+			subs = append(subs, sub)
+		}
+		assert.Equal(t, []string{"x"}, subs)
+	})
+
 	t.Run("CaseInsensitive", func(t *testing.T) {
-		f, err := Load([]byte(`[Forge "GitHub.com"]`+"\nTYPE = github"), CaseInsensitive(true))
+		f, err := Load([]byte(`[Forge "GitHub.com"]`+"\nTYPE = github\n"+`[forge "github.com"]`+"\nUSER = git"), CaseInsensitive(true))
 		require.NoError(t, err)
 		var subs []string
 		for sub := range f.Subsections("forge") {
@@ -481,6 +493,13 @@ TYPE = exact
 		}
 		assert.Equal(t, []string{"github.com"}, subs)
 		assert.Equal(t, "github", f.Subsection("Forge", "GitHub.com").Key("TYPE").String())
+		assert.Equal(t, "git", f.Subsection("Forge", "GitHub.com").Key("USER").String())
+
+		f.Subsection("Storage", "R2").Key("TYPE").SetValue("s3")
+		var buf bytes.Buffer
+		_, err = f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Contains(t, buf.String(), `[storage "r2"]`)
 	})
 }
 

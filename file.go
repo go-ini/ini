@@ -243,23 +243,25 @@ func (f *File) ChildSections(name string) []*Section {
 }
 
 // Subsections returns the sections written in Git's config style as
-// [name "sub"], with each one's sub. The name matches in any case, and
-// spaces and tabs around and between the two parts are allowed. In sub, \"
-// and \\ read as " and \, and a backslash before another character is
-// dropped, as in Git.
+// [name "sub"], with each one's sub. The sections are read each time the
+// result is ranged over. The name matches in any case, and spaces and tabs
+// between the two parts are allowed. In sub, \" and \\ read as " and \, and
+// a backslash before another character is dropped, as in Git.
 //
 // Section names are read as written, so a few things differ from Git:
+//   - Spaces and tabs before the name or after the closing quote are
+//     allowed, where Git rejects the header.
 //   - A section whose name doesn't split as above, such as a sub without
 //     its closing quote, is skipped without an error.
-//   - Headers that differ only in spacing or in the case of the name, such
-//     as [forge "x"] and [Forge  "x"], are separate sections, and both are
-//     returned with sub "x".
+//   - Headers that differ only in spacing, such as [forge "x"] and
+//     [forge  "x"], are separate sections, and both are returned with sub
+//     "x". So are headers that differ only in the case of the name, such as
+//     [Forge "x"], unless CaseInsensitive or CaseInsensitiveSections is set.
 //   - With CaseInsensitive or CaseInsensitiveSections, sub is lowercased,
 //     as the whole section name is when it's read.
 func (f *File) Subsections(name string) iter.Seq2[string, *Section] {
-	secs := f.Sections()
 	return func(yield func(string, *Section) bool) {
-		for _, sec := range secs {
+		for _, sec := range f.Sections() {
 			if n, sub, ok := splitSubsection(sec.name); ok && strings.EqualFold(n, name) {
 				if !yield(sub, sec) {
 					return
@@ -273,7 +275,9 @@ func (f *File) Subsections(name string) iter.Seq2[string, *Section] {
 // [name "sub"], matched as Subsections does. When there are several, it
 // returns the one written exactly as [name "sub"], or else the first. When
 // there is none, it returns a section that reads as empty, as Section does,
-// and a change adds it as [name "sub"], with " and \ in sub escaped.
+// and a change adds it as [name "sub"], with " and \ in sub escaped. With
+// CaseInsensitive or CaseInsensitiveSections, the added header is
+// lowercased, as any section name is.
 func (f *File) Subsection(name, sub string) *Section {
 	quoted := name + ` "` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(sub) + `"`
 	if sec, err := f.GetSection(quoted); err == nil {
