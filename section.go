@@ -22,8 +22,8 @@ import (
 
 // Section represents a config section.
 type Section struct {
-	f        *File
-	Comment  string
+	f       *File
+	Comment string
 	// TrailingComment is comments after the last key of this section
 	// (or after a raw section body) through EOF. Comments that sit
 	// immediately before the next [section] still attach to that next
