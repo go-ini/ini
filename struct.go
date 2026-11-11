@@ -352,6 +352,17 @@ func decodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, al
 	if isPtr {
 		vt = t.Elem()
 	}
+	if isPtr && vt.Kind() == reflect.Slice && !isCustomType(vt) {
+		// A pointer to a slice is written as the slice, so it reads as one.
+		// A nil pointer isn't written, so the key sets the pointer, as for
+		// any pointer field.
+		p := reflect.New(vt)
+		if err := decodeSlice(key, p.Elem(), delim, allowShadow, isStrict); err != nil {
+			return err
+		}
+		field.Set(p)
+		return nil
+	}
 	if !isValueType(vt) {
 		return fmt.Errorf("unsupported type %q", t)
 	}
