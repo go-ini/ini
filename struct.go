@@ -94,7 +94,13 @@ func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowSh
 	var vals interface{}
 	var err error
 
-	sliceOf := field.Type().Elem().Kind()
+	elemType := field.Type().Elem()
+	isPtrElem := elemType.Kind() == reflect.Pointer
+	valueType := elemType
+	if isPtrElem {
+		valueType = elemType.Elem()
+	}
+	sliceOf := valueType.Kind()
 	switch sliceOf {
 	case reflect.String:
 		vals = strs
@@ -113,7 +119,7 @@ func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowSh
 	case reflectTime:
 		vals, err = key.parseTimesFormat(time.RFC3339, strs, true, false)
 	default:
-		return fmt.Errorf("unsupported type '[]%s'", sliceOf)
+		return fmt.Errorf("unsupported type '[]%s'", field.Type().Elem().Kind())
 	}
 	if err != nil && isStrict {
 		return err
@@ -121,23 +127,32 @@ func setSliceWithProperType(key *Key, field reflect.Value, delim string, allowSh
 
 	slice := reflect.MakeSlice(field.Type(), numVals, numVals)
 	for i := 0; i < numVals; i++ {
+		var v interface{}
 		switch sliceOf {
 		case reflect.String:
-			slice.Index(i).Set(reflect.ValueOf(vals.([]string)[i]))
+			v = vals.([]string)[i]
 		case reflect.Int:
-			slice.Index(i).Set(reflect.ValueOf(vals.([]int)[i]))
+			v = vals.([]int)[i]
 		case reflect.Int64:
-			slice.Index(i).Set(reflect.ValueOf(vals.([]int64)[i]))
+			v = vals.([]int64)[i]
 		case reflect.Uint:
-			slice.Index(i).Set(reflect.ValueOf(vals.([]uint)[i]))
+			v = vals.([]uint)[i]
 		case reflect.Uint64:
-			slice.Index(i).Set(reflect.ValueOf(vals.([]uint64)[i]))
+			v = vals.([]uint64)[i]
 		case reflect.Float64:
-			slice.Index(i).Set(reflect.ValueOf(vals.([]float64)[i]))
+			v = vals.([]float64)[i]
 		case reflect.Bool:
-			slice.Index(i).Set(reflect.ValueOf(vals.([]bool)[i]))
+			v = vals.([]bool)[i]
 		case reflectTime:
-			slice.Index(i).Set(reflect.ValueOf(vals.([]time.Time)[i]))
+			v = vals.([]time.Time)[i]
+		}
+		rv := reflect.ValueOf(v)
+		if isPtrElem {
+			pv := reflect.New(rv.Type())
+			pv.Elem().Set(rv)
+			slice.Index(i).Set(pv)
+		} else {
+			slice.Index(i).Set(rv)
 		}
 	}
 	field.Set(slice)

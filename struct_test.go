@@ -756,6 +756,46 @@ AllowedIPs   = 10.2.0.6/32,fd00:2::6/128
 	})
 }
 
+func TestMapToPointerSlices(t *testing.T) {
+	t.Run("map allowshadow keys to []*string", func(t *testing.T) {
+		type Config struct {
+			Users []*string `ini:"user,allowshadow"`
+		}
+
+		f, err := LoadSources(LoadOptions{AllowShadows: true}, []byte(`user=foo
+user=bar
+user=baz
+`))
+		require.NoError(t, err)
+
+		cfg := new(Config)
+		require.NoError(t, f.MapTo(cfg))
+		require.Len(t, cfg.Users, 3)
+		require.NotNil(t, cfg.Users[0])
+		require.NotNil(t, cfg.Users[1])
+		require.NotNil(t, cfg.Users[2])
+		assert.Equal(t, "foo", *cfg.Users[0])
+		assert.Equal(t, "bar", *cfg.Users[1])
+		assert.Equal(t, "baz", *cfg.Users[2])
+	})
+
+	t.Run("map delimited values to []*int", func(t *testing.T) {
+		type Config struct {
+			Nums []*int `delim:","`
+		}
+
+		f, err := Load([]byte(`Nums=1,2,3`))
+		require.NoError(t, err)
+
+		cfg := new(Config)
+		require.NoError(t, f.MapTo(cfg))
+		require.Len(t, cfg.Nums, 3)
+		assert.Equal(t, 1, *cfg.Nums[0])
+		assert.Equal(t, 2, *cfg.Nums[1])
+		assert.Equal(t, 3, *cfg.Nums[2])
+	})
+}
+
 // Inspired by https://github.com/go-ini/ini/issues/196
 func TestMapToAndReflectFromStructWithShadows(t *testing.T) {
 	t.Run("map to struct and then reflect with shadows should generate original config content", func(t *testing.T) {
