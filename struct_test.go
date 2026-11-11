@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -889,7 +890,64 @@ Title = Consultant Engineer
 	})
 }
 
-func TestMarshalUnmarshal(t *testing.T) {
+// marshal writes v, a struct or a pointer to one, with File.ReflectFrom and
+// File.Write. Shadows and non-unique sections let allowshadow and nonunique
+// fields write all their values.
+func marshal(v any) ([]byte, error) {
+	if val := reflect.ValueOf(v); val.Kind() == reflect.Struct {
+		ptr := reflect.New(val.Type())
+		ptr.Elem().Set(val)
+		v = ptr.Interface()
+	}
+	f := Empty(AllowShadows(true), AllowDuplicateShadowValues(true), AllowNonUniqueSections(true))
+	if err := f.ReflectFrom(v); err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if _, err := f.Write(&buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// unmarshal maps data to v with MapTo, reading what marshal writes: when v
+// has allowshadow fields it loads with AllowShadows,
+// AllowDuplicateShadowValues and PreserveEmptyShadowValues, and when it has
+// nonunique fields with AllowNonUniqueSections. These come after opts.
+func unmarshal(data []byte, v any, opts ...LoadOption) error {
+	if v != nil {
+		shadows, nonUnique := tagOptions(reflect.TypeOf(v), map[reflect.Type]bool{})
+		opts = slices.Clone(opts)
+		if shadows {
+			opts = append(opts, AllowShadows(true), AllowDuplicateShadowValues(true), PreserveEmptyShadowValues(true))
+		}
+		if nonUnique {
+			opts = append(opts, AllowNonUniqueSections(true))
+		}
+	}
+	return MapTo(v, data, opts...)
+}
+
+// tagOptions reports whether t, or a struct type it holds, has allowshadow
+// or nonunique fields.
+func tagOptions(t reflect.Type, seen map[reflect.Type]bool) (shadows, nonUnique bool) {
+	for t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice {
+		t = t.Elem()
+	}
+	if !isStructType(t) || seen[t] {
+		return false, false
+	}
+	seen[t] = true
+	for i := 0; i < t.NumField(); i++ {
+		_, _, allowShadow, allowNonUnique, _ := parseTagOptions(t.Field(i).Tag.Get("ini"))
+		s, n := tagOptions(t.Field(i).Type, seen)
+		shadows = shadows || allowShadow || s
+		nonUnique = nonUnique || allowNonUnique || n
+	}
+	return shadows, nonUnique
+}
+
+func TestStructRoundTrip(t *testing.T) {
 	type server struct {
 		Host  string   `ini:"host"`
 		Ports []int    `ini:"ports"`
@@ -901,19 +959,19 @@ func TestMarshalUnmarshal(t *testing.T) {
 	}
 	in := config{Name: "app", Server: server{Host: "localhost", Ports: []int{80, 443}, Tags: []string{"a", "b"}}}
 
-	data, err := Marshal(in)
+	data, err := marshal(in)
 	require.NoError(t, err)
 	assert.Equal(t, "name = app\n\n[server]\nhost  = localhost\nports = 80,443\ntags  = a|b\n", string(data))
 
 	var out config
-	require.NoError(t, Unmarshal(data, &out))
+	require.NoError(t, unmarshal(data, &out))
 	assert.Equal(t, in, out)
 
-	err = Unmarshal([]byte("name"), &out)
+	err = unmarshal([]byte("name"), &out)
 	assert.ErrorIs(t, err, ErrDelimiterNotFound)
 }
 
-func TestMarshal_ShadowsAndNonUniqueSections(t *testing.T) {
+func TestStructRoundTrip_ShadowsAndNonUniqueSections(t *testing.T) {
 	type peer struct {
 		Key string `ini:"key"`
 	}
@@ -923,16 +981,16 @@ func TestMarshal_ShadowsAndNonUniqueSections(t *testing.T) {
 	}
 	in := config{Paths: []string{"a", "b", "c"}, Peers: []peer{{"x"}, {"y"}}}
 
-	data, err := Marshal(in)
+	data, err := marshal(in)
 	require.NoError(t, err)
 	assert.Equal(t, "path = a\npath = b\npath = c\n\n[Peer]\nkey = x\n\n[Peer]\nkey = y\n", string(data))
 
 	var out config
-	require.NoError(t, Unmarshal(data, &out, AllowShadows(true), AllowNonUniqueSections(true)))
+	require.NoError(t, unmarshal(data, &out, AllowShadows(true), AllowNonUniqueSections(true)))
 	assert.Equal(t, in, out)
 }
 
-func TestMarshalUnmarshal_Nil(t *testing.T) {
+func TestStructRoundTrip_Nil(t *testing.T) {
 	type peer struct {
 		Key string `ini:"key"`
 	}
@@ -941,18 +999,18 @@ func TestMarshalUnmarshal_Nil(t *testing.T) {
 		Peer *peer  `ini:"peer"`
 	}
 
-	_, err := Marshal(nil)
+	_, err := marshal(nil)
 	assert.Error(t, err)
-	_, err = Marshal((*config)(nil))
+	_, err = marshal((*config)(nil))
 	assert.Error(t, err)
 	n := 1
-	_, err = Marshal(&n)
+	_, err = marshal(&n)
 	assert.Error(t, err)
-	assert.Error(t, Unmarshal([]byte("name = x"), nil))
-	assert.Error(t, Unmarshal([]byte("name = x"), (*config)(nil)))
+	assert.Error(t, unmarshal([]byte("name = x"), nil))
+	assert.Error(t, unmarshal([]byte("name = x"), (*config)(nil)))
 
 	// A nil section pointer writes nothing for that section.
-	data, err := Marshal(config{Name: "n"})
+	data, err := marshal(config{Name: "n"})
 	require.NoError(t, err)
 	assert.Equal(t, "name = n\n", string(data))
 }
@@ -1076,14 +1134,14 @@ func TestMapToReflectFrom_RecursiveType(t *testing.T) {
 	// A cyclic value is written one level deep.
 	cyclic := &testNode{X: 1}
 	cyclic.Child = cyclic
-	data, err := Marshal(cyclic)
+	data, err := marshal(cyclic)
 	require.NoError(t, err)
 	assert.Equal(t, "X = 1\n\n[Child]\nX = 1\n", string(data))
 }
 
 func TestReflectFrom_StructSlice(t *testing.T) {
 	type sub struct{ A int }
-	_, err := Marshal(struct{ Items []sub }{Items: []sub{{1}}})
+	_, err := marshal(struct{ Items []sub }{Items: []sub{{1}}})
 	assert.Error(t, err)
 }
 
@@ -1104,14 +1162,14 @@ func TestReflectFrom_PointerToPointer(t *testing.T) {
 
 func TestReflectFrom_NonUniqueNilAndNonStruct(t *testing.T) {
 	type peer struct{ Key string }
-	data, err := Marshal(struct {
+	data, err := marshal(struct {
 		Peers []*peer `ini:"Peer,nonunique"`
 	}{Peers: []*peer{nil, {"x"}, nil}})
 	require.NoError(t, err)
 	assert.Equal(t, "[Peer]\nKey = x\n", string(data))
 
 	n := 1
-	_, err = Marshal(struct {
+	_, err = marshal(struct {
 		Ints []*int `ini:"Int,nonunique"`
 	}{Ints: []*int{&n}})
 	assert.Error(t, err)
@@ -1161,89 +1219,89 @@ func TestMapTo_ZeroAndNegativeDuration(t *testing.T) {
 	assert.Equal(t, time.Duration(0), c.Z)
 }
 
-func TestMarshalUnmarshal_TimePointer(t *testing.T) {
+func TestStructRoundTrip_TimePointer(t *testing.T) {
 	type cfg struct {
 		T  *time.Time
 		TV time.Time
 	}
 	ti := time.Date(2020, 9, 12, 1, 2, 3, 0, time.UTC)
-	data, err := Marshal(cfg{T: &ti, TV: ti})
+	data, err := marshal(cfg{T: &ti, TV: ti})
 	require.NoError(t, err)
 	assert.Equal(t, "T  = 2020-09-12T01:02:03Z\nTV = 2020-09-12T01:02:03Z\n", string(data))
 
 	var out cfg
-	require.NoError(t, Unmarshal(data, &out))
+	require.NoError(t, unmarshal(data, &out))
 	require.NotNil(t, out.T)
 	assert.True(t, ti.Equal(*out.T))
 	assert.True(t, ti.Equal(out.TV))
 }
 
-func TestMarshalUnmarshal_SubSecondTime(t *testing.T) {
+func TestStructRoundTrip_SubSecondTime(t *testing.T) {
 	type cfg struct {
 		T  time.Time
 		Ts []time.Time
 	}
 	ti := time.Date(2020, 9, 12, 0, 0, 0, 651387237, time.UTC)
 	in := cfg{T: ti, Ts: []time.Time{ti, ti.Add(time.Second)}}
-	data, err := Marshal(in)
+	data, err := marshal(in)
 	require.NoError(t, err)
 	assert.Equal(t, "T  = 2020-09-12T00:00:00.651387237Z\nTs = 2020-09-12T00:00:00.651387237Z,2020-09-12T00:00:01.651387237Z\n", string(data))
 
 	var out cfg
-	require.NoError(t, Unmarshal(data, &out))
+	require.NoError(t, unmarshal(data, &out))
 	assert.Equal(t, in, out)
 }
 
-func TestMarshalUnmarshal_EscapedSliceElements(t *testing.T) {
+func TestStructRoundTrip_EscapedSliceElements(t *testing.T) {
 	type cfg struct {
 		S []string
 		P []string `delim:"|"`
 	}
 	in := cfg{S: []string{"a", "b, c", `d\e`, `f\`}, P: []string{"x|y", "z,w"}}
-	data, err := Marshal(in)
+	data, err := marshal(in)
 	require.NoError(t, err)
 	assert.Equal(t, "S = `a,b\\, c,d\\e,f\\\\`\nP = x\\|y|z,w\n", string(data))
 
 	var out cfg
-	require.NoError(t, Unmarshal(data, &out))
+	require.NoError(t, unmarshal(data, &out))
 	assert.Equal(t, in, out)
 
 	// Key.Strings drops an empty last element, so a slice ending in an empty
 	// string cannot round trip. Empty elements before the last one do.
-	data, err = Marshal(cfg{S: []string{"", "a"}, P: []string{"", ""}})
+	data, err = marshal(cfg{S: []string{"", "a"}, P: []string{"", ""}})
 	require.NoError(t, err)
 	assert.Equal(t, "S = ,a\nP = |\n", string(data))
 	out = cfg{}
-	require.NoError(t, Unmarshal(data, &out))
+	require.NoError(t, unmarshal(data, &out))
 	assert.Equal(t, []string{"", "a"}, out.S)
 }
 
-func TestMarshalUnmarshal_NilPointerFields(t *testing.T) {
+func TestStructRoundTrip_NilPointerFields(t *testing.T) {
 	type cfg struct {
 		PS   *string
 		PI   *int
 		Name string
 	}
-	data, err := Marshal(cfg{Name: "n"})
+	data, err := marshal(cfg{Name: "n"})
 	require.NoError(t, err)
 	assert.Equal(t, "Name = n\n", string(data))
 
 	var out cfg
-	require.NoError(t, Unmarshal(data, &out))
+	require.NoError(t, unmarshal(data, &out))
 	assert.Nil(t, out.PS)
 	assert.Nil(t, out.PI)
 }
 
 func TestReflectFrom_FieldsAfterEmptyNonUniqueAndReflector(t *testing.T) {
 	type peer struct{ Key string }
-	data, err := Marshal(struct {
+	data, err := marshal(struct {
 		Peers []peer `ini:"Peer,nonunique"`
 		After string
 	}{After: "a"})
 	require.NoError(t, err)
 	assert.Equal(t, "After = a\n", string(data))
 
-	data, err = Marshal(struct {
+	data, err = marshal(struct {
 		Employer Employers
 		After    string
 	}{Employer: Employers{{Name: "E", Title: "T"}}, After: "a"})
@@ -1255,7 +1313,7 @@ func TestReflectFrom_AllowShadow(t *testing.T) {
 	type cfg struct {
 		Paths []string `ini:"path,allowshadow" comment:"search paths"`
 	}
-	data, err := Marshal(cfg{Paths: []string{"a", "b"}})
+	data, err := marshal(cfg{Paths: []string{"a", "b"}})
 	require.NoError(t, err)
 	// The comment of a key goes before its last line, as the lexer reads it.
 	assert.Equal(t, "path = a\n; search paths\npath = b\n", string(data))
@@ -1277,18 +1335,18 @@ func TestReflectFrom_InsensitiveDefaultSection(t *testing.T) {
 }
 
 // https://github.com/go-ini/ini/issues/302
-func TestMarshalUnmarshal_Uint8(t *testing.T) {
+func TestStructRoundTrip_Uint8(t *testing.T) {
 	type cfg struct {
 		B  uint8
 		BP *byte
 	}
 	var out cfg
-	require.NoError(t, Unmarshal([]byte("B = 200\nBP = 7\n"), &out))
+	require.NoError(t, unmarshal([]byte("B = 200\nBP = 7\n"), &out))
 	assert.Equal(t, uint8(200), out.B)
 	require.NotNil(t, out.BP)
 	assert.Equal(t, byte(7), *out.BP)
 
-	data, err := Marshal(out)
+	data, err := marshal(out)
 	require.NoError(t, err)
 	assert.Equal(t, "B  = 200\nBP = 7\n", string(data))
 }
@@ -1308,28 +1366,28 @@ func TestMapTo_EmbeddedPointerKeepsValues(t *testing.T) {
 	assert.NotNil(t, nilBase.Base, "a nil embedded pointer is still allocated")
 }
 
-func TestMarshalUnmarshal_AllowShadowElements(t *testing.T) {
+func TestStructRoundTrip_AllowShadowElements(t *testing.T) {
 	type cfg struct {
 		Sh []string `ini:"sh,,allowshadow"`
 		N  []int    `ini:"n,,allowshadow"`
 	}
 	in := cfg{Sh: []string{"a", "a", `b\\c`, "", `d\`}, N: []int{1, 1, 2}}
-	data, err := Marshal(in)
+	data, err := marshal(in)
 	require.NoError(t, err)
 
 	var out cfg
-	require.NoError(t, Unmarshal(data, &out))
+	require.NoError(t, unmarshal(data, &out))
 	assert.Equal(t, in, out, "written: %q", data)
 
 	// The tags need these options. Turning them off, as with a config
 	// flag that defaults to false, must not drop elements.
 	out = cfg{}
-	require.NoError(t, Unmarshal(data, &out, AllowShadows(false), AllowDuplicateShadowValues(false), PreserveEmptyShadowValues(false)))
+	require.NoError(t, unmarshal(data, &out, AllowShadows(false), AllowDuplicateShadowValues(false), PreserveEmptyShadowValues(false)))
 	assert.Equal(t, in, out, "written: %q", data)
 
 	// Each value is split at the delimiter when read, so an element
 	// containing it can't be written.
-	_, err = Marshal(cfg{Sh: []string{"b,c"}})
+	_, err = marshal(cfg{Sh: []string{"b,c"}})
 	assert.Error(t, err)
 }
 
@@ -1391,7 +1449,7 @@ type fzCfg struct {
 
 // FuzzStructMapping loads arbitrary input under random options, reads it
 // with every Key accessor and maps it into fzCfg. Nothing may panic or hang,
-// and a value written by Marshal must read back the same.
+// and a value written by marshal must read back the same.
 func FuzzStructMapping(f *testing.F) {
 	inputs := append(fuzzInputs(f),
 		"S = s\nI = -3\nI8 = 127\nU = 4\nU8 = 255\nF32 = 1.5\nF = 2.5\nB = true\nD = 1s\nT = 2020-01-02T03:04:05.5Z\n"+
@@ -1452,17 +1510,18 @@ func FuzzStructMapping(f *testing.F) {
 		var strict fzCfg
 		_ = file.StrictMapTo(&strict)
 
-		// What Marshal writes, Unmarshal reads back the same, except
+		// What marshal writes, unmarshal reads back the same, except
 		// for the limits of the format that are checked below.
-		out, err := Marshal(cfg)
-		if err != nil {
+		out, err := marshal(cfg)
+		if err != nil || bytes.Contains(out, []byte("%(")) {
+			// A %(name)s reference in a value is expanded when read.
 			return
 		}
 		var back fzCfg
-		require.NoError(t, Unmarshal(out, &back), "marshaled: %q", out)
+		require.NoError(t, unmarshal(out, &back), "marshaled: %q", out)
 		normalizeFz(&cfg)
 		normalizeFz(&back)
-		require.Equal(t, cfg, back, "Marshal/Unmarshal changed the value\nmarshaled: %q", out)
+		require.Equal(t, cfg, back, "marshal/unmarshal changed the value\nmarshaled: %q", out)
 
 		// ReflectFrom into the loaded file must not panic and must write.
 		if err := file.ReflectFrom(&cfg); err == nil {

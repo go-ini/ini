@@ -1,11 +1,9 @@
 package ini
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -819,64 +817,4 @@ func (s *Section) ReflectFrom(v any) error {
 // ReflectFrom reflects file from given struct.
 func (f *File) ReflectFrom(v any) error {
 	return f.Section("").ReflectFrom(v)
-}
-
-// Unmarshal parses INI data with opts and maps it to the struct v points to,
-// as File.MapTo does. It reads what Marshal writes: when v has allowshadow
-// fields it loads with AllowShadows, AllowDuplicateShadowValues and
-// PreserveEmptyShadowValues, and when it has nonunique fields with
-// AllowNonUniqueSections, as those tags need. These come after opts, so
-// passing one of them as false doesn't drop the values the tags read.
-func Unmarshal(data []byte, v any, opts ...LoadOption) error {
-	if v != nil {
-		shadows, nonUnique := tagOptions(reflect.TypeOf(v), map[reflect.Type]bool{})
-		opts = slices.Clone(opts)
-		if shadows {
-			opts = append(opts, AllowShadows(true), AllowDuplicateShadowValues(true), PreserveEmptyShadowValues(true))
-		}
-		if nonUnique {
-			opts = append(opts, AllowNonUniqueSections(true))
-		}
-	}
-	return MapTo(v, data, opts...)
-}
-
-// tagOptions reports whether t, or a struct type it holds, has allowshadow
-// or nonunique fields.
-func tagOptions(t reflect.Type, seen map[reflect.Type]bool) (shadows, nonUnique bool) {
-	for t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice {
-		t = t.Elem()
-	}
-	if !isStructType(t) || seen[t] {
-		return false, false
-	}
-	seen[t] = true
-	for i := 0; i < t.NumField(); i++ {
-		_, _, allowShadow, allowNonUnique, _ := parseTagOptions(t.Field(i).Tag.Get("ini"))
-		s, n := tagOptions(t.Field(i).Type, seen)
-		shadows = shadows || allowShadow || s
-		nonUnique = nonUnique || allowNonUnique || n
-	}
-	return shadows, nonUnique
-}
-
-// Marshal returns the INI encoding of v, a struct or a pointer to one, as
-// File.ReflectFrom and File.Write produce it.
-func Marshal(v any, opts ...WriteOption) ([]byte, error) {
-	if val := reflect.ValueOf(v); val.Kind() == reflect.Struct {
-		ptr := reflect.New(val.Type())
-		ptr.Elem().Set(val)
-		v = ptr.Interface()
-	}
-	// Shadows and non-unique sections let allowshadow and nonunique fields
-	// write all their values.
-	f := Empty(AllowShadows(true), AllowDuplicateShadowValues(true), AllowNonUniqueSections(true))
-	if err := f.ReflectFrom(v); err != nil {
-		return nil, err
-	}
-	var buf bytes.Buffer
-	if _, err := f.Write(&buf, opts...); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }

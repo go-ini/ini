@@ -10,8 +10,8 @@ Package ini reads and writes INI files in Go.
 
 - Load from files, `[]byte` and `io.Reader`, merging several sources in order.
 - Sections and keys kept in order, parent-child sections, auto-increment keys, repeated (shadow) keys, nested values, multiline values, and `%(name)s` references.
-- Typed access to values: numbers, booleans, durations, times, and lists, ranges and candidates of any of them.
-- Map files to and from structs, and `Marshal` and `Unmarshal` like `encoding/json`.
+- Typed access to values: numbers, booleans, durations, times, and lists and candidates of any of them, and ranges of any but booleans.
+- Map files to and from structs.
 - Write files back with their comments and order. What is written loads back the same, or `Write` returns an error.
 - Parse errors that give the line and column.
 - Safe for concurrent use.
@@ -73,7 +73,7 @@ v2 loads files up to 31 times faster than v1, with a third to a fifth of the all
 
 - **Load** is linear in the number of keys. v1 compared each new key with every key before it in its section, so a large section took quadratic time.
 - **Write** is slower because it checks that every line it writes reads back as the same value. v1 could write files that loaded differently.
-- **Reads** take the file's read lock so that they are safe while other goroutines change the file. v1 took it only to look up sections and keys, not to read values.
+- **Reads** take the file's read lock so that they are safe while other goroutines change the file. v1 read values without it, as in `Key.String`.
 
 Measured with Go 1.26.10 on a 4-core Intel Xeon at 2.60 GHz, as the median of 8 runs.
 

@@ -15,16 +15,15 @@
 // refer to another key of its section or of the default section as
 // %(name)s.
 //
-// MapTo and StrictMapTo fill a struct from a File, and File.ReflectFrom
-// fills a File from a struct. Unmarshal and Marshal do the same for INI
-// text, like encoding/json. Field names map to key and section names
-// unchanged unless NameMapping sets a mapper, and the ini, delim and
-// comment struct tags adjust each field.
+// MapTo and StrictMapTo fill a struct from a data source or a File, and
+// File.ReflectFrom fills a File from a struct. Field names map to key and
+// section names unchanged unless NameMapping sets a mapper, and the ini,
+// delim and comment struct tags adjust each field.
 //
 // File.Write and File.SaveTo write a File back with its comments and in its
 // order, and WriteOption values set the formatting. What Write writes loads
 // back to the same sections, keys, values and comment text, or Write returns
-// an error. Comment lines are written with one space after their symbol.
+// an error. The spacing after a comment symbol can change.
 // Output meant for other readers isn't checked: keys written with a
 // WriteDelimiter that the file wasn't loaded with, boolean keys of a file
 // loaded without AllowBooleanKeys, and raw sections of a file loaded without

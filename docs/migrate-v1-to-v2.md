@@ -24,7 +24,7 @@ sec.Key("PORT").SetValue(strconv.Itoa(port))
 ### `Reload` and `Append`
 
 - `Reload` replaces the contents with what the sources hold now. v1 merged them in, so removed keys stayed and shadow values piled up. `*Section` and `*Key` values you hold see the new values. On error, nothing changes.
-- `Append` reads only the new sources, so changes made in memory survive. v1 read every source again. With `FirstSourceOnly`, `Append` still reloads every source, so that the first one that loads wins.
+- `Append` reads only the new sources, so changes made in memory survive. v1 read every source again. With `FirstSourceOnly`, `Append` reloads instead, so the first source that loads wins and changes made in memory are lost.
 - `io.Reader` sources are read once and kept, so `Reload` works with them. In v1 it failed.
 
 ### Lists
@@ -50,14 +50,14 @@ sec.Key("PORT").SetValue(strconv.Itoa(port))
 
 ### Writing
 
-For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error. Comments load back with the same text, with one space after the comment symbol. Output meant for other readers isn't checked: keys written with a `WriteDelimiter` the file wasn't loaded with, boolean keys without `AllowBooleanKeys`, and raw sections without `RawSections`. For example:
+For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error. Comments load back with the same text, though the spacing after a comment symbol can change. Output meant for other readers isn't checked: keys written with a `WriteDelimiter` the file wasn't loaded with, boolean keys without `AllowBooleanKeys`, and raw sections without `RawSections`. For example:
 
 - Values ending in `\`, containing `"""`, or starting with a delimiter are quoted.
 - Empty shadow values and the comments of multi-line keys are kept.
 - With `CaseInsensitive`, an explicit `[DEFAULT]` section is written with its own keys.
 - A raw section body without a final newline no longer runs into the next header.
 - A raw section body with a line that would start a section or be a comment is an error.
-- A raw default section is written with its header, so it stays raw. v1 left it out.
+- A raw default section is written with its header, so it stays raw. v1 left out the whole section.
 - Keys in a section that `RawSections` reads as raw are an error.
 - Multi-line comments containing `\n` are written correctly with `LineBreak("\r\n")`.
 - A key named `-`, which would read back as an auto-increment key, is an error.
@@ -68,7 +68,7 @@ For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a f
 - With `CaseInsensitive`, `DeleteKey` matches names in any case.
 - With `AllowNonUniqueSections`, `ChildSections` lists each child once.
 - `Key.Strings("")`, a negative section index and `Section.Key("")` no longer hang or panic.
-- Reads take the file's read lock, so they are safe while other goroutines change the file. v1 took it only to look up sections and keys, not to read values. If the file never changes after loading, load it with `ini.Locking(false)`, which halves the time of a read.
+- Reads take the file's read lock, so they are safe while other goroutines change the file. v1 read values without it, as in `Key.String`. If the file never changes after loading, load it with `ini.Locking(false)`, which halves the time of a read.
 
 ## API changes
 
