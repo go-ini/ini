@@ -416,9 +416,10 @@ func (f *File) parse(reader io.Reader) error {
 		switch tok.kind {
 		case tokEOF:
 			if tok.comment != "" {
-				// Comment lines after the last key stay at the end, after
-				// the last section, which isn't the one read last when the
-				// input reopens an earlier section.
+				// Comment lines after the last key are kept on the last
+				// section, which isn't the one read last when the input
+				// reopens an earlier section, and are written after it.
+				// Sections added later are written after them.
 				last := f.sections[len(f.sections)-1]
 				last.footer = strings.TrimSpace(last.footer + "\n" + tok.comment)
 			}
@@ -429,7 +430,9 @@ func (f *File) parse(reader io.Reader) error {
 				return tok.errorf(err)
 			}
 			section.comment = tok.comment
-			section.isRawSection = section.isRawSection || tok.raw
+			// A section with keys, such as the default one, stays a key section
+			// when its raw header has no body.
+			section.isRawSection = section.isRawSection || (tok.raw && len(section.keys) == 0)
 			count = 1
 
 		case tokRawBody:

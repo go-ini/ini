@@ -915,6 +915,7 @@ func TestWriteReadsBack(t *testing.T) {
 		{"# only a comment\n", nil},                                               // comment of an empty file
 		{"[raw]\nbody\n# c\n", []LoadOption{RawSections("raw")}},                  // comment after a raw body
 		{"[custom]\n", []LoadOption{RawSections("custom")}},                       // empty raw section
+		{"k = v\n[DEFAULT]\n", []LoadOption{RawSections("DEFAULT")}},              // empty raw header of a section with keys
 		{"k = a\n\n  b\nn = 1\n", []LoadOption{AllowPythonMultilineValues(true)}}, // empty line in a multiline value
 	} {
 		f, err := Load([]byte(tc.data), tc.opts...)

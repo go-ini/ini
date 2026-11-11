@@ -9,13 +9,13 @@ v2 needs Go 1.26 or later. v1 and v2 can be used in the same program, so you can
 **Parsing is almost unchanged.** Without options, v2 parses input as v1 does: same sections, keys, values, comments and errors. These are the exceptions, each a fix:
 
 - A value in single or double quotes keeps the `#` and `;` inside them, so `k = "a#b"` is `a#b`. v1 read `"a`. Text other than a comment after the closing quote still cuts the value as before.
-- Comment lines after the last key of a file are kept and written back after it. v1 dropped them.
-- A second byte order mark at the start of a file is skipped. v1 failed on it.
+- Comment lines after the last key of a file are kept and written back after the last section. Sections added later, or loaded from a later source, are written after them. v1 dropped them.
+- A byte order mark repeated at the start of a file is skipped. v1 read the second one as part of the first key name, or failed on a section header.
 - A Python-style multiline value longer than 4 KiB is read in full. v1 cut it at its read buffer and failed.
 
 With options:
 
-- `AllowPythonMultilineValues`: empty lines followed by an indented line stay in the value, as in Python's configparser. v1 ended the value at the empty line.
+- `AllowPythonMultilineValues`: empty lines followed by an indented line stay in the value, as in Python's configparser. v1 ended the value at the empty line and read the indented line as a key, which usually failed.
 - `SpaceBeforeInlineComment`: the first ` #` or ` ;` starts the comment. v1 looked for ` #` first.
 - `RawSections`: a raw section with an empty body is raw, so `SetBody` works on it.
 
@@ -70,7 +70,7 @@ In v1, `f.Section("server").Key("PORT")` added an empty `[server]` section and `
 
 ### Writing
 
-For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error. Comments load back with the same text, though the spacing after a comment symbol can change. Output meant for other readers isn't checked: keys written with a `WriteDelimiter` the file wasn't loaded with, boolean keys without `AllowBooleanKeys`, and raw sections without `RawSections`. For example:
+For ordinary files, `Write` output is byte-identical to v1's, apart from the parsing fixes above and a value with a backtick inside but not at its start: v1 wrapped it in `"""`, and v2 doesn't unless it also has a comment symbol. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error. Comments load back with the same text, though the spacing after a comment symbol can change. Output meant for other readers isn't checked: keys written with a `WriteDelimiter` the file wasn't loaded with, boolean keys without `AllowBooleanKeys`, and raw sections without `RawSections`. For example:
 
 - Values ending in `\`, containing `"""`, or starting with a delimiter are quoted.
 - Empty shadow values and the comments of multi-line keys are kept.
@@ -81,7 +81,6 @@ For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a f
 - Keys in a section that `RawSections` reads as raw, or in a raw section, are an error. v1 dropped the keys of a raw section.
 - Multi-line comments containing `\n` are written correctly with `LineBreak("\r\n")`.
 - A key named `-`, which would read back as an auto-increment key, is an error.
-- A value with a backtick inside, but not at its start, is no longer wrapped in `"""` unless it also has a comment symbol.
 
 ### Other fixes
 
