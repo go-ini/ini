@@ -61,18 +61,82 @@ func parseDelim(actual string) string {
 	return ","
 }
 
-var timeType = reflect.TypeOf(time.Time{})
+// Marshaler is implemented by types that format themselves as a key value.
+// ReflectFrom calls MarshalINI for fields, pointer fields and slice elements
+// of such a type, whatever its kind. A type that isn't a string, boolean or
+// number also needs Unmarshaler, as described there.
+type Marshaler interface {
+	MarshalINI() ([]byte, error)
+}
+
+// Unmarshaler is implemented by types that parse themselves from a key value.
+// MapTo and StrictMapTo call UnmarshalINI for fields, pointer fields and slice
+// elements of such a type, with the value as Key.String returns it, or with
+// one element of a list, and so do List, ValidList, StrictList, In and Range
+// for a Scalar type. An error is handled as for a value that doesn't parse:
+// MapTo leaves a field unchanged and makes an element of a slice field the
+// zero value, and StrictMapTo and StrictList return it.
+//
+// A type that isn't a string, boolean or number, such as a struct, slice or
+// map type, maps to one key only when it implements both Marshaler and
+// Unmarshaler, so that it maps the same way in both directions. Otherwise a
+// struct type still maps to a section and a slice type to a list. A nonunique
+// field, or a value passed for a section of a file with
+// AllowNonUniqueSections, maps a struct type to sections either way. A struct that embeds such a type
+// gets its methods, and so maps to one key too.
+type Unmarshaler interface {
+	UnmarshalINI([]byte) error
+}
+
+var (
+	timeType        = reflect.TypeFor[time.Time]()
+	marshalerType   = reflect.TypeFor[Marshaler]()
+	unmarshalerType = reflect.TypeFor[Unmarshaler]()
+)
+
+// isMarshaler and isUnmarshaler report whether t, or a pointer to t,
+// implements Marshaler or Unmarshaler.
+func isMarshaler(t reflect.Type) bool {
+	return reflect.PointerTo(t).Implements(marshalerType)
+}
+
+func isUnmarshaler(t reflect.Type) bool {
+	return reflect.PointerTo(t).Implements(unmarshalerType)
+}
+
+// isCustomType reports whether t formats or parses itself, so that it maps
+// to a key value whatever its kind. A string, boolean or number type needs
+// one method, as its kind handles the other direction. Any other type needs
+// both.
+func isCustomType(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.String, reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return isMarshaler(t) || isUnmarshaler(t)
+	}
+	return isMarshaler(t) && isUnmarshaler(t)
+}
 
 // isStructType reports whether t is a struct type that maps to a section,
-// which is any struct type but time.Time.
+// which is any struct type but time.Time and custom types.
 func isStructType(t reflect.Type) bool {
+	return isSectionsType(t) && !isCustomType(t)
+}
+
+// isSectionsType reports whether t can map to sections where they are asked
+// for explicitly, by a nonunique field or a value passed for a section of a
+// file with AllowNonUniqueSections: any struct type but time.Time, custom
+// types too.
+func isSectionsType(t reflect.Type) bool {
 	return t.Kind() == reflect.Struct && t != timeType
 }
 
 // isValueType reports whether a key value can be parsed as or formatted from
 // a value of type t.
 func isValueType(t reflect.Type) bool {
-	if t == timeType {
+	if t == timeType || isCustomType(t) {
 		return true
 	}
 	switch t.Kind() {
@@ -87,7 +151,7 @@ func isValueType(t reflect.Type) bool {
 
 // isSliceElemType reports whether slices of t are supported.
 func isSliceElemType(t reflect.Type) bool {
-	if t == timeType {
+	if t == timeType || isCustomType(t) {
 		return true
 	}
 	switch t.Kind() {
@@ -100,6 +164,10 @@ func isSliceElemType(t reflect.Type) bool {
 // parseValue parses str as a value of type t, for which isValueType is true.
 func parseValue(t reflect.Type, str string) (reflect.Value, error) {
 	v := reflect.New(t).Elem()
+	if isUnmarshaler(t) {
+		err := v.Addr().Interface().(Unmarshaler).UnmarshalINI([]byte(str))
+		return v, err
+	}
 	if t == timeType {
 		ti, err := time.Parse(time.RFC3339, str)
 		if err != nil {
@@ -158,23 +226,40 @@ func parseValue(t reflect.Type, str string) (reflect.Value, error) {
 }
 
 // formatValue does the opposite thing as parseValue.
-func formatValue(v reflect.Value) string {
-	if v.Type() == timeType {
-		return v.Interface().(time.Time).Format(time.RFC3339Nano)
+func formatValue(v reflect.Value) (string, error) {
+	t := v.Type()
+	if isMarshaler(t) {
+		var m Marshaler
+		switch {
+		case t.Implements(marshalerType):
+			m = v.Interface().(Marshaler)
+		case v.CanAddr():
+			m = v.Addr().Interface().(Marshaler)
+		default:
+			// MarshalINI has a pointer receiver, so call it on a copy.
+			p := reflect.New(t)
+			p.Elem().Set(v)
+			m = p.Interface().(Marshaler)
+		}
+		b, err := m.MarshalINI()
+		return string(b), err
+	}
+	if t == timeType {
+		return v.Interface().(time.Time).Format(time.RFC3339Nano), nil
 	}
 	switch v.Kind() {
 	case reflect.String:
-		return v.String()
+		return v.String(), nil
 	case reflect.Bool:
-		return fmt.Sprint(v.Bool())
+		return fmt.Sprint(v.Bool()), nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return fmt.Sprint(v.Int())
+		return fmt.Sprint(v.Int()), nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return fmt.Sprint(v.Uint())
+		return fmt.Sprint(v.Uint()), nil
 	case reflect.Float32, reflect.Float64:
-		return fmt.Sprint(v.Float())
+		return fmt.Sprint(v.Float()), nil
 	}
-	return ""
+	return "", fmt.Errorf("unsupported type %q", t)
 }
 
 // defaultComment sets *c to comment if it is empty, under the file's lock.
@@ -258,7 +343,7 @@ func wrapStrictError(err error, isStrict bool) error {
 // leaves the field as it is, so it keeps its default, and is an error only
 // when isStrict. An unsupported type is always an error.
 func decodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, allowShadow, isStrict bool) error {
-	if t.Kind() == reflect.Slice {
+	if t.Kind() == reflect.Slice && !isCustomType(t) {
 		return decodeSlice(key, field, delim, allowShadow, isStrict)
 	}
 
@@ -272,8 +357,9 @@ func decodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, al
 	}
 
 	str := key.String()
-	// An empty string keeps the default value of a string field.
-	if vt.Kind() == reflect.String && len(str) == 0 && !isPtr {
+	// An empty string keeps the default value of a string field, unless
+	// the type parses itself.
+	if vt.Kind() == reflect.String && len(str) == 0 && !isPtr && !isUnmarshaler(vt) {
 		return nil
 	}
 	val, err := parseValue(vt, str)
@@ -402,7 +488,7 @@ func (s *Section) decodeSections(secName string, val reflect.Value, isStrict boo
 	if isPtr {
 		structType = elemType.Elem()
 	}
-	if !isStructType(structType) {
+	if !isSectionsType(structType) {
 		return reflect.Value{}, fmt.Errorf("unsupported type %q for non-unique sections", val.Type())
 	}
 
@@ -515,7 +601,10 @@ func encodeSlice(key *Key, field reflect.Value, delim string, allowShadow bool) 
 
 	vals := make([]string, field.Len())
 	for i := range vals {
-		vals[i] = formatValue(field.Index(i))
+		var err error
+		if vals[i], err = formatValue(field.Index(i)); err != nil {
+			return err
+		}
 	}
 
 	if allowShadow {
@@ -576,14 +665,18 @@ func escapeSliceElem(s, delim string) string {
 // encodeValue does the opposite thing as decodeValue.
 func encodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, allowShadow bool) error {
 	switch {
-	case t.Kind() == reflect.Slice:
+	case t.Kind() == reflect.Slice && !isCustomType(t):
 		return encodeSlice(key, field, delim, allowShadow)
 	case t.Kind() == reflect.Pointer:
 		if !field.IsNil() {
 			return encodeValue(t.Elem(), key, field.Elem(), delim, allowShadow)
 		}
 	case isValueType(t):
-		key.SetValue(formatValue(field))
+		v, err := formatValue(field)
+		if err != nil {
+			return err
+		}
+		key.SetValue(v)
 	default:
 		return fmt.Errorf("unsupported type %q", t)
 	}
@@ -706,7 +799,7 @@ func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 			if structType.Kind() == reflect.Pointer {
 				structType = structType.Elem()
 			}
-			if !isStructType(structType) {
+			if !isSectionsType(structType) {
 				return fmt.Errorf("field %q is not a slice of pointer or struct", fieldName)
 			}
 			if tooDeep(path, structType) {
@@ -770,10 +863,10 @@ func (s *Section) ReflectFrom(v any) error {
 
 	if !s.f.isDefaultSection(s.name) && s.f.options.AllowNonUniqueSections &&
 		(typ.Kind() == reflect.Slice || typ.Kind() == reflect.Pointer) {
-		if typ.Kind() == reflect.Pointer && !isStructType(typ.Elem()) {
+		if typ.Kind() == reflect.Pointer && !isSectionsType(typ.Elem()) {
 			return errors.New("not a pointer to a struct")
 		}
-		if typ.Kind() == reflect.Slice && (typ.Elem().Kind() != reflect.Pointer || !isStructType(typ.Elem().Elem())) {
+		if typ.Kind() == reflect.Slice && (typ.Elem().Kind() != reflect.Pointer || !isSectionsType(typ.Elem().Elem())) {
 			return errors.New("not a slice of pointers to structs")
 		}
 
