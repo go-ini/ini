@@ -18,6 +18,13 @@ type Section struct {
 
 	isRawSection bool
 	rawBody      string
+
+	// missing is set on a section File.Section or File.SectionWithIndex
+	// returned for a name, or an index of it, the file doesn't have. The
+	// section isn't in the file until a change adds it. index is the index
+	// of the name it stands for.
+	missing bool
+	index   int
 }
 
 func newSection(f *File, name string) *Section {
@@ -27,6 +34,31 @@ func newSection(f *File, name string) *Section {
 		keys:   make([]*Key, 0, 10),
 		byName: make(map[string]*Key),
 	}
+}
+
+// current returns the section s reads and changes. That is s, unless s is
+// missing and its file has since gained a section of its name and index.
+// The caller holds the lock.
+func (s *Section) current() *Section {
+	if s.missing {
+		if secs := s.f.byName[s.name]; s.index >= 0 && s.index < len(secs) {
+			return secs[s.index]
+		}
+	}
+	return s
+}
+
+// attach adds s to its file if it's missing and the file still has no
+// section of its name and index, and returns the section to change. The
+// caller holds the write lock.
+func (s *Section) attach() *Section {
+	c := s.current()
+	if c == s && s.missing {
+		s.missing = false
+		s.f.sections = append(s.f.sections, s)
+		s.f.byName[s.name] = append(s.f.byName[s.name], s)
+	}
+	return c
 }
 
 // Name returns name of Section.
@@ -39,7 +71,7 @@ func (s *Section) Name() string {
 func (s *Section) Comment() string {
 	s.f.maybeRLock()
 	defer s.f.maybeRUnlock()
-	return s.comment
+	return s.current().comment
 }
 
 // SetComment sets the comment lines written before the section header.
@@ -47,7 +79,7 @@ func (s *Section) Comment() string {
 func (s *Section) SetComment(comment string) {
 	s.f.maybeLock()
 	defer s.f.maybeUnlock()
-	s.comment = comment
+	s.attach().comment = comment
 }
 
 // Body returns rawBody of Section if the section was marked as unparseable.
@@ -55,14 +87,14 @@ func (s *Section) SetComment(comment string) {
 func (s *Section) Body() string {
 	s.f.maybeRLock()
 	defer s.f.maybeRUnlock()
-	return strings.TrimSpace(s.rawBody)
+	return strings.TrimSpace(s.current().rawBody)
 }
 
 // SetBody updates body content only if section is raw.
 func (s *Section) SetBody(body string) {
 	s.f.maybeLock()
 	defer s.f.maybeUnlock()
-	if !s.isRawSection {
+	if s = s.current(); !s.isRawSection {
 		return
 	}
 	s.rawBody = body
@@ -72,7 +104,11 @@ func (s *Section) SetBody(body string) {
 func (s *Section) NewKey(name, val string) (*Key, error) {
 	s.f.maybeLock()
 	defer s.f.maybeUnlock()
-	return s.addKey(name, val)
+	key, err := s.current().addKey(name, val)
+	if err == nil {
+		s.attach()
+	}
+	return key, err
 }
 
 // addKey is NewKey for a caller that holds the lock.
@@ -104,7 +140,11 @@ func (s *Section) addKey(name, val string) (*Key, error) {
 func (s *Section) NewBooleanKey(name string) (*Key, error) {
 	s.f.maybeLock()
 	defer s.f.maybeUnlock()
-	return s.addBooleanKey(name)
+	key, err := s.current().addBooleanKey(name)
+	if err == nil {
+		s.attach()
+	}
+	return key, err
 }
 
 // addBooleanKey is NewBooleanKey for a caller that holds the lock.
@@ -126,7 +166,7 @@ func (s *Section) GetKey(name string) (*Key, error) {
 	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
 		name = strings.ToLower(name)
 	}
-	key := s.byName[name]
+	key := s.current().byName[name]
 	if s.f.locking {
 		s.f.mu.RUnlock()
 	}
@@ -163,7 +203,7 @@ func (s *Section) HasValue(value string) bool {
 		defer s.f.mu.RUnlock()
 	}
 
-	for _, k := range s.keys {
+	for _, k := range s.current().keys {
 		if value == k.value {
 			return true
 		}
@@ -196,7 +236,7 @@ func (s *Section) Key(name string) *Key {
 func (s *Section) Keys() []*Key {
 	s.f.maybeRLock()
 	defer s.f.maybeRUnlock()
-	return slices.Clone(s.keys)
+	return slices.Clone(s.current().keys)
 }
 
 // ParentKeys returns list of keys of parent section.
@@ -223,6 +263,7 @@ func (s *Section) ParentKeys() []*Key {
 func (s *Section) KeyNames() []string {
 	s.f.maybeRLock()
 	defer s.f.maybeRUnlock()
+	s = s.current()
 	names := make([]string, len(s.keys))
 	for i, k := range s.keys {
 		names[i] = k.name
@@ -237,6 +278,7 @@ func (s *Section) KeyValues() map[string]string {
 		defer s.f.mu.RUnlock()
 	}
 
+	s = s.current()
 	hash := make(map[string]string, len(s.keys))
 	for _, k := range s.keys {
 		hash[k.name] = k.value
@@ -254,6 +296,7 @@ func (s *Section) DeleteKey(name string) {
 		defer s.f.mu.Unlock()
 	}
 
+	s = s.current()
 	if key := s.byName[name]; key != nil {
 		delete(s.byName, name)
 		s.keys = slices.DeleteFunc(s.keys, func(k *Key) bool { return k == key })

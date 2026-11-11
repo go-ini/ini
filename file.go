@@ -190,30 +190,41 @@ func (f *File) sectionsByName(name string) ([]*Section, error) {
 	return secs, nil
 }
 
-// Section assumes named section exists and returns a zero-value when not.
+// Section returns the section with the given name, or the default section
+// for "". When there is none, it returns a section that reads as empty
+// without adding it to the file. Section.SetComment, Section.NewKey,
+// Section.ReflectFrom or a change to one of its keys adds it.
 func (f *File) Section(name string) *Section {
-	sec, err := f.GetSection(name)
-	if err != nil {
-		if name == "" {
-			// The name the lookup used, so the next lookup finds it.
-			name = f.defaultSectionName()
-		}
-		sec, _ = f.NewSection(name)
+	if sec, err := f.GetSection(name); err == nil {
 		return sec
 	}
-	return sec
+	return f.missingSection(name, 0)
 }
 
-// SectionWithIndex assumes named section exists and returns a new section when not.
+// SectionWithIndex returns the index-th section with the given name. When
+// there is none, it returns a section that reads as empty, as Section does,
+// and a change adds it after the last one of its name. Without
+// AllowNonUniqueSections, it returns the section of the name for any index.
 func (f *File) SectionWithIndex(name string, index int) *Section {
+	if sec, err := f.sectionWithIndex(name, index); err == nil {
+		return sec
+	}
+	if !f.options.AllowNonUniqueSections {
+		return f.Section(name)
+	}
+	return f.missingSection(name, index)
+}
+
+// missingSection returns a section for the index-th section with the given
+// name that isn't in the file.
+func (f *File) missingSection(name string, index int) *Section {
 	if name == "" {
 		name = f.defaultSectionName()
+	} else if (f.options.Insensitive || f.options.InsensitiveSections) && name != f.options.DefaultSection {
+		name = strings.ToLower(name)
 	}
-	sec, err := f.sectionWithIndex(name, index)
-	if err != nil {
-		newSec, _ := f.NewSection(name)
-		return newSec
-	}
+	sec := newSection(f, name)
+	sec.missing, sec.index = true, index
 	return sec
 }
 

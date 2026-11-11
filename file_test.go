@@ -291,6 +291,91 @@ VERSION = v1`), CaseInsensitive(true))
 		}
 	})
 
+	t.Run("reading a missing section doesn't add it", func(t *testing.T) {
+		const data = "[app]\nname = demo\n"
+		f, err := Load([]byte(data))
+		require.NoError(t, err)
+
+		sec := f.Section("server")
+		assert.Equal(t, "server", sec.Name())
+		assert.Equal(t, 8080, sec.Key("port").MustInt(8080))
+		assert.False(t, sec.HasKey("port"))
+		assert.Empty(t, sec.Keys())
+		assert.Empty(t, sec.KeyValues())
+		assert.Empty(t, sec.Comment())
+		assert.Empty(t, sec.Body())
+		sec.DeleteKey("port")
+		sec.SetBody("ignored, as the section isn't raw")
+		var cfg struct{ Port int }
+		require.NoError(t, sec.MapTo(&cfg))
+		_ = f.SectionWithIndex("server", 3)
+
+		assert.False(t, f.HasSection("server"))
+		assert.Equal(t, []string{DefaultSection, "app"}, f.SectionNames())
+		var buf bytes.Buffer
+		_, err = f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Equal(t, data, buf.String())
+	})
+
+	t.Run("changing a missing section adds it", func(t *testing.T) {
+		f := Empty()
+		f.Section("a").SetComment("note")
+		_, err := f.Section("b").NewKey("k", "v")
+		require.NoError(t, err)
+		_, err = f.Section("c").NewBooleanKey("k")
+		require.NoError(t, err)
+		f.Section("d").Key("k").SetValue("v")
+		require.NoError(t, f.Section("e").ReflectFrom(&struct{}{}))
+		assert.Equal(t, []string{DefaultSection, "a", "b", "c", "d", "e"}, f.SectionNames())
+
+		_, err = f.Section("f").NewKey("", "v")
+		require.Error(t, err)
+		assert.False(t, f.HasSection("f"), "a failed change doesn't add it")
+
+		sec := f.Section("g")
+		sec.Key("k").SetValue("1")
+		sec.Key("k").SetValue("2")
+		assert.Same(t, sec, f.Section("g"), "the section added is the one returned")
+		assert.Equal(t, "2", f.Section("g").Key("k").String())
+	})
+
+	t.Run("a missing section follows the section its file gains", func(t *testing.T) {
+		f, err := Load([]byte(""), CaseInsensitiveSections(true))
+		require.NoError(t, err)
+
+		s1, s2 := f.Section("Server"), f.Section("server")
+		assert.Equal(t, "server", s1.Name())
+		s1.Key("port").SetValue("1")
+		assert.Equal(t, "1", s2.Key("port").String())
+		s2.Key("host").SetValue("h")
+		assert.Equal(t, []string{"port", "host"}, s1.KeyNames())
+
+		s3 := f.Section("log")
+		k := s3.Key("level")
+		_, err = f.NewSection("log")
+		require.NoError(t, err)
+		k.SetValue("info")
+		assert.Equal(t, "info", f.Section("log").Key("level").String())
+		assert.Equal(t, []string{"default", "server", "log"}, f.SectionNames())
+	})
+
+	t.Run("a missing index of non-unique sections", func(t *testing.T) {
+		f, err := Load([]byte("[Peer]\nk = 0\n"), AllowNonUniqueSections(true))
+		require.NoError(t, err)
+
+		sec := f.SectionWithIndex("Peer", 1)
+		assert.Empty(t, sec.Keys())
+		sec.Key("k").SetValue("1")
+		secs, err := f.SectionsByName("Peer")
+		require.NoError(t, err)
+		require.Len(t, secs, 2)
+		assert.Same(t, sec, secs[1])
+
+		g, err := Load([]byte("[Peer]\nk = 0\n"))
+		require.NoError(t, err)
+		assert.Same(t, g.Section("Peer"), g.SectionWithIndex("Peer", 1), "without AllowNonUniqueSections")
+	})
 }
 
 func TestFile_Sections(t *testing.T) {

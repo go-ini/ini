@@ -21,9 +21,14 @@ port := sec.Key("PORT").MustInt(3000)
 sec.Key("PORT").SetValue(strconv.Itoa(port))
 ```
 
-### `Section.Key` no longer adds missing keys
+### `File.Section` and `Section.Key` no longer add what's missing
 
-In v1, `sec.Key("PORT")` added an empty `PORT` key when the section had none, so `HasKey`, `Keys` and `Write` saw it after a mere read. In v2 it returns a key that reads as empty, and only `SetValue` or `SetComment` adds it, or `AddShadow` and `AddNestedValue` when the file allows shadows or nested values. `sec.Key(name).SetValue(v)` works as before.
+In v1, `f.Section("server").Key("PORT")` added an empty `[server]` section and `PORT` key when they didn't exist, so `HasSection`, `HasKey`, `Keys` and `Write` saw them after a mere read. In v2 they return a section and key that read as empty. Only a change adds them:
+
+- a key: `SetValue` or `SetComment`, or `AddShadow` and `AddNestedValue` when the file allows shadows or nested values
+- a section: a change to one of its keys, `NewKey`, `NewBooleanKey`, `SetComment` or `ReflectFrom`
+
+`f.Section(name).Key(key).SetValue(v)` works as before. `SectionWithIndex` follows the same rule, and a change adds the section after the last one of its name.
 
 ### `Reload` and `Append`
 
