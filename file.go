@@ -247,21 +247,22 @@ func (f *File) ChildSections(name string) []*Section {
 // ranged over.
 //
 // As in Git, a section is written as [name "sub"] or, in the older form, as
-// [name.sub]. The name is made of letters, digits, - and ., and matches in
-// any case. Spaces and tabs between the two parts are allowed. In a quoted
-// sub, \" and \\ read as " and \, and a backslash before another character
-// is dropped. A dotted sub is lowercased. A dot in the name moves the rest
-// into sub, so [forge.a "b"] and [forge.a.b] have sub "a.b". A section Git
-// would reject, such as [ forge "x"] or [for_ge "x"], is skipped without an
-// error.
+// [name.sub]. The name matches in any case. Spaces and tabs between the two
+// parts are allowed. In a quoted sub, \" and \\ read as " and \, and a
+// backslash before another character is dropped. A dotted sub is
+// lowercased. A dot in the name moves the rest into sub, so [forge.a "b"]
+// and [forge.a.b] have sub "a.b". A section that doesn't split this way,
+// such as [ forge "x"] or [forge "x" ], is skipped without an error.
 //
-// Unlike Git, headers written differently for the same sub, such as
-// [forge "x"], [Forge  "x"] and [forge.x], are separate sections, and each
-// is returned with sub "x". Headers written the same are one section, as
-// they are for Section. With CaseInsensitive or CaseInsensitiveSections, a
-// quoted sub is lowercased too, because section names are lowercased when
-// they're read, so [forge "X"] and [forge "x"] are one section with sub "x",
-// where Git keeps two subsections.
+// Unlike Git, the name may have any character but a space, a tab or ", so
+// [for_ge "x"] is read with name "for_ge" where Git rejects it. Headers
+// written differently for the same sub, such as [forge "x"], [Forge  "x"]
+// and [forge.x], are separate sections, and each is returned with sub "x".
+// Headers written the same are one section, as they are for Section. With
+// CaseInsensitive or CaseInsensitiveSections, a quoted sub is lowercased
+// too, because section names are lowercased when they're read, so
+// [forge "X"] and [forge "x"] are one section with sub "x", where Git keeps
+// two subsections.
 func (f *File) Subsections(name string) iter.Seq2[string, *Section] {
 	return func(yield func(string, *Section) bool) {
 		for _, sec := range f.Sections() {
@@ -278,7 +279,9 @@ func (f *File) Subsections(name string) iter.Seq2[string, *Section] {
 // matched as Subsections does. When there are several, it returns the one
 // written as [name "sub"], or else the first. When there is none, it
 // returns a section that reads as empty, as Section does, and a change adds
-// it as [name "sub"], with " and \ in sub escaped.
+// it as [name "sub"], with " and \ in sub escaped. With CaseInsensitive or
+// CaseInsensitiveSections, the added header is lowercased, as any section
+// name is.
 func (f *File) Subsection(name, sub string) *Section {
 	quoted := name + ` "` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(sub) + `"`
 	if sec, err := f.GetSection(quoted); err == nil {
@@ -295,42 +298,33 @@ func (f *File) Subsection(name, sub string) *Section {
 	return f.Section(quoted)
 }
 
-// splitSubsection splits a section name as Git reads it into the
-// lowercased name and the sub, as Subsections describes.
+// splitSubsection splits a section name into the lowercased name and the
+// sub, as Subsections describes.
 func splitSubsection(s string) (name, sub string, ok bool) {
-	i := 0
-	for i < len(s) && isGitNameChar(s[i]) {
-		i++
+	i := strings.IndexAny(s, " \t\"")
+	if i == -1 {
+		return strings.Cut(strings.ToLower(s), ".")
 	}
-	full := strings.ToLower(s[:i])
-	if i < len(s) {
-		rest := strings.TrimLeft(s[i:], " \t")
-		if len(rest) == len(s[i:]) || len(rest) < 2 || rest[0] != '"' || rest[len(rest)-1] != '"' {
-			return "", "", false
-		}
-		var b strings.Builder
-		for j := 1; j < len(rest)-1; j++ {
-			switch c := rest[j]; c {
-			case '\\':
-				j++
-				if j == len(rest)-1 {
-					return "", "", false // the closing quote is escaped
-				}
-				b.WriteByte(rest[j])
-			case '"':
-				return "", "", false
-			default:
-				b.WriteByte(c)
+	rest := strings.TrimLeft(s[i:], " \t")
+	if len(rest) == len(s[i:]) || len(rest) < 2 || rest[0] != '"' || rest[len(rest)-1] != '"' {
+		return "", "", false
+	}
+	var b strings.Builder
+	for j := 1; j < len(rest)-1; j++ {
+		switch c := rest[j]; c {
+		case '\\':
+			j++
+			if j == len(rest)-1 {
+				return "", "", false // the closing quote is escaped
 			}
+			b.WriteByte(rest[j])
+		case '"':
+			return "", "", false
+		default:
+			b.WriteByte(c)
 		}
-		full += "." + b.String()
 	}
-	return strings.Cut(full, ".")
-}
-
-// isGitNameChar reports whether c can be in a section name in Git.
-func isGitNameChar(c byte) bool {
-	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' || c == '-' || c == '.'
+	return strings.Cut(strings.ToLower(s[:i])+"."+b.String(), ".")
 }
 
 // SectionNames returns list of section names.
