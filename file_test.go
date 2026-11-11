@@ -423,32 +423,38 @@ func TestFile_ChildSections(t *testing.T) {
 
 func TestFile_Subsections(t *testing.T) {
 	f, err := Load([]byte(`
-[forge  "loose.com"]
-TYPE = loose
-[Forge "upper.com"]
-[forge	"tab.com" ]
-[forge "a\"b\\c\d"]
-[forge "exact.com"]
+[forge]
+PARENT = p
 [forge "loose.com"]
-TYPE = exact
+TYPE = first
+USER = git
+[Forge  "loose.com"]
+TYPE = second
+[forge.Dotted.COM]
+TYPE = dotted
+[forge "dotted.com"]
+USER = quoted
+[forge	"tab.com"]
+[forge "a\"b\\c\d"]
+[forge.a "b"]
+[forge ""]
+[ forge "lead.com"]
+[forge "trail.com" ]
+[forge"nospace.com"]
+[for_ge "underscore.com"]
 [forge "unclosed.com]
 [forge "escaped.com\"]
 [forge "in"side"]
-[forge"nospace.com"]
 [forgery "other.com"]
-[forge]
-[forge.dotted.com]
 [storage "local"]
 `))
 	require.NoError(t, err)
 
-	var subs, names []string
-	for sub, sec := range f.Subsections("forge") {
+	var subs []string
+	for sub := range f.Subsections("forge") {
 		subs = append(subs, sub)
-		names = append(names, sec.Name())
 	}
-	assert.Equal(t, []string{"loose.com", "upper.com", "tab.com", `a"b\cd`, "exact.com", "loose.com"}, subs)
-	assert.Equal(t, `forge "exact.com"`, names[4])
+	assert.Equal(t, []string{"loose.com", "dotted.com", "tab.com", `a"b\cd`, "a.b", ""}, subs)
 
 	for sub := range f.Subsections("FORGE") {
 		assert.Equal(t, "loose.com", sub)
@@ -456,20 +462,33 @@ TYPE = exact
 	}
 
 	t.Run("Subsection", func(t *testing.T) {
-		assert.Equal(t, "exact", f.Subsection("forge", "loose.com").Key("TYPE").String())
-		assert.Equal(t, `Forge "upper.com"`, f.Subsection("forge", "upper.com").Name())
-		assert.Equal(t, `forge "a\"b\\c\d"`, f.Subsection("forge", `a"b\cd`).Name())
-		assert.False(t, f.HasSection(f.Subsection("forge", "missing.com").Name()))
+		loose := f.Subsection("forge", "loose.com")
+		assert.Len(t, loose.Sections(), 2)
+		assert.Equal(t, "second", loose.Key("TYPE").String())
+		assert.Equal(t, "git", loose.Key("USER").String())
+		var keys []string
+		for _, k := range loose.Keys() {
+			keys = append(keys, k.Name()+"="+k.Value())
+		}
+		assert.Equal(t, []string{"TYPE=second", "USER=git"}, keys)
 
-		f.Subsection("storage", `r2 "x"\`).Key("TYPE").SetValue("s3")
-		var buf bytes.Buffer
-		_, err := f.WriteTo(&buf)
-		require.NoError(t, err)
-		assert.Contains(t, buf.String(), `[storage "r2 \"x\"\\"]`)
+		dotted := f.Subsection("forge", "dotted.com")
+		assert.Equal(t, "dotted", dotted.Key("TYPE").String())
+		assert.Equal(t, "quoted", dotted.Key("USER").String())
+		assert.False(t, dotted.HasKey("PARENT"))
+		assert.False(t, f.Subsection("forge", "Dotted.COM").HasKey("TYPE"))
 
-		g, err := Load(buf.Bytes())
-		require.NoError(t, err)
-		assert.Equal(t, "s3", g.Subsection("storage", `r2 "x"\`).Key("TYPE").String())
+		assert.Len(t, f.Subsection("forge", `a"b\cd`).Sections(), 1)
+		assert.Len(t, f.Subsection("forge", "a.b").Sections(), 1)
+
+		names := f.SectionNames()
+		missing := f.Subsection("forge", "missing.com")
+		assert.Empty(t, missing.Sections())
+		assert.False(t, missing.HasKey("TYPE"))
+		assert.Empty(t, missing.Key("TYPE").String())
+		missing.Key("TYPE").SetValue("x")
+		assert.Equal(t, names, f.SectionNames())
+		assert.Empty(t, missing.Key("TYPE").String())
 	})
 
 	t.Run("RangedAfterChange", func(t *testing.T) {
@@ -484,22 +503,25 @@ TYPE = exact
 		assert.Equal(t, []string{"x"}, subs)
 	})
 
+	t.Run("AllowNonUniqueSections", func(t *testing.T) {
+		f, err := Load([]byte("[forge \"x\"]\nA = 1\n[forge \"x\"]\nA = 2"), AllowNonUniqueSections(true))
+		require.NoError(t, err)
+		s := f.Subsection("forge", "x")
+		assert.Len(t, s.Sections(), 2)
+		assert.Equal(t, "2", s.Key("A").String())
+	})
+
 	t.Run("CaseInsensitive", func(t *testing.T) {
-		f, err := Load([]byte(`[Forge "GitHub.com"]`+"\nTYPE = github\n"+`[forge "github.com"]`+"\nUSER = git"), CaseInsensitive(true))
+		f, err := Load([]byte(`[Forge "GitHub.com"]`+"\nTYPE = github\n"+`[forge "GITHUB.COM"]`+"\nUSER = git"), CaseInsensitive(true))
 		require.NoError(t, err)
 		var subs []string
 		for sub := range f.Subsections("forge") {
 			subs = append(subs, sub)
 		}
 		assert.Equal(t, []string{"github.com"}, subs)
-		assert.Equal(t, "github", f.Subsection("Forge", "GitHub.com").Key("TYPE").String())
-		assert.Equal(t, "git", f.Subsection("Forge", "GitHub.com").Key("USER").String())
-
-		f.Subsection("Storage", "R2").Key("TYPE").SetValue("s3")
-		var buf bytes.Buffer
-		_, err = f.WriteTo(&buf)
-		require.NoError(t, err)
-		assert.Contains(t, buf.String(), `[storage "r2"]`)
+		s := f.Subsection("Forge", "GitHub.com")
+		assert.Equal(t, "github", s.Key("TYPE").String())
+		assert.Equal(t, "git", s.Key("USER").String())
 	})
 }
 
