@@ -922,6 +922,19 @@ GITHUB = U;n;k;n;w;o;n
 				assert.Equal(t, "U#n#k#n#w#o#n", nameValue)
 				assert.Equal(t, "U;n;k;n;w;o;n", githubValue)
 			})
+			t.Run("cuts at the first spaced comment marker when the line has both", func(t *testing.T) {
+				f, err := LoadSources(
+					LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: true},
+					[]byte("key = foo ; note # ticket\n"))
+				require.NoError(t, err)
+				assert.Equal(t, "foo", f.Section("").Key("key").String())
+
+				f, err = LoadSources(
+					LoadOptions{AllowPythonMultilineValues: false, SpaceBeforeInlineComment: true},
+					[]byte("key = foo # ticket ; note\n"))
+				require.NoError(t, err)
+				assert.Equal(t, "foo", f.Section("").Key("key").String())
+			})
 		})
 	})
 

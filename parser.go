@@ -286,11 +286,22 @@ func (p *parser) readValue(in []byte, bufferSize int) (string, error) {
 	if !p.options.IgnoreInlineComment {
 		var i int
 		if p.options.SpaceBeforeInlineComment {
-			i = strings.Index(line, " #")
-			if i == -1 {
-				i = strings.Index(line, " ;")
+			// Cut at the earlier of " #" and " ;". Looking for " #" first
+			// and only then " ;" left a later " #" to hide an earlier " ;".
+			iHash := strings.Index(line, " #")
+			iSemi := strings.Index(line, " ;")
+			switch {
+			case iHash == -1:
+				i = iSemi
+			case iSemi == -1:
+				i = iHash
+			default:
+				if iHash < iSemi {
+					i = iHash
+				} else {
+					i = iSemi
+				}
 			}
-
 		} else {
 			i = strings.IndexAny(line, "#;")
 		}
