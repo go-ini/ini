@@ -329,7 +329,6 @@ func (k *Key) Time() (time.Time, error) {
 }
 
 // MustString returns default value if key value is empty.
-// It doesn't store the default in the key. Call SetValue for that.
 func (k *Key) MustString(defaultVal string) string {
 	val := k.String()
 	if len(val) == 0 {
@@ -340,7 +339,6 @@ func (k *Key) MustString(defaultVal string) string {
 
 // MustBool always returns value without error,
 // it returns false if error occurs.
-// It doesn't store the default in the key. Call SetValue for that.
 func (k *Key) MustBool(defaultVal ...bool) bool {
 	val, err := k.Bool()
 	if len(defaultVal) > 0 && err != nil {
@@ -351,7 +349,6 @@ func (k *Key) MustBool(defaultVal ...bool) bool {
 
 // MustFloat64 always returns value without error,
 // it returns 0.0 if error occurs.
-// It doesn't store the default in the key. Call SetValue for that.
 func (k *Key) MustFloat64(defaultVal ...float64) float64 {
 	val, err := k.Float64()
 	if len(defaultVal) > 0 && err != nil {
@@ -362,7 +359,6 @@ func (k *Key) MustFloat64(defaultVal ...float64) float64 {
 
 // MustInt always returns value without error,
 // it returns 0 if error occurs.
-// It doesn't store the default in the key. Call SetValue for that.
 func (k *Key) MustInt(defaultVal ...int) int {
 	val, err := k.Int()
 	if len(defaultVal) > 0 && err != nil {
@@ -373,7 +369,6 @@ func (k *Key) MustInt(defaultVal ...int) int {
 
 // MustInt64 always returns value without error,
 // it returns 0 if error occurs.
-// It doesn't store the default in the key. Call SetValue for that.
 func (k *Key) MustInt64(defaultVal ...int64) int64 {
 	val, err := k.Int64()
 	if len(defaultVal) > 0 && err != nil {
@@ -384,7 +379,6 @@ func (k *Key) MustInt64(defaultVal ...int64) int64 {
 
 // MustUint always returns value without error,
 // it returns 0 if error occurs.
-// It doesn't store the default in the key. Call SetValue for that.
 func (k *Key) MustUint(defaultVal ...uint) uint {
 	val, err := k.Uint()
 	if len(defaultVal) > 0 && err != nil {
@@ -395,7 +389,6 @@ func (k *Key) MustUint(defaultVal ...uint) uint {
 
 // MustUint64 always returns value without error,
 // it returns 0 if error occurs.
-// It doesn't store the default in the key. Call SetValue for that.
 func (k *Key) MustUint64(defaultVal ...uint64) uint64 {
 	val, err := k.Uint64()
 	if len(defaultVal) > 0 && err != nil {
@@ -406,7 +399,6 @@ func (k *Key) MustUint64(defaultVal ...uint64) uint64 {
 
 // MustDuration always returns value without error,
 // it returns zero value if error occurs.
-// It doesn't store the default in the key. Call SetValue for that.
 func (k *Key) MustDuration(defaultVal ...time.Duration) time.Duration {
 	val, err := k.Duration()
 	if len(defaultVal) > 0 && err != nil {
@@ -417,7 +409,6 @@ func (k *Key) MustDuration(defaultVal ...time.Duration) time.Duration {
 
 // MustTimeFormat always parses with given format and returns value without error,
 // it returns zero value if error occurs.
-// It doesn't store the default in the key. Call SetValue for that.
 func (k *Key) MustTimeFormat(format string, defaultVal ...time.Time) time.Time {
 	val, err := k.TimeFormat(format)
 	if len(defaultVal) > 0 && err != nil {
@@ -428,7 +419,6 @@ func (k *Key) MustTimeFormat(format string, defaultVal ...time.Time) time.Time {
 
 // MustTime always parses with RFC3339 format and returns value without error,
 // it returns zero value if error occurs.
-// It doesn't store the default in the key. Call SetValue for that.
 func (k *Key) MustTime(defaultVal ...time.Time) time.Time {
 	return k.MustTimeFormat(time.RFC3339, defaultVal...)
 }
