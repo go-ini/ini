@@ -312,4 +312,14 @@ func TestSection_DeleteKey(t *testing.T) {
 		f.Section("").DeleteKey("NAME")
 		assert.False(t, f.Section("").HasKey("NAME"))
 	})
+
+	t.Run("delete a key with insensitive names", func(t *testing.T) {
+		f, err := LoadSources(LoadOptions{Insensitive: true}, []byte("TestKey = value"))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.True(t, f.Section("").HasKey("TestKey"))
+		f.Section("").DeleteKey("TestKey")
+		assert.False(t, f.Section("").HasKey("TestKey"))
+	})
 }
