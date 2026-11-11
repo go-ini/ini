@@ -80,7 +80,7 @@ func (s *Section) NewKey(name, val string) (*Key, error) {
 		defer s.f.lock.Unlock()
 	}
 
-	if inSlice(name, s.keyList) {
+	if _, ok := s.keys[name]; ok {
 		if s.f.options.AllowShadows {
 			if err := s.keys[name].addShadow(val); err != nil {
 				return nil, err
