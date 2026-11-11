@@ -197,6 +197,11 @@ func TestSection_Key(t *testing.T) {
 			assert.Equal(t, "", k.Name())
 			assert.Equal(t, "", k.Value())
 			assert.False(t, f.Section("").HasKey(""))
+
+			before := f.Section("").KeysHash()
+			k.SetValue("x")
+			assert.Equal(t, before, f.Section("").KeysHash())
+			assert.False(t, f.Section("").HasKey(""))
 		})
 
 		t.Run("key exists in parent section", func(t *testing.T) {

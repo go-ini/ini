@@ -163,6 +163,8 @@ func (s *Section) HasValue(value string) bool {
 }
 
 // Key assumes named Key exists in section and returns a zero-value when not.
+// For an empty name, the returned Key is not part of the section, so setting
+// its value changes nothing in the section.
 func (s *Section) Key(name string) *Key {
 	key, err := s.GetKey(name)
 	if err != nil {
