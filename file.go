@@ -525,17 +525,22 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			}
 		}
 
+		if sec.isRawSection && len(sec.keys) > 0 {
+			// Only the body of a raw section is written.
+			return nil, fmt.Errorf("cannot write section %q: it is raw and has keys", sname)
+		}
+
 		// The first section's header is left out when it is the default
 		// section, unless DefaultHeader is set, it has a comment, which needs
 		// the header, or it is raw, which only a header makes it. Without
 		// keys, it is then not written at all. With keys, the header is
 		// still written when the name upper-cased isn't the configured
 		// default section name, so a default section renamed in lower case
-		// keeps its header, as in v1.
+		// keeps its header, as in v1, unless the header would make it raw.
 		isDefault := i == 0 && f.isDefaultSection(sec.name)
 		emptyDefault := isDefault && len(sec.keys) == 0
 		writeHeader := !isDefault || o.defaultHeader || len(sec.comment) > 0 || sec.isRawSection ||
-			(strings.ToUpper(sec.name) != f.options.DefaultSection && !emptyDefault)
+			(strings.ToUpper(sec.name) != f.options.DefaultSection && !emptyDefault && !f.readsAsRaw(sname))
 		if writeHeader {
 			if _, err := buf.WriteString("[" + sname + "]" + lineBreak); err != nil {
 				return nil, err

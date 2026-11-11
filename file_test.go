@@ -879,11 +879,10 @@ func TestWriteReadsBack(t *testing.T) {
 	})
 
 	t.Run("raw default section", func(t *testing.T) {
-		f, err := Load([]byte("a = 1\n"), RawSections(DefaultSection))
-		require.NoError(t, err)
+		f := Empty(RawSections(DefaultSection))
 		_, _ = f.NewRawSection(DefaultSection, "injected = 1\n")
 		var b bytes.Buffer
-		_, err = f.Write(&b)
+		_, err := f.Write(&b)
 		require.NoError(t, err)
 		assert.Equal(t, "[DEFAULT]\ninjected = 1\n", b.String())
 		f2, err := Load(b.Bytes(), RawSections(DefaultSection))
@@ -899,6 +898,29 @@ func TestWriteReadsBack(t *testing.T) {
 		_, err = f.Write(&b)
 		require.NoError(t, err)
 		assert.Equal(t, "[DEFAULT]\nsome raw text\n\n[s]\nk = v\n", b.String())
+	})
+
+	t.Run("raw section with keys", func(t *testing.T) {
+		f, err := Load([]byte("a=1\n[DEFAULT]\nbody\n"), RawSections(DefaultSection))
+		require.NoError(t, err)
+		_, err = f.Write(io.Discard)
+		assert.Error(t, err)
+
+		f = Empty(RawSections("r"))
+		_, _ = f.NewRawSection("r", "body\n")
+		_, _ = f.Section("r").NewKey("k", "v")
+		_, err = f.Write(io.Discard)
+		assert.Error(t, err)
+	})
+
+	t.Run("default section renamed in lower case and read as raw", func(t *testing.T) {
+		data := "a = 1\n\n[s]\nk = v\n"
+		f, err := Load([]byte(data), RawSections("default"), DefaultSectionName("default"))
+		require.NoError(t, err)
+		var b bytes.Buffer
+		_, err = f.Write(&b)
+		require.NoError(t, err)
+		assert.Equal(t, data, b.String())
 	})
 
 	t.Run("keys of a section read as raw", func(t *testing.T) {

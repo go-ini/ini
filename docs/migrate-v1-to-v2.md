@@ -58,7 +58,7 @@ For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a f
 - A raw section body without a final newline no longer runs into the next header.
 - A raw section body with a line that would start a section or be a comment is an error.
 - A raw default section is written with its header, so it stays raw. v1 left out the whole section.
-- Keys in a section that `RawSections` reads as raw are an error.
+- Keys in a section that `RawSections` reads as raw, or in a raw section, are an error. v1 dropped the keys of a raw section.
 - Multi-line comments containing `\n` are written correctly with `LineBreak("\r\n")`.
 - A key named `-`, which would read back as an auto-increment key, is an error.
 
