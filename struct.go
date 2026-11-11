@@ -80,7 +80,9 @@ type Marshaler interface {
 // A type that isn't a string, boolean or number, such as a struct, slice or
 // map type, maps to one key only when it implements both Marshaler and
 // Unmarshaler, so that it maps the same way in both directions. Otherwise a
-// struct type still maps to a section and a slice type to a list. A struct that embeds such a type
+// struct type still maps to a section and a slice type to a list. A nonunique
+// field, or a value passed for a section of a file with
+// AllowNonUniqueSections, maps a struct type to sections either way. A struct that embeds such a type
 // gets its methods, and so maps to one key too.
 type Unmarshaler interface {
 	UnmarshalINI([]byte) error
@@ -120,7 +122,15 @@ func isCustomType(t reflect.Type) bool {
 // isStructType reports whether t is a struct type that maps to a section,
 // which is any struct type but time.Time and custom types.
 func isStructType(t reflect.Type) bool {
-	return t.Kind() == reflect.Struct && t != timeType && !isCustomType(t)
+	return isSectionsType(t) && !isCustomType(t)
+}
+
+// isSectionsType reports whether t can map to sections where they are asked
+// for explicitly, by a nonunique field or a value passed for a section of a
+// file with AllowNonUniqueSections: any struct type but time.Time, custom
+// types too.
+func isSectionsType(t reflect.Type) bool {
+	return t.Kind() == reflect.Struct && t != timeType
 }
 
 // isValueType reports whether a key value can be parsed as or formatted from
@@ -478,7 +488,7 @@ func (s *Section) decodeSections(secName string, val reflect.Value, isStrict boo
 	if isPtr {
 		structType = elemType.Elem()
 	}
-	if !isStructType(structType) {
+	if !isSectionsType(structType) {
 		return reflect.Value{}, fmt.Errorf("unsupported type %q for non-unique sections", val.Type())
 	}
 
@@ -789,7 +799,7 @@ func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 			if structType.Kind() == reflect.Pointer {
 				structType = structType.Elem()
 			}
-			if !isStructType(structType) {
+			if !isSectionsType(structType) {
 				return fmt.Errorf("field %q is not a slice of pointer or struct", fieldName)
 			}
 			if tooDeep(path, structType) {
@@ -853,10 +863,10 @@ func (s *Section) ReflectFrom(v any) error {
 
 	if !s.f.isDefaultSection(s.name) && s.f.options.AllowNonUniqueSections &&
 		(typ.Kind() == reflect.Slice || typ.Kind() == reflect.Pointer) {
-		if typ.Kind() == reflect.Pointer && !isStructType(typ.Elem()) {
+		if typ.Kind() == reflect.Pointer && !isSectionsType(typ.Elem()) {
 			return errors.New("not a pointer to a struct")
 		}
-		if typ.Kind() == reflect.Slice && (typ.Elem().Kind() != reflect.Pointer || !isStructType(typ.Elem().Elem())) {
+		if typ.Kind() == reflect.Slice && (typ.Elem().Kind() != reflect.Pointer || !isSectionsType(typ.Elem().Elem())) {
 			return errors.New("not a slice of pointers to structs")
 		}
 

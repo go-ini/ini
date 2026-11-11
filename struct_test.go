@@ -1693,6 +1693,37 @@ func TestMarshalerUnmarshaler(t *testing.T) {
 		assert.Equal(t, testPerm(2), In(sec.Key("perm"), 0, []testPerm{1, 2}))
 	})
 
+	t.Run("sections asked for explicitly", func(t *testing.T) {
+		// A nonunique field, or a value passed for a section of a file with
+		// AllowNonUniqueSections, maps a custom struct type to sections.
+		f, err := Load([]byte("[peer]\nHost = a\nPort = 1\n[peer]\nHost = b\nPort = 2\n"), AllowNonUniqueSections(true))
+		require.NoError(t, err)
+		var hp testHostPort
+		require.NoError(t, f.Section("peer").MapTo(&hp))
+		assert.Equal(t, testHostPort{"a", 1}, hp)
+		var hps []*testHostPort
+		require.NoError(t, f.Section("peer").MapTo(&hps))
+		assert.Equal(t, []*testHostPort{{"a", 1}, {"b", 2}}, hps)
+
+		require.NoError(t, f.Section("peer").ReflectFrom(&testHostPort{"c", 3}))
+		assert.Equal(t, "c", f.Section("peer").Key("Host").String())
+		require.NoError(t, f.Section("peer").ReflectFrom([]*testHostPort{{"d", 4}, {"e", 5}}))
+		secs, err := f.SectionsByName("peer")
+		require.NoError(t, err)
+		assert.Len(t, secs, 2)
+
+		type peers struct {
+			Peers []testHostPort `ini:"peer,,,nonunique"`
+		}
+		in := peers{Peers: []testHostPort{{"a", 1}, {"b", 2}}}
+		data, err := marshal(in)
+		require.NoError(t, err)
+		assert.Equal(t, "[peer]\nHost = a\nPort = 1\n\n[peer]\nHost = b\nPort = 2\n", string(data))
+		var out peers
+		require.NoError(t, unmarshal(data, &out))
+		assert.Equal(t, in, out)
+	})
+
 	t.Run("one method on a type that isn't a string, boolean or number", func(t *testing.T) {
 		// Without both methods, a slice type is still a list and a struct
 		// type a section, in both directions.
