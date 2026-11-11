@@ -119,7 +119,7 @@ Each `LoadOptions` field becomes an option function of the same name, such as `i
 | `KeyValueDelimiterOnWrite` | `WriteDelimiter(d)`, a write option |
 | `ReaderBufferSize` | removed, since nothing is cut at a buffer size |
 
-New options: `CommentSymbols`, `PreserveEmptyShadowValues`, `DefaultSectionName` and `AllowBracketedValues`, which reads a value such as JSON over several lines up to its closing bracket.
+New options: `CommentSymbols`, `PreserveEmptyShadowValues` and `DefaultSectionName`.
 
 ### Writing
 

@@ -170,7 +170,7 @@ func (l *lexer) key(line string) (_ token, ok bool, _ error) {
 	name, offset, err := readKeyName(l.opts.KeyValueDelimiters, line)
 	switch {
 	case err == nil:
-		value, err := l.readValue(line[offset:], true)
+		value, err := l.readValue(line[offset:])
 		if err != nil {
 			return token{}, false, err
 		}
@@ -179,7 +179,7 @@ func (l *lexer) key(line string) (_ token, ok bool, _ error) {
 
 	case errors.Is(err, ErrDelimiterNotFound) && l.opts.AllowBooleanKeys:
 		// The whole line is the key name, read like a value.
-		name, err := l.readValue(line, false)
+		name, err := l.readValue(line)
 		if err != nil {
 			return token{}, false, err
 		}
@@ -192,14 +192,12 @@ func (l *lexer) key(line string) (_ token, ok bool, _ error) {
 }
 
 // readValue reads a value that starts in "in", the rest of the current line,
-// and any following lines it spans. bracketed is false for a boolean key's
-// name, which AllowBracketedValues doesn't apply to. The rules apply in a
-// fixed order, which decides the result when they overlap: a value is either
-// quoted, bracketed, continued with a backslash, or plain. For a plain value
-// the inline comment is cut before surrounding quotes are stripped, so
-// `"a;b" ;c` is `a;b` with comment `;c`, but `"a;b" x` is `"a` with comment
-// `;b" x`.
-func (l *lexer) readValue(in string, bracketed bool) (string, error) {
+// and any following lines it spans. The rules apply in a fixed order, which
+// decides the result when they overlap: a value is either quoted, continued
+// with a backslash, or plain. For a plain value the inline comment is cut
+// before surrounding quotes are stripped, so `"a;b" ;c` is `a;b` with comment
+// `;c`, but `"a;b" x` is `"a` with comment `;b" x`.
+func (l *lexer) readValue(in string) (string, error) {
 	line := strings.TrimLeftFunc(in, unicode.IsSpace)
 	if line == "" {
 		if l.opts.AllowPythonMultilineValues && strings.HasSuffix(in, "\n") {
@@ -210,12 +208,6 @@ func (l *lexer) readValue(in string, bracketed bool) (string, error) {
 
 	if q := l.valueQuote(line); q != "" {
 		return l.readQuoted(line, q)
-	}
-
-	if bracketed && l.opts.AllowBracketedValues && (line[0] == '{' || line[0] == '[') {
-		if v, ok := l.readBracketed(line); ok {
-			return v, nil
-		}
 	}
 
 	endsLine := line[len(line)-1] == '\n'
@@ -327,78 +319,6 @@ func (l *lexer) inlineCommentIndex(s string) int {
 	for i := 0; i < len(s); i++ {
 		if s[i] == ' ' && startsWithAny(s[i+1:], l.opts.CommentSymbols) {
 			return i
-		}
-	}
-	return -1
-}
-
-// readBracketed reads a value that starts with the bracket at line[0] up to
-// the bracket that closes it, on this line or a later one. ok is false, and
-// nothing is read, when no bracket closes it or text other than a comment
-// follows the closing bracket.
-func (l *lexer) readBracketed(line string) (_ string, ok bool) {
-	pos, lineNum, eof := l.pos, l.line, l.eof
-	defer func() {
-		if !ok {
-			l.pos, l.line, l.eof = pos, lineNum, eof
-		}
-	}()
-	var b strings.Builder
-	var sc bracketScanner
-	for {
-		if end := sc.scan(line); end > -1 {
-			b.WriteString(line[:end])
-			rest := line[end:]
-			if strings.TrimSpace(rest) == "" {
-				return b.String(), true
-			}
-			j := -1
-			if !l.opts.IgnoreInlineComment {
-				j = l.inlineCommentIndex(rest)
-			}
-			if j == -1 || strings.TrimSpace(rest[:j]) != "" {
-				return "", false
-			}
-			l.comment = append(l.comment, strings.TrimSpace(rest[j:]))
-			return b.String(), true
-		}
-		if l.eof {
-			return "", false
-		}
-		b.WriteString(strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r") + "\n")
-		line = l.readLine()
-	}
-}
-
-// bracketScanner follows the brackets of a value that starts with '{' or
-// '[', across lines. Brackets in double-quoted strings don't count.
-type bracketScanner struct {
-	depth             int
-	inString, escaped bool
-}
-
-// scan reads s and returns the index just after the bracket that closes the
-// first one, or -1 when s doesn't close it.
-func (sc *bracketScanner) scan(s string) int {
-	for i := 0; i < len(s); i++ {
-		switch c := s[i]; {
-		case sc.inString:
-			switch {
-			case sc.escaped:
-				sc.escaped = false
-			case c == '\\':
-				sc.escaped = true
-			case c == '"':
-				sc.inString = false
-			}
-		case c == '"':
-			sc.inString = true
-		case c == '{' || c == '[':
-			sc.depth++
-		case c == '}' || c == ']':
-			if sc.depth--; sc.depth == 0 {
-				return i + 1
-			}
 		}
 	}
 	return -1

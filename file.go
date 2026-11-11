@@ -465,7 +465,7 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			if !f.options.AllowBooleanKeys {
 				return line, nil
 			}
-		case strings.Contains(val, "\n") || (val != "" && val[0] == '`') || f.bracketOpens(val):
+		case strings.Contains(val, "\n") || (val != "" && val[0] == '`'):
 			line = form + eq + `"""` + val + `"""` + lineBreak
 		case !f.options.IgnoreInlineComment && strings.ContainsAny(val, symbols):
 			if strings.Contains(val, "`") {
@@ -798,17 +798,6 @@ func (f *File) readsBack(text string, boolean bool, name, val string, nested []s
 	}
 	tok, err = l.next()
 	return err == nil && tok.kind == tokEOF && tok.comment == ""
-}
-
-// bracketOpens reports whether the lexer reads the lines after val, written
-// plain, as part of it: with AllowBracketedValues, when val starts with a
-// bracket that it doesn't close.
-func (f *File) bracketOpens(val string) bool {
-	if !f.options.AllowBracketedValues || val == "" || (val[0] != '{' && val[0] != '[') {
-		return false
-	}
-	var sc bracketScanner
-	return sc.scan(val) == -1
 }
 
 // readsAsRaw reports whether the lexer reads the section name, after its

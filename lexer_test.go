@@ -73,20 +73,6 @@ func TestEmptyRawSection(t *testing.T) {
 	}
 }
 
-func TestBracketedValues(t *testing.T) {
-	const in = "[server]\ntimeout = {\n    \"timeout\": 1000,\n    \"url\": \"http://x/#a}\"\n} ; note\nnext = 1\nopen = {\n"
-	_, err := Load([]byte(in))
-	require.Error(t, err)
-
-	f, err := Load([]byte(in), AllowBracketedValues(true))
-	require.NoError(t, err)
-	sec := f.Section("server")
-	assert.Equal(t, "{\n    \"timeout\": 1000,\n    \"url\": \"http://x/#a}\"\n}", sec.Key("timeout").String())
-	assert.Equal(t, "; note", sec.Key("timeout").Comment())
-	assert.Equal(t, "1", sec.Key("next").String())
-	assert.Equal(t, "{", sec.Key("open").String(), "a bracket that never closes is read as usual")
-}
-
 func TestBadLoad(t *testing.T) {
 	t.Run("load with bad data", func(t *testing.T) {
 		t.Run("bad section name", func(t *testing.T) {

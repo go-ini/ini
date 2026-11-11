@@ -103,7 +103,6 @@ func optionsFromBits(flags uint32) []LoadOption {
 	if bit(16) {
 		opts = append(opts, RawSections("raw", "COMMENTS"))
 	}
-	opts = append(opts, AllowBracketedValues(bit(20)))
 	return append(opts, KeyValueDelimiters([]string{"", "=", ":", "→=", " ", "?!", "=:", ""}[(flags>>17)&7]))
 }
 
