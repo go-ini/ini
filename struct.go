@@ -343,54 +343,36 @@ func wrapStrictError(err error, isStrict bool) error {
 // leaves the field as it is, so it keeps its default, and is an error only
 // when isStrict. An unsupported type is always an error.
 func decodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, allowShadow, isStrict bool) error {
-	switch {
-	case t.Kind() == reflect.Slice && !isCustomType(t):
+	if t.Kind() == reflect.Slice && !isCustomType(t) {
 		return decodeSlice(key, field, delim, allowShadow, isStrict)
-
-	case t.Kind() == reflect.Pointer:
-		// A pointer, to a pointer too, is written as the value it points
-		// to, so it reads as one. A nil pointer isn't written, so the key
-		// sets the pointer, unless the value doesn't parse. A slice keeps
-		// its elements that don't parse as zero values, as without the
-		// pointer.
-		if !isDecodable(t.Elem()) {
-			return fmt.Errorf("unsupported type %q", t)
-		}
-		p := reflect.New(t.Elem())
-		elemStrict := isStrict || t.Elem().Kind() != reflect.Slice || isCustomType(t.Elem())
-		if err := decodeValue(t.Elem(), key, p.Elem(), delim, allowShadow, elemStrict); err != nil {
-			return wrapStrictError(err, isStrict)
-		}
-		field.Set(p)
-		return nil
 	}
 
-	if !isValueType(t) {
+	vt := t
+	isPtr := t.Kind() == reflect.Pointer
+	if isPtr {
+		vt = t.Elem()
+	}
+	if !isValueType(vt) {
 		return fmt.Errorf("unsupported type %q", t)
 	}
+
 	str := key.String()
 	// An empty string keeps the default value of a string field, unless
 	// the type parses itself.
-	if t.Kind() == reflect.String && len(str) == 0 && !isUnmarshaler(t) {
+	if vt.Kind() == reflect.String && len(str) == 0 && !isPtr && !isUnmarshaler(vt) {
 		return nil
 	}
-	val, err := parseValue(t, str)
+	val, err := parseValue(vt, str)
 	if err != nil {
 		return wrapStrictError(err, isStrict)
 	}
+	if isPtr {
+		ptr := reflect.New(vt)
+		ptr.Elem().Set(val)
+		val = ptr
+	}
 	field.Set(val)
 	return nil
-}
-
-// isDecodable reports whether decodeValue supports t.
-func isDecodable(t reflect.Type) bool {
-	switch {
-	case t.Kind() == reflect.Slice && !isCustomType(t):
-		return isSliceElemType(t.Elem())
-	case t.Kind() == reflect.Pointer:
-		return isDecodable(t.Elem())
-	}
-	return isValueType(t)
 }
 
 func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bool, allowNonUnique bool, extends bool) {

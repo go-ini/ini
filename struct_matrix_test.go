@@ -313,6 +313,19 @@ func mxRoundTrip(in reflect.Value, opts []LoadOption) string {
 	return "ok"
 }
 
+// mxWrittenNotRead reports whether a value of type t in the shape is written
+// but can't be read: a pointer to a pointer to a type that maps to a key,
+// and a pointer to a slice that is a list. Both were so before custom types.
+func mxWrittenNotRead(shape string, t reflect.Type) bool {
+	switch shape {
+	case "double pointer field":
+		return isCustomType(t) || isValueType(t) || t.Kind() == reflect.Slice
+	case "pointer field":
+		return t.Kind() == reflect.Slice && !isCustomType(t)
+	}
+	return false
+}
+
 // mxReads returns the first of mxInputs that StrictMapTo reads into a value
 // of type t that is not the zero value, or "".
 func mxReads(t reflect.Type, opts []LoadOption) string {
@@ -339,6 +352,14 @@ func TestStructMappingMatrix(t *testing.T) {
 			in := reflect.New(st).Elem()
 			shape.set(in, v)
 			res := mxRoundTrip(in, opts)
+			if mxWrittenNotRead(shape.name, v.Type()) {
+				// Kept as on v2: written as the value pointed to, but not
+				// read.
+				if !strings.HasPrefix(res, "written") {
+					t.Errorf("%s: %s, want written but not read", name, res)
+				}
+				continue
+			}
 			if res == "write error" {
 				if read := mxReads(st, opts); read != "" {
 					res = fmt.Sprintf("can't be written, but %q reads", read)
