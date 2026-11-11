@@ -424,16 +424,12 @@ func TestFile_ChildSections(t *testing.T) {
 func TestFile_Subsections(t *testing.T) {
 	f, err := Load([]byte(`
 [forge]
-PARENT = p
 [forge "loose.com"]
-TYPE = first
-USER = git
+TYPE = exact
 [Forge  "loose.com"]
-TYPE = second
+TYPE = loose
+[Forge "upper.com"]
 [forge.Dotted.COM]
-TYPE = dotted
-[forge "dotted.com"]
-USER = quoted
 [forge	"tab.com"]
 [forge "a\"b\\c\d"]
 [forge.a "b"]
@@ -450,11 +446,13 @@ USER = quoted
 `))
 	require.NoError(t, err)
 
-	var subs []string
-	for sub := range f.Subsections("forge") {
+	var subs, names []string
+	for sub, sec := range f.Subsections("forge") {
 		subs = append(subs, sub)
+		names = append(names, sec.Name())
 	}
-	assert.Equal(t, []string{"loose.com", "dotted.com", "tab.com", `a"b\cd`, "a.b", ""}, subs)
+	assert.Equal(t, []string{"loose.com", "loose.com", "upper.com", "dotted.com", "tab.com", `a"b\cd`, "a.b", ""}, subs)
+	assert.Equal(t, `Forge  "loose.com"`, names[1])
 
 	for sub := range f.Subsections("FORGE") {
 		assert.Equal(t, "loose.com", sub)
@@ -462,33 +460,21 @@ USER = quoted
 	}
 
 	t.Run("Subsection", func(t *testing.T) {
-		loose := f.Subsection("forge", "loose.com")
-		assert.Len(t, loose.Sections(), 2)
-		assert.Equal(t, "second", loose.Key("TYPE").String())
-		assert.Equal(t, "git", loose.Key("USER").String())
-		var keys []string
-		for _, k := range loose.Keys() {
-			keys = append(keys, k.Name()+"="+k.Value())
-		}
-		assert.Equal(t, []string{"TYPE=second", "USER=git"}, keys)
+		assert.Equal(t, "exact", f.Subsection("forge", "loose.com").Key("TYPE").String())
+		assert.Equal(t, `Forge "upper.com"`, f.Subsection("forge", "upper.com").Name())
+		assert.Equal(t, "forge.Dotted.COM", f.Subsection("forge", "dotted.com").Name())
+		assert.Equal(t, `forge "a\"b\\c\d"`, f.Subsection("forge", `a"b\cd`).Name())
+		assert.False(t, f.HasSection(f.Subsection("forge", "missing.com").Name()))
 
-		dotted := f.Subsection("forge", "dotted.com")
-		assert.Equal(t, "dotted", dotted.Key("TYPE").String())
-		assert.Equal(t, "quoted", dotted.Key("USER").String())
-		assert.False(t, dotted.HasKey("PARENT"))
-		assert.False(t, f.Subsection("forge", "Dotted.COM").HasKey("TYPE"))
+		f.Subsection("storage", `r2 "x"\`).Key("TYPE").SetValue("s3")
+		var buf bytes.Buffer
+		_, err := f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Contains(t, buf.String(), `[storage "r2 \"x\"\\"]`)
 
-		assert.Len(t, f.Subsection("forge", `a"b\cd`).Sections(), 1)
-		assert.Len(t, f.Subsection("forge", "a.b").Sections(), 1)
-
-		names := f.SectionNames()
-		missing := f.Subsection("forge", "missing.com")
-		assert.Empty(t, missing.Sections())
-		assert.False(t, missing.HasKey("TYPE"))
-		assert.Empty(t, missing.Key("TYPE").String())
-		missing.Key("TYPE").SetValue("x")
-		assert.Equal(t, names, f.SectionNames())
-		assert.Empty(t, missing.Key("TYPE").String())
+		g, err := Load(buf.Bytes())
+		require.NoError(t, err)
+		assert.Equal(t, "s3", g.Subsection("storage", `r2 "x"\`).Key("TYPE").String())
 	})
 
 	t.Run("RangedAfterChange", func(t *testing.T) {
@@ -503,14 +489,6 @@ USER = quoted
 		assert.Equal(t, []string{"x"}, subs)
 	})
 
-	t.Run("AllowNonUniqueSections", func(t *testing.T) {
-		f, err := Load([]byte("[forge \"x\"]\nA = 1\n[forge \"x\"]\nA = 2"), AllowNonUniqueSections(true))
-		require.NoError(t, err)
-		s := f.Subsection("forge", "x")
-		assert.Len(t, s.Sections(), 2)
-		assert.Equal(t, "2", s.Key("A").String())
-	})
-
 	t.Run("CaseInsensitive", func(t *testing.T) {
 		f, err := Load([]byte(`[Forge "GitHub.com"]`+"\nTYPE = github\n"+`[forge "GITHUB.COM"]`+"\nUSER = git"), CaseInsensitive(true))
 		require.NoError(t, err)
@@ -523,6 +501,40 @@ USER = quoted
 		assert.Equal(t, "github", s.Key("TYPE").String())
 		assert.Equal(t, "git", s.Key("USER").String())
 	})
+}
+
+func TestSplitSubsection(t *testing.T) {
+	tests := []struct {
+		in        string
+		name, sub string
+		ok        bool
+	}{
+		{in: `forge "x"`, name: "forge", sub: "x", ok: true},
+		{in: `Forge.X.Y`, name: "forge", sub: "x.y", ok: true},
+		{in: `forge.`, name: "forge", sub: "", ok: true},
+		{in: `forge..x`, name: "forge", sub: ".x", ok: true},
+		{in: `.forge`, name: "", sub: "forge", ok: true},
+		{in: ` "x"`, name: "", sub: "x", ok: true},
+		{in: `-a "x"`, name: "-a", sub: "x", ok: true},
+		{in: `forge "x]"`, name: "forge", sub: "x]", ok: true},
+		{in: `forge`},
+		{in: ``},
+		{in: `forge x`},
+		{in: `forge.a b`},
+		{in: `forge "x"y`},
+		{in: `forge "x" "y"`},
+		{in: `forge.x ]`},
+	}
+	for _, test := range tests {
+		t.Run(test.in, func(t *testing.T) {
+			name, sub, ok := splitSubsection(test.in)
+			assert.Equal(t, test.ok, ok)
+			if ok {
+				assert.Equal(t, test.name, name)
+				assert.Equal(t, test.sub, sub)
+			}
+		})
+	}
 }
 
 func TestFile_SectionStrings(t *testing.T) {

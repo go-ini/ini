@@ -242,8 +242,8 @@ func (f *File) ChildSections(name string) []*Section {
 	return f.Section(name).ChildSections()
 }
 
-// Subsections returns the subsections of the section name as Git reads
-// them, with each one's sub. The sections are read each time the result is
+// Subsections returns the sections of the section name as Git reads them,
+// with each one's sub. The sections are read each time the result is
 // ranged over.
 //
 // As in Git, a section is written as [name "sub"] or, in the older form, as
@@ -251,45 +251,39 @@ func (f *File) ChildSections(name string) []*Section {
 // any case. Spaces and tabs between the two parts are allowed. In a quoted
 // sub, \" and \\ read as " and \, and a backslash before another character
 // is dropped. A dotted sub is lowercased. A dot in the name moves the rest
-// into sub, so [forge.a "b"] and [forge.a.b] have sub "a.b". Headers with
-// the same name and sub, such as [forge "x"], [Forge  "x"] and [forge.x],
-// make one subsection.
+// into sub, so [forge.a "b"] and [forge.a.b] have sub "a.b". A section Git
+// would reject, such as [ forge "x"] or [for_ge "x"], is skipped without an
+// error.
 //
-// A section Git would reject, such as [ forge "x"] or [for_ge "x"], is
-// skipped without an error.
-//
-// With CaseInsensitive or CaseInsensitiveSections, a quoted sub is
-// lowercased too, because section names are lowercased when they're read,
-// so [forge "X"] and [forge "x"] make one subsection, where Git keeps two.
-func (f *File) Subsections(name string) iter.Seq2[string, *Subsection] {
-	return func(yield func(string, *Subsection) bool) {
-		var subs []*Subsection
-		bySub := make(map[string]*Subsection)
+// Unlike Git, headers written differently for the same sub, such as
+// [forge "x"], [Forge  "x"] and [forge.x], are separate sections, and each
+// is returned with sub "x". Headers written the same are one section, as
+// they are for Section. With CaseInsensitive or CaseInsensitiveSections, a
+// quoted sub is lowercased too, because section names are lowercased when
+// they're read, so [forge "X"] and [forge "x"] are one section with sub "x",
+// where Git keeps two subsections.
+func (f *File) Subsections(name string) iter.Seq2[string, *Section] {
+	return func(yield func(string, *Section) bool) {
 		for _, sec := range f.Sections() {
-			n, sub, ok := splitSubsection(sec.name)
-			if !ok || !strings.EqualFold(n, name) {
-				continue
-			}
-			if s := bySub[sub]; s != nil {
-				s.secs = append(s.secs, sec)
-				continue
-			}
-			s := &Subsection{f: f, sub: sub, secs: []*Section{sec}}
-			bySub[sub] = s
-			subs = append(subs, s)
-		}
-		for _, s := range subs {
-			if !yield(s.sub, s) {
-				return
+			if n, sub, ok := splitSubsection(sec.name); ok && strings.EqualFold(n, name) {
+				if !yield(sub, sec) {
+					return
+				}
 			}
 		}
 	}
 }
 
-// Subsection returns the subsection sub of the section name, matched as
-// Subsections does. When there is none, it returns a subsection that reads
-// as empty.
-func (f *File) Subsection(name, sub string) *Subsection {
+// Subsection returns the section of the section name with the given sub,
+// matched as Subsections does. When there are several, it returns the one
+// written as [name "sub"], or else the first. When there is none, it
+// returns a section that reads as empty, as Section does, and a change adds
+// it as [name "sub"], with " and \ in sub escaped.
+func (f *File) Subsection(name, sub string) *Section {
+	quoted := name + ` "` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(sub) + `"`
+	if sec, err := f.GetSection(quoted); err == nil {
+		return sec
+	}
 	if f.options.Insensitive || f.options.InsensitiveSections {
 		sub = strings.ToLower(sub)
 	}
@@ -298,7 +292,7 @@ func (f *File) Subsection(name, sub string) *Subsection {
 			return sec
 		}
 	}
-	return &Subsection{f: f, sub: sub}
+	return f.Section(quoted)
 }
 
 // splitSubsection splits a section name as Git reads it into the
@@ -311,7 +305,7 @@ func splitSubsection(s string) (name, sub string, ok bool) {
 	full := strings.ToLower(s[:i])
 	if i < len(s) {
 		rest := strings.TrimLeft(s[i:], " \t")
-		if i == 0 || len(rest) == len(s[i:]) || len(rest) < 2 || rest[0] != '"' || rest[len(rest)-1] != '"' {
+		if len(rest) == len(s[i:]) || len(rest) < 2 || rest[0] != '"' || rest[len(rest)-1] != '"' {
 			return "", "", false
 		}
 		var b strings.Builder
@@ -337,73 +331,6 @@ func splitSubsection(s string) (name, sub string, ok bool) {
 // isGitNameChar reports whether c can be in a section name in Git.
 func isGitNameChar(c byte) bool {
 	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' || c == '-' || c == '.'
-}
-
-// Subsection is a subsection as Git reads it, from every section written
-// with its name and sub. It is for reading: a key is read from the last of
-// those sections that has it, as Git takes the last value.
-type Subsection struct {
-	f    *File
-	sub  string
-	secs []*Section
-}
-
-// Sections returns the sections the subsection is read from, in file order.
-func (s *Subsection) Sections() []*Section {
-	return slices.Clone(s.secs)
-}
-
-// Key returns the key with the given name from the last section that has
-// it. Unlike Section.Key, it doesn't look in parent sections. When there is
-// none, it returns a key that reads as empty, and a change to it isn't
-// saved.
-func (s *Subsection) Key(name string) *Key {
-	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
-		name = strings.ToLower(name)
-	}
-	if key := s.key(name); key != nil {
-		return key
-	}
-	return newKey(newSection(s.f, ""), name, "")
-}
-
-// HasKey reports whether any of the sections has a key with the given name.
-func (s *Subsection) HasKey(name string) bool {
-	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
-		name = strings.ToLower(name)
-	}
-	return s.key(name) != nil
-}
-
-func (s *Subsection) key(name string) *Key {
-	s.f.maybeRLock()
-	defer s.f.maybeRUnlock()
-	for i := len(s.secs) - 1; i >= 0; i-- {
-		if key := s.secs[i].current().byName[name]; key != nil {
-			return key
-		}
-	}
-	return nil
-}
-
-// Keys returns one key for each name in the sections, in the order the
-// names first appear, each from the last section that has it.
-func (s *Subsection) Keys() []*Key {
-	s.f.maybeRLock()
-	defer s.f.maybeRUnlock()
-	var keys []*Key
-	at := make(map[string]int)
-	for _, sec := range s.secs {
-		for _, key := range sec.current().keys {
-			if i, ok := at[key.name]; ok {
-				keys[i] = key
-				continue
-			}
-			at[key.name] = len(keys)
-			keys = append(keys, key)
-		}
-	}
-	return keys
 }
 
 // SectionNames returns list of section names.
