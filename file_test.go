@@ -601,4 +601,20 @@ func TestFile_WriteTo_ValueRoundTrip(t *testing.T) {
 			assert.Equal(t, want, buf.String(), "value %q serialized form", val)
 		}
 	})
+
+	t.Run("PreserveSurroundedQuote keeps quoted values as they are", func(t *testing.T) {
+		const data = "DefaultTimezone = \"GMT+01 (Amsterdam, Berlin, Rome)\"\n"
+		opts := LoadOptions{PreserveSurroundedQuote: true}
+		cfg, err := LoadSources(opts, []byte(data))
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+		_, err = cfg.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Equal(t, data, buf.String())
+
+		rc, err := LoadSources(opts, buf.Bytes())
+		require.NoError(t, err)
+		assert.Equal(t, `"GMT+01 (Amsterdam, Berlin, Rome)"`, rc.Section("").Key("DefaultTimezone").String())
+	})
 }

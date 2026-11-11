@@ -463,7 +463,8 @@ func (f *File) writeToBuffer(indent string) (*bytes.Buffer, error) {
 					val = `"""` + val + `"""`
 				} else if !f.options.IgnoreInlineComment && strings.ContainsAny(val, "#;") {
 					val = "`" + val + "`"
-				} else if hasSurroundedQuote(val, '"') || hasSurroundedQuote(val, '\'') ||
+				} else if (!f.options.PreserveSurroundedQuote &&
+					(hasSurroundedQuote(val, '"') || hasSurroundedQuote(val, '\''))) ||
 					strings.HasPrefix(val, `"""`) {
 					// Reader would unquote these or read them as a wrapper, so escape.
 					val = "`" + val + "`"
