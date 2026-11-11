@@ -25,6 +25,8 @@ type Key struct {
 	isBooleanType   bool
 	// missing is set on a key Section.Key returned for a name its section
 	// doesn't have. The key isn't in the section until a change adds it.
+	// If the section gains a key of its name first, it reads and changes
+	// that key instead, and is never added.
 	missing bool
 
 	nestedValues []string
@@ -51,8 +53,9 @@ func (k *Key) current() *Key {
 	return k
 }
 
-// attach adds k to its section if it's missing, and returns the key to
-// change. The caller holds the write lock.
+// attach adds k to its section if it's missing and the section still has no
+// key of its name, and returns the key to change: k, or the key of its name
+// the section gained. The caller holds the write lock.
 func (k *Key) attach() *Key {
 	c := k.current()
 	if c == k && k.missing {
@@ -521,7 +524,12 @@ func splitList(str, delim string) []string {
 // StringsWithShadows returns list of string divided by given delimiter.
 // Shadows will also be appended if any.
 func (k *Key) StringsWithShadows(delim string) []string {
-	vals := k.Values()
+	// Expand with the key the values come from, so that a reference to its
+	// own name is looked up in the default section.
+	k.s.f.maybeRLock()
+	c := k.current()
+	k.s.f.maybeRUnlock()
+	vals := c.Values()
 	results := make([]string, 0, len(vals)*2)
 	for i := range vals {
 		if len(vals) == 0 {
@@ -532,7 +540,7 @@ func (k *Key) StringsWithShadows(delim string) []string {
 	}
 
 	for i := range results {
-		results[i] = k.expandValue(strings.TrimSpace(results[i]))
+		results[i] = c.expandValue(strings.TrimSpace(results[i]))
 	}
 	return results
 }

@@ -254,6 +254,17 @@ func TestSection_Key(t *testing.T) {
 		assert.Equal(t, []string{"port", "host"}, sec.KeyNames())
 	})
 
+	t.Run("a missing key expands as the key it follows", func(t *testing.T) {
+		f, err := Load([]byte("path = /usr\n[s]\n"))
+		require.NoError(t, err)
+		sec := f.Section("s")
+		k := sec.Key("path")
+		_, err = sec.NewKey("path", "%(path)s/bin")
+		require.NoError(t, err)
+		assert.Equal(t, "/usr/bin", k.String())
+		assert.Equal(t, []string{"/usr/bin"}, k.StringsWithShadows(","))
+	})
+
 	t.Run("an empty name is never added", func(t *testing.T) {
 		f := Empty()
 		f.Section("").Key("").SetValue("v")

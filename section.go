@@ -173,8 +173,9 @@ func (s *Section) HasValue(value string) bool {
 
 // Key returns the key with the given name, looking in parent sections too
 // as GetKey does. When there is none, it returns a key that reads as empty
-// without adding it to the section. SetValue, SetComment, AddShadow or
-// AddNestedValue adds it.
+// without adding it to the section. SetValue or SetComment adds it, and so
+// do AddShadow and AddNestedValue when the file allows shadows or nested
+// values.
 func (s *Section) Key(name string) *Key {
 	if key, err := s.GetKey(name); err == nil {
 		return key
