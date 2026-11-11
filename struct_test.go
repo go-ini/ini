@@ -671,12 +671,12 @@ func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
 				{
 					PublicKey:    "pubClientKey",
 					PresharedKey: "psKey",
-					AllowedIPs:   []string{"10.2.0.2/32", "fd00:2::2/128"},
+					AllowedIPs:   []string{"10.2.0.2/32,fd00:2::2/128"},
 				},
 				{
 					PublicKey:    "pubClientKey2",
 					PresharedKey: "psKey2",
-					AllowedIPs:   []string{"10.2.0.3/32", "fd00:2::3/128"},
+					AllowedIPs:   []string{"10.2.0.3/32,fd00:2::3/128"},
 				},
 			},
 		}
@@ -697,12 +697,12 @@ func Test_ReflectFromStructNonUniqueSections(t *testing.T) {
 			{
 				PublicKey:    "pubClientKey3",
 				PresharedKey: "psKey3",
-				AllowedIPs:   []string{"10.2.0.4/32", "fd00:2::4/128"},
+				AllowedIPs:   []string{"10.2.0.4/32,fd00:2::4/128"},
 			},
 			{
 				PublicKey:    "pubClientKey4",
 				PresharedKey: "psKey4",
-				AllowedIPs:   []string{"10.2.0.5/32", "fd00:2::5/128"},
+				AllowedIPs:   []string{"10.2.0.5/32,fd00:2::5/128"},
 			},
 		})
 
@@ -733,7 +733,7 @@ AllowedIPs   = 10.2.0.5/32,fd00:2::5/128
 		err = cfg.Section("Peer").ReflectFrom(&testPeer{
 			PublicKey:    "pubClientKey5",
 			PresharedKey: "psKey5",
-			AllowedIPs:   []string{"10.2.0.6/32", "fd00:2::6/128"},
+			AllowedIPs:   []string{"10.2.0.6/32,fd00:2::6/128"},
 		})
 
 		require.NoError(t, err)
@@ -941,25 +941,34 @@ func Test_ReflectFromStringSliceWithComma(t *testing.T) {
 			"Test One",
 			"Test Two",
 			"Test with comma, Three",
+			`C:\dir\`,
 			"Test Four",
 		},
 	}
 
-	f := Empty()
-	require.NoError(t, f.ReflectFrom(&in))
+	t.Run("escaped with EscapeSliceDelimiters", func(t *testing.T) {
+		f := Empty(LoadOptions{EscapeSliceDelimiters: true})
+		require.NoError(t, f.ReflectFrom(&in))
 
-	var buf bytes.Buffer
-	_, err := f.WriteTo(&buf)
-	require.NoError(t, err)
-	assert.Contains(t, buf.String(), `Test with comma\, Three`)
+		var buf bytes.Buffer
+		_, err := f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Contains(t, buf.String(), `Test with comma\, Three`)
 
-	got := f.Section("").Key("History").Strings(",")
-	assert.Equal(t, in.History, got)
+		got := f.Section("").Key("History").Strings(",")
+		assert.Equal(t, in.History, got)
 
-	var out C
-	require.NoError(t, MapTo(&out, buf.Bytes()))
-	assert.Equal(t, in.History, out.History)
-	assert.Equal(t, float32(1.5), out.Scale)
+		var out C
+		require.NoError(t, MapTo(&out, buf.Bytes()))
+		assert.Equal(t, in.History, out.History)
+		assert.Equal(t, float32(1.5), out.Scale)
+	})
+
+	t.Run("written as is by default", func(t *testing.T) {
+		f := Empty()
+		require.NoError(t, f.ReflectFrom(&in))
+		assert.Equal(t, `Test One,Test Two,Test with comma, Three,C:\dir\,Test Four`, f.Section("").Key("History").String())
+	})
 }
 
 type Employer struct {

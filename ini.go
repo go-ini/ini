@@ -130,6 +130,11 @@ type LoadOptions struct {
 	// empty assignment to reset prior values. Empty values are otherwise
 	// omitted.
 	PreserveEmptyShadowValues bool
+	// EscapeSliceDelimiters indicates whether ReflectFrom escapes backslashes
+	// and the delimiter in the elements of a string slice, so Key.Strings and
+	// MapTo read back the same elements. Other INI readers may not unescape
+	// them, so it is off by default.
+	EscapeSliceDelimiters bool
 }
 
 // DebugFunc is the type of function called to log parse events.
