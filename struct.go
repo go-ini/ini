@@ -79,7 +79,8 @@ type Marshaler interface {
 //
 // A struct or slice type maps to one key, rather than to a section or a
 // list, only when it implements both Marshaler and Unmarshaler, so that it
-// maps the same way in both directions.
+// maps the same way in both directions. A struct that embeds such a type
+// gets its methods, and so maps to one key too.
 type Unmarshaler interface {
 	UnmarshalINI([]byte) error
 }
