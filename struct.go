@@ -904,6 +904,9 @@ func (s *Section) ReflectFrom(v any) error {
 	if typ.Kind() != reflect.Pointer || typ.Elem().Kind() != reflect.Struct {
 		return errors.New("not a pointer to a struct")
 	}
+	s.f.maybeLock()
+	s = s.attach()
+	s.f.maybeUnlock()
 	return s.encodeStruct(val.Elem(), nil)
 }
 

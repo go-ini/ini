@@ -46,7 +46,7 @@ func newKey(s *Section, name, val string) *Key {
 // holds the lock.
 func (k *Key) current() *Key {
 	if k.missing {
-		if key := k.s.byName[k.name]; key != nil {
+		if key := k.s.current().byName[k.name]; key != nil {
 			return key
 		}
 	}
@@ -54,14 +54,16 @@ func (k *Key) current() *Key {
 }
 
 // attach adds k to its section if it's missing and the section still has no
-// key of its name, and returns the key to change: k, or the key of its name
-// the section gained. The caller holds the write lock.
+// key of its name, adding the section to the file too if it's missing, and
+// returns the key to change: k, or the key of its name the section gained.
+// The caller holds the write lock.
 func (k *Key) attach() *Key {
 	c := k.current()
 	if c == k && k.missing {
 		k.missing = false
-		k.s.keys = append(k.s.keys, k)
-		k.s.byName[k.name] = k
+		sec := k.s.attach()
+		sec.keys = append(sec.keys, k)
+		sec.byName[k.name] = k
 	}
 	return c
 }
