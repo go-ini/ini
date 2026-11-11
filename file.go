@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"os"
 	"slices"
 	"strings"
@@ -239,6 +240,84 @@ func (f *File) Sections() []*Section {
 // ChildSections returns a list of child sections of given section name.
 func (f *File) ChildSections(name string) []*Section {
 	return f.Section(name).ChildSections()
+}
+
+// Subsections returns the sections written in Git's config style as
+// [name "sub"], with each one's sub. The name matches in any case, and
+// spaces and tabs around and between the two parts are allowed. In sub, \"
+// and \\ read as " and \, and a backslash before another character is
+// dropped, as in Git.
+//
+// Section names are read as written, so a few things differ from Git:
+//   - A section whose name doesn't split as above, such as a sub without
+//     its closing quote, is skipped without an error.
+//   - Headers that differ only in spacing or in the case of the name, such
+//     as [forge "x"] and [Forge  "x"], are separate sections, and both are
+//     returned with sub "x".
+//   - With CaseInsensitive or CaseInsensitiveSections, sub is lowercased,
+//     as the whole section name is when it's read.
+func (f *File) Subsections(name string) iter.Seq2[string, *Section] {
+	secs := f.Sections()
+	return func(yield func(string, *Section) bool) {
+		for _, sec := range secs {
+			if n, sub, ok := splitSubsection(sec.name); ok && strings.EqualFold(n, name) {
+				if !yield(sub, sec) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// Subsection returns the section written in Git's config style as
+// [name "sub"], matched as Subsections does. When there are several, it
+// returns the one written exactly as [name "sub"], or else the first. When
+// there is none, it returns a section that reads as empty, as Section does,
+// and a change adds it as [name "sub"], with " and \ in sub escaped.
+func (f *File) Subsection(name, sub string) *Section {
+	quoted := name + ` "` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(sub) + `"`
+	if sec, err := f.GetSection(quoted); err == nil {
+		return sec
+	}
+	if f.options.Insensitive || f.options.InsensitiveSections {
+		sub = strings.ToLower(sub)
+	}
+	for s, sec := range f.Subsections(name) {
+		if s == sub {
+			return sec
+		}
+	}
+	return f.Section(quoted)
+}
+
+// splitSubsection splits a section name of the form `name "sub"` into name
+// and the unescaped sub.
+func splitSubsection(s string) (name, sub string, ok bool) {
+	s = strings.Trim(s, " \t")
+	i := strings.IndexAny(s, " \t")
+	if i < 1 {
+		return "", "", false
+	}
+	name, rest := s[:i], strings.TrimLeft(s[i:], " \t")
+	if len(rest) < 2 || rest[0] != '"' || rest[len(rest)-1] != '"' {
+		return "", "", false
+	}
+	var b strings.Builder
+	for i := 1; i < len(rest)-1; i++ {
+		switch c := rest[i]; c {
+		case '\\':
+			i++
+			if i == len(rest)-1 {
+				return "", "", false // the closing quote is escaped
+			}
+			b.WriteByte(rest[i])
+		case '"':
+			return "", "", false
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return name, b.String(), true
 }
 
 // SectionNames returns list of section names.

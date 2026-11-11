@@ -421,6 +421,69 @@ func TestFile_ChildSections(t *testing.T) {
 	}
 }
 
+func TestFile_Subsections(t *testing.T) {
+	f, err := Load([]byte(`
+[forge  "loose.com"]
+TYPE = loose
+[Forge "upper.com"]
+[forge	"tab.com" ]
+[forge "a\"b\\c\d"]
+[forge "exact.com"]
+[forge "loose.com"]
+TYPE = exact
+[forge "unclosed.com]
+[forge "escaped.com\"]
+[forge "in"side"]
+[forge"nospace.com"]
+[forgery "other.com"]
+[forge]
+[forge.dotted.com]
+[storage "local"]
+`))
+	require.NoError(t, err)
+
+	var subs, names []string
+	for sub, sec := range f.Subsections("forge") {
+		subs = append(subs, sub)
+		names = append(names, sec.Name())
+	}
+	assert.Equal(t, []string{"loose.com", "upper.com", "tab.com", `a"b\cd`, "exact.com", "loose.com"}, subs)
+	assert.Equal(t, `forge "exact.com"`, names[4])
+
+	for sub := range f.Subsections("FORGE") {
+		assert.Equal(t, "loose.com", sub)
+		break
+	}
+
+	t.Run("Subsection", func(t *testing.T) {
+		assert.Equal(t, "exact", f.Subsection("forge", "loose.com").Key("TYPE").String())
+		assert.Equal(t, `Forge "upper.com"`, f.Subsection("forge", "upper.com").Name())
+		assert.Equal(t, `forge "a\"b\\c\d"`, f.Subsection("forge", `a"b\cd`).Name())
+		assert.False(t, f.HasSection(f.Subsection("forge", "missing.com").Name()))
+
+		f.Subsection("storage", `r2 "x"\`).Key("TYPE").SetValue("s3")
+		var buf bytes.Buffer
+		_, err := f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Contains(t, buf.String(), `[storage "r2 \"x\"\\"]`)
+
+		g, err := Load(buf.Bytes())
+		require.NoError(t, err)
+		assert.Equal(t, "s3", g.Subsection("storage", `r2 "x"\`).Key("TYPE").String())
+	})
+
+	t.Run("CaseInsensitive", func(t *testing.T) {
+		f, err := Load([]byte(`[Forge "GitHub.com"]`+"\nTYPE = github"), CaseInsensitive(true))
+		require.NoError(t, err)
+		var subs []string
+		for sub := range f.Subsections("forge") {
+			subs = append(subs, sub)
+		}
+		assert.Equal(t, []string{"github.com"}, subs)
+		assert.Equal(t, "github", f.Subsection("Forge", "GitHub.com").Key("TYPE").String())
+	})
+}
+
 func TestFile_SectionStrings(t *testing.T) {
 	f, err := Load(fullConf)
 	require.NoError(t, err)
