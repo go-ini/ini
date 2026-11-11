@@ -126,19 +126,42 @@ func (v *MxMapMU) UnmarshalINI(b []byte) error {
 	return nil
 }
 
+type (
+	MxArrayNone [2]string
+	MxArrayM    [2]string
+	MxArrayU    [2]string
+	MxArrayMU   [2]string
+)
+
+func (MxArrayM) MarshalINI() ([]byte, error) { return nil, errMxCalled }
+
+func (*MxArrayU) UnmarshalINI([]byte) error { return errMxCalled }
+
+func (v MxArrayMU) MarshalINI() ([]byte, error) { return []byte(v[0] + "~" + v[1]), nil }
+
+func (v *MxArrayMU) UnmarshalINI(b []byte) error {
+	a, c, ok := strings.Cut(string(b), "~")
+	if !ok {
+		return fmt.Errorf("missing ~ in %q", b)
+	}
+	*v = MxArrayMU{a, c}
+	return nil
+}
+
 // mxSamples holds a value of each Mx type that is not the zero value.
 var mxSamples = []any{
 	MxIntNone(5), MxIntM(5), MxIntU(5), MxIntMU(5),
 	MxStructNone{"a"}, MxStructM{"a"}, MxStructU{"a"}, MxStructMU{"a"},
 	MxSliceNone{"a", "b"}, MxSliceM{"a", "b"}, MxSliceU{"a", "b"}, MxSliceMU{"a", "b"},
 	MxMapNone{"k": "v"}, MxMapM{"k": "v"}, MxMapU{"k": "v"}, MxMapMU{"k": "v"},
+	MxArrayNone{"a", "b"}, MxArrayM{"a", "b"}, MxArrayU{"a", "b"}, MxArrayMU{"a", "b"},
 }
 
 // mxInputs are inputs that read a value into a field F, or into F in a
 // section S, in each of the forms struct mapping reads.
 var mxInputs = []string{
 	"F = 5\n", "F = #5\n", "F = a,b\n", "F = a+b\n", "F = <a>\n", "F = k:v\n",
-	"F = <a>,<b>\n", "F = #5,#6\n",
+	"F = <a>,<b>\n", "F = #5,#6\n", "F = a~b\n",
 	"[F]\nA = a\n", "[F]\nA = a\n[F]\nA = b\n",
 	"[S]\nF = 5\n", "[S]\nF = #5\n", "[S]\nF = a,b\n", "[S]\nF = a+b\n", "[S]\nF = <a>\n", "[S]\nF = k:v\n",
 	"[F]\nA = a\n[S]\nB = b\n", "[S]\nA = a\nB = b\n",
@@ -202,6 +225,36 @@ var mxShapes = []mxShape{
 		set: func(s, v reflect.Value) {
 			s.Field(0).Set(reflect.Append(reflect.MakeSlice(s.Field(0).Type(), 0, 2), v, v))
 		},
+	},
+	{
+		name: "double pointer field",
+		typ: func(t reflect.Type) reflect.Type {
+			return reflect.StructOf([]reflect.StructField{{Name: "F", Type: reflect.PointerTo(reflect.PointerTo(t))}})
+		},
+		set: func(s, v reflect.Value) {
+			p := reflect.New(v.Type())
+			p.Elem().Set(v)
+			pp := reflect.New(p.Type())
+			pp.Elem().Set(p)
+			s.Field(0).Set(pp)
+		},
+	},
+	{
+		name: "array field",
+		typ: func(t reflect.Type) reflect.Type {
+			return reflect.StructOf([]reflect.StructField{{Name: "F", Type: reflect.ArrayOf(2, t)}})
+		},
+		set: func(s, v reflect.Value) {
+			s.Field(0).Index(0).Set(v)
+			s.Field(0).Index(1).Set(v)
+		},
+	},
+	{
+		name: "interface field",
+		typ: func(reflect.Type) reflect.Type {
+			return reflect.StructOf([]reflect.StructField{{Name: "F", Type: reflect.TypeFor[any]()}})
+		},
+		set: func(s, v reflect.Value) { s.Field(0).Set(v) },
 	},
 	{
 		name: "field in a section",

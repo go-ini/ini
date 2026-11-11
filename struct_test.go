@@ -1443,6 +1443,7 @@ type fzCfg struct {
 	Perms []testPerm
 
 	PSS    *[]string
+	PPI    **int
 	Addr   MxStructMU
 	PAddr  *MxStructMU
 	Addrs  []MxStructMU
@@ -1473,7 +1474,7 @@ func FuzzStructMapping(f *testing.F) {
 			"[Sub]\nA = 1\nB = b\n[PSub]\nA = 2\n[Peer]\nA = 3\n[Peer]\nA = 4\n[PPeer]\nB = q\n[Node]\nX = 1\n[Child]\nX = 2\n",
 		"I8 = 300\nU8 = -1\nF32 = 1e300\nD = -5s\nSI = 1,x,3\nT = 2006-01-02T15:04:05.123456789+07:00\n",
 		"a = %(b)s\nb = %(a)s\nS = %(S)s%(S)s\n",
-		"PSS = p,q\nAddr = <x>\nPAddr = <y>\nAddrs = <a>,<b>\nTags = a+b\nKV = k:v&l:w\nHosts = h1,h2\n"+
+		"PSS = p,q\nPPI = 3\nAddr = <x>\nPAddr = <y>\nAddrs = <a>,<b>\nTags = a+b\nKV = k:v&l:w\nHosts = h1,h2\n"+
 			"[MPeer]\nA = m\n[MPeer]\nA = n\n",
 	)
 	for _, in := range inputs {
