@@ -69,6 +69,8 @@ In v1, `f.Section("server").Key("PORT")` added an empty `[server]` section and `
   - An `allowshadow` element containing the delimiter is an error, since it would read back as two elements.
   - In a file loaded without `AllowShadows`, an `allowshadow` slice of several elements is written as one value joined by the delimiter, which reads back as all of them. v1 wrote only the first element.
 
+A struct field maps to a section. When a file has a key of the field's name but no such section, `MapTo` leaves the field unchanged, as v1 did, and `StrictMapTo` returns an error. To parse that key yourself, tag the field `ini:"-"` so both skip it, then read it with `Section.Key`. To have `MapTo` and `ReflectFrom` map the key, give the field's type both `MarshalINI` and `UnmarshalINI`.
+
 ### Writing
 
 For ordinary files, `Write` output is byte-identical to v1's, apart from the parsing fixes above and a value with a backtick inside but not at its start: v1 wrapped it in `"""`, and v2 doesn't unless it also has a comment symbol. Where v1 wrote a file that loaded back differently, v2 writes one that loads back the same, or returns an error. Comments load back with the same text, though the spacing after a comment symbol can change. Output meant for other readers isn't checked: keys written with a `WriteDelimiter` the file wasn't loaded with, boolean keys without `AllowBooleanKeys`, and raw sections without `RawSections`. For example:
