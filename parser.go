@@ -73,36 +73,42 @@ func newParser(r io.Reader, opts parserOptions) *parser {
 // BOM handles header of UTF-8, UTF-16 LE and UTF-16 BE's BOM format.
 // http://en.wikipedia.org/wiki/Byte_order_mark#Representations_of_byte_order_marks_by_encoding
 func (p *parser) BOM() error {
-	mask, err := p.buf.Peek(2)
-	if err != nil && err != io.EOF {
-		return err
-	} else if len(mask) < 2 {
-		return nil
-	}
-
-	switch {
-	case mask[0] == 254 && mask[1] == 255:
-		fallthrough
-	case mask[0] == 255 && mask[1] == 254:
-		_, err = p.buf.Read(mask)
-		if err != nil {
-			return err
-		}
-	case mask[0] == 239 && mask[1] == 187:
-		mask, err := p.buf.Peek(3)
+	// Strip every leading BOM: a file may accidentally carry more than one
+	// (e.g. a tool prepending a BOM to already-BOM'd content). Stopping after
+	// the first one leaves the remaining BOM on the next token and makes the
+	// parser fail with a misleading "key-value delimiter not found" (#390).
+	for {
+		mask, err := p.buf.Peek(2)
 		if err != nil && err != io.EOF {
 			return err
-		} else if len(mask) < 3 {
+		} else if len(mask) < 2 {
 			return nil
 		}
-		if mask[2] == 191 {
-			_, err = p.buf.Read(mask)
-			if err != nil {
+
+		switch {
+		case mask[0] == 254 && mask[1] == 255:
+			fallthrough
+		case mask[0] == 255 && mask[1] == 254:
+			if _, err = p.buf.Read(mask); err != nil {
 				return err
 			}
+		case mask[0] == 239 && mask[1] == 187:
+			mask, err := p.buf.Peek(3)
+			if err != nil && err != io.EOF {
+				return err
+			} else if len(mask) < 3 {
+				return nil
+			}
+			if mask[2] != 191 {
+				return nil
+			}
+			if _, err = p.buf.Read(mask); err != nil {
+				return err
+			}
+		default:
+			return nil
 		}
 	}
-	return nil
 }
 
 func (p *parser) readUntil(delim byte) ([]byte, error) {
