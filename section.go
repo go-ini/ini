@@ -1,33 +1,20 @@
-// Copyright 2014 Unknwon
-//
-// Licensed under the Apache License, Version 2.0 (the "License"): you may
-// not use this file except in compliance with the License. You may obtain
-// a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations
-// under the License.
-
 package ini
 
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
 // Section represents a config section.
 type Section struct {
-	f        *File
-	Comment  string
-	name     string
-	keys     map[string]*Key
-	keyList  []string
-	keysHash map[string]string
+	f       *File
+	name    string
+	comment string
+	// keys are in the order they were added, and byName indexes them by name.
+	keys   []*Key
+	byName map[string]*Key
 
 	isRawSection bool
 	rawBody      string
@@ -35,11 +22,10 @@ type Section struct {
 
 func newSection(f *File, name string) *Section {
 	return &Section{
-		f:        f,
-		name:     name,
-		keys:     make(map[string]*Key),
-		keyList:  make([]string, 0, 10),
-		keysHash: make(map[string]string),
+		f:      f,
+		name:   name,
+		keys:   make([]*Key, 0, 10),
+		byName: make(map[string]*Key),
 	}
 }
 
@@ -48,14 +34,34 @@ func (s *Section) Name() string {
 	return s.name
 }
 
+// Comment returns the comment lines before the section header, with their
+// comment symbols.
+func (s *Section) Comment() string {
+	s.f.maybeRLock()
+	defer s.f.maybeRUnlock()
+	return s.comment
+}
+
+// SetComment sets the comment lines written before the section header.
+// Lines without a comment symbol get one.
+func (s *Section) SetComment(comment string) {
+	s.f.maybeLock()
+	defer s.f.maybeUnlock()
+	s.comment = comment
+}
+
 // Body returns rawBody of Section if the section was marked as unparseable.
 // It still follows the other rules of the INI format surrounding leading/trailing whitespace.
 func (s *Section) Body() string {
+	s.f.maybeRLock()
+	defer s.f.maybeRUnlock()
 	return strings.TrimSpace(s.rawBody)
 }
 
 // SetBody updates body content only if section is raw.
 func (s *Section) SetBody(body string) {
+	s.f.maybeLock()
+	defer s.f.maybeUnlock()
 	if !s.isRawSection {
 		return
 	}
@@ -64,38 +70,46 @@ func (s *Section) SetBody(body string) {
 
 // NewKey creates a new key to given section.
 func (s *Section) NewKey(name, val string) (*Key, error) {
+	s.f.maybeLock()
+	defer s.f.maybeUnlock()
+	return s.addKey(name, val)
+}
+
+// addKey is NewKey for a caller that holds the lock.
+func (s *Section) addKey(name, val string) (*Key, error) {
 	if len(name) == 0 {
 		return nil, errors.New("error creating new key: empty key name")
 	} else if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
 		name = strings.ToLower(name)
 	}
 
-	if s.f.BlockMode {
-		s.f.lock.Lock()
-		defer s.f.lock.Unlock()
-	}
-
-	if inSlice(name, s.keyList) {
+	if key := s.byName[name]; key != nil {
 		if s.f.options.AllowShadows {
-			if err := s.keys[name].addShadow(val); err != nil {
+			if err := key.addShadow(val); err != nil {
 				return nil, err
 			}
 		} else {
-			s.keys[name].value = val
-			s.keysHash[name] = val
+			key.value = val
 		}
-		return s.keys[name], nil
+		return key, nil
 	}
 
-	s.keyList = append(s.keyList, name)
-	s.keys[name] = newKey(s, name, val)
-	s.keysHash[name] = val
-	return s.keys[name], nil
+	key := newKey(s, name, val)
+	s.keys = append(s.keys, key)
+	s.byName[name] = key
+	return key, nil
 }
 
 // NewBooleanKey creates a new boolean type key to given section.
 func (s *Section) NewBooleanKey(name string) (*Key, error) {
-	key, err := s.NewKey(name, "true")
+	s.f.maybeLock()
+	defer s.f.maybeUnlock()
+	return s.addBooleanKey(name)
+}
+
+// addBooleanKey is NewBooleanKey for a caller that holds the lock.
+func (s *Section) addBooleanKey(name string) (*Key, error) {
+	key, err := s.addKey(name, "true")
 	if err != nil {
 		return nil, err
 	}
@@ -106,15 +120,15 @@ func (s *Section) NewBooleanKey(name string) (*Key, error) {
 
 // GetKey returns key in section by given name.
 func (s *Section) GetKey(name string) (*Key, error) {
-	if s.f.BlockMode {
-		s.f.lock.RLock()
+	if s.f.locking {
+		s.f.mu.RLock()
 	}
 	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
 		name = strings.ToLower(name)
 	}
-	key := s.keys[name]
-	if s.f.BlockMode {
-		s.f.lock.RUnlock()
+	key := s.byName[name]
+	if s.f.locking {
+		s.f.mu.RUnlock()
 	}
 
 	if key == nil {
@@ -142,16 +156,11 @@ func (s *Section) HasKey(name string) bool {
 	return key != nil
 }
 
-// Deprecated: Use "HasKey" instead.
-func (s *Section) Haskey(name string) bool {
-	return s.HasKey(name)
-}
-
 // HasValue returns true if section contains given raw value.
 func (s *Section) HasValue(value string) bool {
-	if s.f.BlockMode {
-		s.f.lock.RLock()
-		defer s.f.lock.RUnlock()
+	if s.f.locking {
+		s.f.mu.RLock()
+		defer s.f.mu.RUnlock()
 	}
 
 	for _, k := range s.keys {
@@ -166,9 +175,10 @@ func (s *Section) HasValue(value string) bool {
 func (s *Section) Key(name string) *Key {
 	key, err := s.GetKey(name)
 	if err != nil {
-		// It's OK here because the only possible error is empty key name,
-		// but if it's empty, this piece of code won't be executed.
-		key, _ = s.NewKey(name, "")
+		if key, err = s.NewKey(name, ""); err != nil {
+			// An empty name can't be added, so return a key that isn't.
+			return newKey(s, name, "")
+		}
 		return key
 	}
 	return key
@@ -176,11 +186,9 @@ func (s *Section) Key(name string) *Key {
 
 // Keys returns list of keys of section.
 func (s *Section) Keys() []*Key {
-	keys := make([]*Key, len(s.keyList))
-	for i := range s.keyList {
-		keys[i] = s.Key(s.keyList[i])
-	}
-	return keys
+	s.f.maybeRLock()
+	defer s.f.maybeRUnlock()
+	return slices.Clone(s.keys)
 }
 
 // ParentKeys returns list of keys of parent section.
@@ -203,41 +211,44 @@ func (s *Section) ParentKeys() []*Key {
 	return parentKeys
 }
 
-// KeyStrings returns list of key names of section.
-func (s *Section) KeyStrings() []string {
-	list := make([]string, len(s.keyList))
-	copy(list, s.keyList)
-	return list
+// KeyNames returns list of key names of section.
+func (s *Section) KeyNames() []string {
+	s.f.maybeRLock()
+	defer s.f.maybeRUnlock()
+	names := make([]string, len(s.keys))
+	for i, k := range s.keys {
+		names[i] = k.name
+	}
+	return names
 }
 
-// KeysHash returns keys hash consisting of names and values.
-func (s *Section) KeysHash() map[string]string {
-	if s.f.BlockMode {
-		s.f.lock.RLock()
-		defer s.f.lock.RUnlock()
+// KeyValues returns the names and raw values of the section's keys.
+func (s *Section) KeyValues() map[string]string {
+	if s.f.locking {
+		s.f.mu.RLock()
+		defer s.f.mu.RUnlock()
 	}
 
-	hash := make(map[string]string, len(s.keysHash))
-	for key, value := range s.keysHash {
-		hash[key] = value
+	hash := make(map[string]string, len(s.keys))
+	for _, k := range s.keys {
+		hash[k.name] = k.value
 	}
 	return hash
 }
 
 // DeleteKey deletes a key from section.
 func (s *Section) DeleteKey(name string) {
-	if s.f.BlockMode {
-		s.f.lock.Lock()
-		defer s.f.lock.Unlock()
+	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
+		name = strings.ToLower(name)
+	}
+	if s.f.locking {
+		s.f.mu.Lock()
+		defer s.f.mu.Unlock()
 	}
 
-	for i, k := range s.keyList {
-		if k == name {
-			s.keyList = append(s.keyList[:i], s.keyList[i+1:]...)
-			delete(s.keys, name)
-			delete(s.keysHash, name)
-			return
-		}
+	if key := s.byName[name]; key != nil {
+		delete(s.byName, name)
+		s.keys = slices.DeleteFunc(s.keys, func(k *Key) bool { return k == key })
 	}
 }
 
@@ -245,11 +256,13 @@ func (s *Section) DeleteKey(name string) {
 // For example, "[parent.child1]" and "[parent.child12]" are child sections
 // of section "[parent]".
 func (s *Section) ChildSections() []*Section {
+	s.f.maybeRLock()
+	defer s.f.maybeRUnlock()
 	prefix := s.name + s.f.options.ChildSectionDelimiter
 	children := make([]*Section, 0, 3)
-	for _, name := range s.f.sectionList {
-		if strings.HasPrefix(name, prefix) {
-			children = append(children, s.f.sections[name]...)
+	for _, sec := range s.f.sections {
+		if strings.HasPrefix(sec.name, prefix) {
+			children = append(children, sec)
 		}
 	}
 	return children

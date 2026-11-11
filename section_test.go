@@ -1,17 +1,3 @@
-// Copyright 2014 Unknwon
-//
-// Licensed under the Apache License, Version 2.0 (the "License"): you may
-// not use this file except in compliance with the License. You may obtain
-// a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations
-// under the License.
-
 package ini
 
 import (
@@ -75,7 +61,7 @@ func TestSection_NewKey(t *testing.T) {
 	})
 
 	t.Run("create keys with same name and allow shadow", func(t *testing.T) {
-		f, err := ShadowLoad([]byte(""))
+		f, err := Load([]byte(""), AllowShadows(true))
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
@@ -86,7 +72,7 @@ func TestSection_NewKey(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, k)
 
-		assert.Equal(t, []string{"ini", "ini.v1"}, k.ValueWithShadows())
+		assert.Equal(t, []string{"ini", "ini.v1"}, k.Values())
 	})
 }
 
@@ -266,13 +252,13 @@ func TestSection_KeyStrings(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, k)
 
-		assert.Equal(t, []string{"NAME", "VERSION", "IMPORT_PATH"}, f.Section("").KeyStrings())
+		assert.Equal(t, []string{"NAME", "VERSION", "IMPORT_PATH"}, f.Section("").KeyNames())
 	})
 }
 
 func TestSection_KeyHash(t *testing.T) {
 	t.Run("get clone of key hash", func(t *testing.T) {
-		f, err := Load([]byte(`
+		f, err := LoadSources([]any{[]byte(`
 key = one
 [log]
 name = app
@@ -282,13 +268,13 @@ key = two
 [log]
 name = app2
 file = b.log
-`))
+`)})
 		require.NoError(t, err)
 		require.NotNil(t, f)
 
 		assert.Equal(t, "two", f.Section("").Key("key").String())
 
-		hash := f.Section("log").KeysHash()
+		hash := f.Section("log").KeyValues()
 		relation := map[string]string{
 			"name": "app2",
 			"file": "b.log",
@@ -296,6 +282,18 @@ file = b.log
 		for k, v := range hash {
 			assert.Equal(t, relation[k], v)
 		}
+	})
+
+	t.Run("reports values as loaded or set", func(t *testing.T) {
+		f, err := Load([]byte("empty =\nset = 1\ngone = 2\n"))
+		require.NoError(t, err)
+		sec := f.Section("")
+
+		assert.Equal(t, "fallback", sec.Key("empty").MustString("fallback"))
+		sec.Key("set").SetValue("3")
+		sec.DeleteKey("gone")
+
+		assert.Equal(t, map[string]string{"empty": "", "set": "3"}, sec.KeyValues())
 	})
 }
 

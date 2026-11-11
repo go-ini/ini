@@ -1,0 +1,99 @@
+# Inputs that exercise the parser: every feature, the examples from the
+# documentation, and inputs from GitHub issues and pull requests. The
+# fuzzers start from them.
+#
+# One Go-quoted string per line. Lines starting with # are comments, and
+# text after the closing quote says where an input came from.
+
+""
+"\ufeffk = v\n"
+"\xff\xfek = v\n"
+"\xfe\xffk = v\n"
+"\xef\xbb"
+"k = v"
+"k = v\r\n[s]\r\nx = y\r\n"
+"# c1\n; c2\nkey = v\n# sec comment\n[sec]\n"
+"a = value # c\nb = value;c\nc = x#y\n"
+"[sec1] some words\nk = v\n[sec2] # hash words\n[sec3] ; semi\n[sec] words # c\n"
+"a = `v#1;2`\nb = \"\"\"v#1;2\"\"\"\nc = \"v#1\"\n"
+"a = a#b ;c\nb = x;y # z\nc = p#q\n"
+"a = x\\#y\\;z\n"
+"foo = \"some value\"\nbar = 'some value'\nbaz = \"a\" \"b\"\nq = 'it''s'\n"
+"create_repo=\"created repository <a href=\\\"%s\\\">%s</a>\"\n"
+"[advance]\nADDRESS = \"\"\"404 road,\nNotFound, State, 5000\nEarth\"\"\"\n"
+"[advance]\ntwo_lines = how about \\\n\tcontinuation lines?\nlots_of_lines = 1 \\\n\t2 \\\n\t3 \\\n\t4\n"
+"key1=a\\b\\\nkey2=c\\d\\\nkey3=value"
+"k = `line1\nline2` \\\nmore` ; c\n"
+"k = \"\"\"line1\nline2\"\"\" ; c\n"
+"k = `unterminated\n"
+"k = `unterminated"
+"name=\"\"\"Unknwon"
+"[long]\nlong_rsa_private_key = -----BEGIN RSA PRIVATE KEY-----\n   foo\n   bar\n\tbaz\r\n\f-----END RSA PRIVATE KEY-----\nnext = v\n"
+"[s]\nk =\n  line2\n  line3\n\nnext = v\n"
+"[profile development]\ns3 =\n  max_concurrent_requests = 20\n  \n\tmax_queue_size = 10000\nregion = us-west-2\n"
+"- = a\n-: b\n[other]\n- = x\n-\n  nested\n"
+"[mysqld]\n...\nskip-host-cache\nskip-name-resolve # c\n\"quoted bool\"\n"
+"[remote \"origin\"]\nurl = a\nurl = b\nurl = a\nurl =\nfetch = +refs/heads/*:refs/remotes/origin/*\n"
+"[system]\nfoo = bar\n\n[system]\nbaz = gazonk\n[SYSTEM]\nfoo = 2\n"
+"[COMMENTS]\n<1><L.Slide#2> fuel ; units\n   indented\n# not body\n\n[raw]\nx\n[next]\nk = v\n"
+"[raw]\nbody"
+"GenerationDepth: 13\n\n################\nBiomeGroup(NormalBiomes, 3, 99\n= RainForest\n"
+"\"\"\"\"\"\"name\"\"\"=value\n\"\"\"key\"\"\" = v\n`bk` = v\n\"dq k\" junk = v\n\"\"=1\n=\nname\n\"\"\"name\n\"\"\"name\"\"\"\n"
+"a: 1\nb = 2\nc:d = 3\na ? 1\nk→v\n"
+"[a] ; note ]\nk=v\n[\n"
+"[]\n"
+"\u00a0k\u2003=\u00a0v\u00a0\n\v[s]\v\n"
+"k = %(x)s\nx = ${HOME}\n"
+"k = v\\\n\n"
+"k = \"\"\"\n\"\"\""
+"k = \"\"\""
+"k = \"x\"\"\"\n"
+"k = `x` y `z`\n"
+"k = \"quoted ; not comment\"\n"
+"k=\xff\xfe = \xc3\n\t\xff\n"
+
+# From GitHub issues and pull requests.
+"[background]\nprimary-color      = '#e18477'\nsecondary-color    = \"#000000\"\nhash-in-backticks  = `#e18477`\nsemi-single        = 'foo;bar'\nquoted-then-comment = '#e18477' ; trailing\n"  issue 393, issue 394
+"[background]\nurl = 'https://example.test/#fragment' ; trailing comment\nplain = value # actual comment\nk = don't # comment\n"  issue 411
+"#===== Start of the file =======\ntest_value=\"qwe#123\" \n#===== End of the file ======== \n"  issue 71
+"HOST = network=tcp,addr=:6379,password=`redis#$%12322`,db=15\nH2 = a=\"\"\"redis#1\"\"\",b\n"  issue 141
+"\n[author]\nNAME = U#n#k#n#w#o#n\nGITHUB = U;n;k;n;w;o;n\nkey=value_with_#_in_it\nkey2=value with # in it\nk3 = a\t#c\nk4 = #abc\nj = ;\n"  issue 146, issue 277
+"\nkey = test value <span style=\"color: %s\\; background: %s\">more text</span>\nk = \"a\\;b\"\n"  issue 129
+"; Comment before the section\n[comments] ; This is a comment for the section too\n; Comment before key\nkey = \"value\"\nkey2 = \"value2\" ; c\n"  issue 24
+"key1 = \"value\" ; comment\nkey2 = \"one\", \"two\", \"three\"\n"  issue 25
+"# BEGIN\n[profile test]\nsso_region              = us-east-1\noutput                  = json\n# END\n"  issue 362
+"Name=\"bruce\"\nAddress=\"\"\nSingle=''\na=\"b=c\"\ntime=2025-01-04T16:25:00+08:00\"\nc = _\"x\"_\nd = \"a\"b\"\ne = '\"x\"'\n"  issue 56, issue 112, issue 363, issue 389
+"hello = \"!f() { \\\n  echo \"hello world\"; \\\n};f\""  issue 373
+"key = \"a \\\nb\"\n[access_log]\nreg_gsid = ` (\\d{39,41}) `\n"  issue 172, issue 229
+"KEY = \"\"\"VALUE\"\"\"\n[ANOTHER SECTION]\nKEYS=VALUES\n; \"\"\"\"\"\"\n`A pathological `c\"as\"`e` = v\n`KEY`=FAKE_VALUE ;\"`` = ACTUAL_VALUE\n"  issue 187
+"[Directories]\nSourceDir=C:\\App\\Source\\\nTargetDir=C:\\App\\Target\\\n[dirs]\ncert   = Y:\\\\_1\\\\\nserial = 12345678\n"  issue 44, issue 347
+"[control]\naudio_path = \\\nvideo_path = \\\n\n\t\tA = C:\\\n\t\tB = D:\\\n\t\t"  issue 243
+"[git]\nsubmodules_disabled = \n  .*secret.*\n  fix.*\n"  issue 270
+"value1 = some text here\n\tsome more text here\n\t\n\tthere is an empty line above and below\n\t\n\nvalue2 = there is an empty line above\n    that is not indented\n"  issue 210, issue 299
+"[long]\nnotes = first\n  second\n\n  third\nnext = x\n"  issue 205
+"value1 = some text here\n\tsome more text here 2"  issue 309
+"k = a\r\n  b\r\nn = 1\r\nk = \"a\"\n  b\n"  Python CRLF
+"[profile testing]\nregion = us-west-2\ns3 =\n  max_concurrent_requests=10\n  max_queue_size=1000\n[section2]\nkey2 =\n[section3]\n  key3 = value3\n"  issue 131, issue 306
+"[FILTER]\n  name            record_modifier\n  whitelist_key   _CMDLINE\n  whitelist_key   _EXE\n  record          filename systemd\n"  issue 367
+"keee:y=value\n\"keee:y\"=value\n\n[section]\nkey1?value1\nkey2!value2\n"  issue 166
+"[global]\nvfs objects      = catia fruit streams_xattr\nfruit:metadata = stream\n`fruit:metadata` = stream\n"  issue 355
+"-key=a\n_key=b\n.key=c\n:key=a\n"  issue 183
+"[third_section]\nphpversion[] = \"5.0\"\nphpversion[] = \"5.3\"\n"  issue 315
+"[我]\n姓名 = 张三\n[1234]\n我=abc\n有支付宝语句 = a\\n支付宝:{支付宝}\\n[红包]\n"  issue 165, issue 244
+"[server]\ntimeout = {\n    \"timeout\":1000\n}\n"  issue 344
+"key1=hello\nkey2\n#key3\nkey4\nkey5"  issue 53, issue 78
+"localhost              ansible_connection=local\n\n[webservers]\nother1\nother2\nflag\nflag\n"  issue 159
+"[test]\n        Key1=Key1Value1\n        Key1=Key1Value2\n        Key1=Key1Value1\n\n[Network]\nDNS=\nDNS=\"1.2.3.4\"\n"  issue 283, issue 284, issue 294
+"[features]\n\t-: Support read/write comments\n\t-: Support auto-increment of key names\n[Agents]\n- = a\n- = b"  issue 329, issue 240
+"NAME = Unknwon\n[DEFAULT]\nk1 = v1\n[default]\nk2 = v2\n"  issue 8, issue 37, issue 125, issue 198
+"[profile foo]\nMfa_Serial=xxxxxxx\n\n[profile FOO]\nmfa_serial=yyyyyyy\n"  issue 238
+"[foo]bar]\nk = v\n[sec] ; see [1]\n[my section]\n[ padded ]\n"  issue 46, issue 212
+"[Interface]\nPrivateKey = a\n# Peer 1\n[Peer]\nPublicKey = b\nAllowedIPs = c\n# Peer 2\n[Peer]\nPublicKey = d\n"  issue 190, issue 289
+"[Core]\n  Lesson_Location = 87\n\n[CORE_LESSON]\nmy lesson state data – 1111\n[COMMENTS]\n<1><L.Slide#2> units <e.1>\n"  issue 72
+"[raw]"  issue 291
+"[RAW]\n  ; not a comment\n\n  indented line\n[next]\n"
+"[Version]\nSignature=\"$Windows NT$\"\n[Capture.2860.AddReg]\nHKR,,CLSID,,%ProxyVCap.CLSID%\nHKLM,\"%UNINSTKEY%\\%DRVNAME%\",\"caption\",0x0\n"  issue 173, issue 237
+"\ufeff\ufeff[author]\nE-MAIL = example@email.com"  issue 390
+"\xff\xfe[\x00c\x00o\x00n\x00f\x00]\x00\n\x00k\x00=\x00v\x00\n\x00"  issue 66, issue 212
+"; c1\r\n; c2\r\n[sec] ; sc\r\nkey = value\r\nq = \"quoted\"\r\nbt = `a\r\nb`\r\ncont = a \\\r\n b\r\nflag\r\na = 1\rb = 2\r"  issue 216
+"k =\u00a0v\u00a0\n\u00a0[s]\n"

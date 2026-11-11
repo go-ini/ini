@@ -1,20 +1,8 @@
-// Copyright 2016 Unknwon
-//
-// Licensed under the Apache License, Version 2.0 (the "License"): you may
-// not use this file except in compliance with the License. You may obtain
-// a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations
-// under the License.
-
 package ini
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,4 +62,20 @@ func TestBadLoad(t *testing.T) {
 			require.Error(t, err)
 		})
 	})
+}
+
+// A Python-style multiline value is read to its end however long it is. v1
+// read only as far as one 4 KiB reader buffer looked ahead.
+func TestParsePythonMultilineLongerThanBuffer(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("[s]\nkey = first\n")
+	for i := 0; i < 200; i++ {
+		fmt.Fprintf(&b, "  line %03d xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n", i)
+	}
+	b.WriteString("next = ok\n")
+
+	f, err := Load([]byte(b.String()), AllowPythonMultilineValues(true))
+	require.NoError(t, err)
+	assert.Equal(t, 200, strings.Count(f.Section("s").Key("key").Value(), "\n"), "continuation lines")
+	assert.Equal(t, "ok", f.Section("s").Key("next").Value())
 }

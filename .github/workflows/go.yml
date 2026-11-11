@@ -1,16 +1,18 @@
 name: Go
 on:
   push:
-    branches: [main]
+    branches: [main, v2]
     paths:
       - '**.go'
       - 'go.mod'
+      - 'testdata/**'
       - '.golangci.yml'
       - '.github/workflows/go.yml'
   pull_request:
     paths:
       - '**.go'
       - 'go.mod'
+      - 'testdata/**'
       - '.golangci.yml'
       - '.github/workflows/go.yml'
 env:
@@ -37,7 +39,7 @@ jobs:
     name: Test
     strategy:
       matrix:
-        go-version: [1.26.x]
+        go-version: [1.26.x, 1.27.x]
         platform: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
