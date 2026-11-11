@@ -87,7 +87,6 @@ The [migration guide](docs/migrate-v1-to-v2.md) lists every change.
 ## Getting help
 
 - [Package documentation and examples](https://pkg.go.dev/unknwon.dev/ini/v2)
-- [Documentation site](https://ini.unknwon.io/docs/intro/getting_started), which still describes v1
 
 ## License
 
