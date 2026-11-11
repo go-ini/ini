@@ -140,12 +140,6 @@ func (l *lexer) rawBody() token {
 	return t
 }
 
-func (l *lexer) debug(format string, args ...any) {
-	if l.opts.DebugFunc != nil {
-		l.opts.DebugFunc(fmt.Sprintf(format, args...))
-	}
-}
-
 // section reads a "[name] ; comment" line. The name ends at the last ']'.
 func (l *lexer) section(line string) (token, error) {
 	closeIdx := strings.LastIndexByte(line, ']')
@@ -337,11 +331,9 @@ func (l *lexer) readPythonMultilines(line string) string {
 	b.WriteString(line)
 	for l.pos < len(l.src) && strings.IndexByte(" \t\f", l.src[l.pos]) > -1 {
 		next := strings.TrimSuffix(l.readLine(), "\n")
-		l.debug("readPythonMultilines: parsing %q", next)
 		b.WriteByte('\n')
 		b.WriteString(next)
 	}
-	l.debug("readPythonMultilines: end of value, got: %q", b.String())
 	return b.String()
 }
 

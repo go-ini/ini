@@ -89,7 +89,7 @@ Each `LoadOptions` field becomes an option function of the same name, such as `i
 | `ShortCircuit` | `FirstSourceOnly` |
 | `UnparseableSections` | `RawSections(names...)` |
 | `PreserveSurroundedQuote` | `PreserveSurroundingQuotes` |
-| `DebugFunc` | `Debug(fn)` |
+| `DebugFunc` | removed, since it only logged Python-style multiline values |
 | `KeyValueDelimiterOnWrite` | `WriteDelimiter(d)`, a write option |
 | `ReaderBufferSize` | removed, since nothing is cut at a buffer size |
 

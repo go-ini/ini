@@ -33,7 +33,6 @@ type loadOptions struct {
 	KeyValueDelimiters          string
 	ChildSectionDelimiter       string
 	PreserveSurroundingQuotes   bool
-	DebugFunc                   DebugFunc
 	AllowNonUniqueSections      bool
 	AllowDuplicateShadowValues  bool
 	DefaultSection              string
@@ -74,9 +73,6 @@ func NameMapping(mapper NameMapper) LoadOption {
 func ValueMapping(mapper ValueMapper) LoadOption {
 	return func(o *loadOptions) { o.ValueMapper = mapper }
 }
-
-// DebugFunc is the type of function called to log parse events.
-type DebugFunc func(message string)
 
 // IgnoreMissingFiles skips data sources that are files which don't exist,
 // instead of returning an error.
@@ -180,10 +176,6 @@ func ChildSectionDelimiter(delimiter string) LoadOption {
 func PreserveSurroundingQuotes(v bool) LoadOption {
 	return func(o *loadOptions) { o.PreserveSurroundingQuotes = v }
 }
-
-// Debug calls fn with debug information while parsing, currently about
-// Python-style multiline values.
-func Debug(fn DebugFunc) LoadOption { return func(o *loadOptions) { o.DebugFunc = fn } }
 
 // AllowNonUniqueSections keeps sections that repeat a name as separate
 // sections, instead of merging them.
