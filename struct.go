@@ -341,7 +341,9 @@ func wrapStrictError(err error, isStrict bool) error {
 
 // decodeValue sets field from the value of key. A value that doesn't parse
 // leaves the field as it is, so it keeps its default, and is an error only
-// when isStrict. An unsupported type is always an error.
+// when isStrict. So does a key for a struct field, which maps to a section,
+// as when the program parses that key itself. Any other unsupported type is
+// always an error.
 func decodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, allowShadow, isStrict bool) error {
 	if t.Kind() == reflect.Slice && !isCustomType(t) {
 		return decodeSlice(key, field, delim, allowShadow, isStrict)
@@ -353,6 +355,9 @@ func decodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, al
 		vt = t.Elem()
 	}
 	if !isValueType(vt) {
+		if isStructType(vt) {
+			return wrapStrictError(fmt.Errorf("type %q maps to a section, not a key", t), isStrict)
+		}
 		return fmt.Errorf("unsupported type %q", t)
 	}
 
@@ -615,8 +620,11 @@ func encodeSlice(key *Key, field reflect.Value, delim string, allowShadow bool) 
 				return fmt.Errorf("element %q contains the delimiter %q, which an allowshadow slice can't hold", v, delim)
 			}
 		}
+		// Without AllowShadows the elements share one value, which the
+		// reader splits at delim all the same.
 		if len(vals) > 1 && !key.s.f.options.AllowShadows {
-			return errors.New("shadow key is not allowed")
+			key.SetValue(strings.Join(vals, delim))
+			return nil
 		}
 		// Shadows deduplicated as the file's options say, on a key that
 		// isn't boolean or auto-increment.

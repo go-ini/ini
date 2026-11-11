@@ -67,6 +67,7 @@ In v1, `f.Section("server").Key("PORT")` added an empty `[server]` section and `
   - Nil pointer fields are skipped.
   - Fields after an empty `nonunique` slice or a `StructReflector` field are written.
   - An `allowshadow` element containing the delimiter is an error, since it would read back as two elements.
+  - In a file loaded without `AllowShadows`, an `allowshadow` slice of several elements is written as one value joined by the delimiter, which reads back as all of them. v1 wrote only the first element.
 
 ### Writing
 
