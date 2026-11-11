@@ -195,8 +195,8 @@ func (k *Key) expand(val string, depth int, e *expansion) string {
 		if err != nil || k == nk {
 			nk, _ = k.s.f.Section("").GetKey(noption)
 			if nk == nil || nk == k {
-				// Stop when no results found in the default section, or only
-				// the key itself, and returns the value as-is.
+				// Stop, and return the value as it is, when the default
+				// section has no such key or only this key.
 				break
 			}
 		}

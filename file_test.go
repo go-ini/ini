@@ -583,7 +583,7 @@ func TestFile_AppendReaders(t *testing.T) {
 	assert.False(t, f.Section("a").HasKey("edited"))
 }
 
-// Misuse and option combinations that panicked, hung or lost data in v1.
+// Misuse and option combinations that used to panic, hang or lose data.
 func TestFile_EdgeCases(t *testing.T) {
 	t.Run("self-reference in the default section", func(t *testing.T) {
 		f, err := Load([]byte("a = %(a)s\n"))
@@ -764,7 +764,7 @@ func checkRoundTrip(t *testing.T, data []byte, opts []LoadOption, wopts ...Write
 		return
 	}
 	if !strings.Contains(f.options.KeyValueDelimiters, "=") {
-		// Written with "=" for other readers, as v1 did.
+		// Written with "=" for other readers, and not checked.
 		return
 	}
 	want := describeFile(f)
@@ -800,7 +800,7 @@ func TestWriteRoundTripRandom(t *testing.T) {
 	}
 }
 
-// v1 wrote each of these files so that they loaded differently.
+// Each of these files used to be written so that it loaded differently.
 func TestWriteReadsBack(t *testing.T) {
 	for _, tc := range []struct {
 		data string

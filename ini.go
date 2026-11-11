@@ -40,7 +40,7 @@ const (
 	// DefaultSectionName.
 	DefaultSection = "DEFAULT"
 
-	// Maximum allowed depth when recursively substituing variable names.
+	// Maximum depth of nested %(name)s references.
 	depthValues = 99
 	// Limits of one %(name)s expansion, described at Key.expand.
 	maxSubstitutions = 10000

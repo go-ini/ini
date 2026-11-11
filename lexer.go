@@ -441,11 +441,12 @@ func readKeyName(delimiters string, line string) (string, int, error) {
 		keyQuote = "`"
 	}
 
-	// Get out key name
+	// Read the key name.
 	var endIdx int
 	if len(keyQuote) > 0 {
 		startIdx := len(keyQuote)
-		// FIXME: fail case -> """"""name"""=value
+		// The name ends at the first closing quote, so """"""name"""=value has
+		// an empty name and fails, as it did in v1.
 		pos := strings.Index(line[startIdx:], keyQuote)
 		if pos == -1 {
 			return "", -1, fmt.Errorf("missing closing key quote: %s", line)

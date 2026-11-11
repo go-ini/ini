@@ -211,8 +211,8 @@ func decodeSlice(key *Key, field reflect.Value, delim string, allowShadow, isStr
 
 	var strs []string
 	if allowShadow {
-		// As in v1, each value is split at delim with no escapes, and each
-		// element trimmed and expanded. An empty value, kept with
+		// Each value is split at delim with no escapes, and each element
+		// trimmed and expanded. An empty value, kept with
 		// PreserveEmptyShadowValues, is an empty element, unless it is the only
 		// one: an empty slice is written as one empty value.
 		vals := key.Values()
@@ -256,9 +256,9 @@ func wrapStrictError(err error, isStrict bool) error {
 	return nil
 }
 
-// decodeValue sets proper value to field based on its type,
-// but it does not return error for failing parsing,
-// because we want to use default value that is already assigned to struct.
+// decodeValue sets field from the value of key. A value that doesn't parse
+// leaves the field as it is, so it keeps its default, and is an error only
+// when isStrict. An unsupported type is always an error.
 func decodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, allowShadow, isStrict bool) error {
 	if t.Kind() == reflect.Slice {
 		return decodeSlice(key, field, delim, allowShadow, isStrict)
@@ -495,9 +495,8 @@ func MapTo(v, source any, opts ...LoadOption) error {
 	return cfg.MapTo(v)
 }
 
-// StrictMapTo loads a data source with opts and maps it to the given struct
-// in strict mode, which returns all possible error including value parsing
-// error.
+// StrictMapTo is MapTo that also returns an error for a value that doesn't
+// parse.
 func StrictMapTo(v, source any, opts ...LoadOption) error {
 	cfg, err := Load(source, opts...)
 	if err != nil {
@@ -523,7 +522,7 @@ func encodeSlice(key *Key, field reflect.Value, delim string, allowShadow bool) 
 
 	if allowShadow {
 		// Each element is a value of its own, and the reader splits values
-		// at delim without escapes, as v1 did.
+		// at delim without escapes.
 		for _, v := range vals {
 			if strings.Contains(v, delim) {
 				return fmt.Errorf("element %q contains the delimiter %q, which an allowshadow slice can't hold", v, delim)
@@ -593,8 +592,7 @@ func encodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, al
 	return nil
 }
 
-// CR: copied from encoding/json/encode.go with modifications of time.Time support.
-// TODO: add more test coverage.
+// isEmptyValue is encoding/json's, with a zero time.Time empty too.
 func isEmptyValue(v reflect.Value) bool {
 	if v.Type() == timeType {
 		return v.Interface().(time.Time).IsZero()

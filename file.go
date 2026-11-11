@@ -46,8 +46,8 @@ func Empty(opts ...LoadOption) *File {
 }
 
 // isDefaultSection reports whether name, as stored, is the default
-// section's name. Loading with CaseInsensitive or CaseInsensitiveSections stores it
-// lower-cased.
+// section's name. Loading with CaseInsensitive or CaseInsensitiveSections
+// stores it lower-cased.
 func (f *File) isDefaultSection(name string) bool {
 	return name == f.options.DefaultSection || name == f.defaultSectionName()
 }
@@ -300,9 +300,9 @@ func (f *File) loadSource(s dataSource) error {
 
 // Reload reads all data sources again and replaces the contents of the file
 // with them: keys and sections no longer in the sources are gone, and
-// shadows don't pile up. Sections and keys that are still there stay the
-// same values, so pointers to them see the new contents. On error the file
-// is unchanged.
+// shadows don't pile up. Sections and keys that are still there keep their
+// *Section and *Key values, so pointers to them see the new contents. On
+// error the file is unchanged.
 func (f *File) Reload() error {
 	f.maybeRLock()
 	sources := f.dataSources
@@ -403,8 +403,8 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 	}
 
 	// Comment lines that don't start with a comment symbol get one: ";" when
-	// it is a comment symbol, otherwise the first one. Without
-	// comment symbols, a comment can't be written so that it reads back.
+	// it is a comment symbol, otherwise the first one. Without comment
+	// symbols, a comment can't be written so that it reads back.
 	symbols := f.options.CommentSymbols
 	commentPrefix := ";"
 	if !strings.Contains(symbols, ";") && symbols != "" {
@@ -517,9 +517,9 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			}
 		}
 
-		// v1 left out the header of the default section only when its name was
-		// upper case, so a renamed default section keeps its header. It is
-		// skipped like any default section when it has no keys.
+		// The default section's header is left out only when its name is the
+		// upper-case DefaultSection, so a renamed default section keeps its
+		// header. An empty default section is skipped whatever its name.
 		emptyDefault := i == 0 && len(sec.keys) == 0 && strings.EqualFold(sec.name, f.options.DefaultSection)
 		// A comment needs the header to stay on the section.
 		if i > 0 || o.defaultHeader || len(sec.comment) > 0 || (strings.ToUpper(sec.name) != f.options.DefaultSection && !emptyDefault) {

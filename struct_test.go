@@ -1087,8 +1087,8 @@ func TestReflectFrom_StructSlice(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// v1 accepted a pointer to a struct pointer, as Gogs passes &cfg with cfg a
-// package-level *Config.
+// A pointer to a struct pointer is accepted, as in ReflectFrom(&cfg) with cfg
+// a package-level *Config.
 func TestReflectFrom_PointerToPointer(t *testing.T) {
 	type conf struct{ Lang string }
 	c := &conf{Lang: "en"}
@@ -1327,8 +1327,8 @@ func TestMarshalUnmarshal_AllowShadowElements(t *testing.T) {
 	require.NoError(t, Unmarshal(data, &out, AllowShadows(false), AllowDuplicateShadowValues(false), PreserveEmptyShadowValues(false)))
 	assert.Equal(t, in, out, "written: %q", data)
 
-	// v1 read each value split at the delimiter, so an element containing
-	// it can't be written.
+	// Each value is split at the delimiter when read, so an element
+	// containing it can't be written.
 	_, err = Marshal(cfg{Sh: []string{"b,c"}})
 	assert.Error(t, err)
 }

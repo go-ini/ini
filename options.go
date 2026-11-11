@@ -7,11 +7,11 @@ import (
 )
 
 // LoadOption configures how data sources are loaded and parsed. Without
-// options, parsing behaves exactly as v1's Load. When two options set the
+// options, parsing behaves exactly as gopkg.in/ini.v1's Load. When two options set the
 // same thing, the last one wins.
 type LoadOption func(*loadOptions)
 
-// loadOptions holds the settings that LoadOptions apply. A File keeps them,
+// loadOptions holds the settings that LoadOption values apply. A File keeps them,
 // so Reload and Append parse the same way as the first load.
 type loadOptions struct {
 	Loose                       bool
@@ -78,8 +78,8 @@ func ValueMapping(mapper ValueMapper) LoadOption {
 // DebugFunc is the type of function called to log parse events.
 type DebugFunc func(message string)
 
-// IgnoreMissingFiles ignores data sources that are files which don't exist, instead of
-// returning an error.
+// IgnoreMissingFiles skips data sources that are files which don't exist,
+// instead of returning an error.
 func IgnoreMissingFiles(v bool) LoadOption { return func(o *loadOptions) { o.Loose = v } }
 
 // CaseInsensitive lowercases all section and key names.
