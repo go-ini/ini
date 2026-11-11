@@ -865,5 +865,8 @@ func (k *Key) SetValue(v string) {
 	}
 
 	k.value = v
-	k.s.keysHash[k.name] = v
+	// The Key Section.Key returns for an empty name isn't in the section.
+	if k.name != "" {
+		k.s.keysHash[k.name] = v
+	}
 }

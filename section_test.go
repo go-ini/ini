@@ -203,6 +203,19 @@ func TestSection_Key(t *testing.T) {
 			assert.Equal(t, "404", k.Name())
 		})
 
+		t.Run("empty key name", func(t *testing.T) {
+			k := f.Section("").Key("")
+			require.NotNil(t, k)
+			assert.Equal(t, "", k.Name())
+			assert.Equal(t, "", k.Value())
+			assert.False(t, f.Section("").HasKey(""))
+
+			before := f.Section("").KeysHash()
+			k.SetValue("x")
+			assert.Equal(t, before, f.Section("").KeysHash())
+			assert.False(t, f.Section("").HasKey(""))
+		})
+
 		t.Run("key exists in parent section", func(t *testing.T) {
 			k, err := f.Section("parent").NewKey("AGE", "18")
 			require.NoError(t, err)
