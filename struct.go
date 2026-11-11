@@ -633,7 +633,10 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 		}
 
 		if r, ok := field.Interface().(StructReflector); ok {
-			return r.ReflectINIStruct(s.f)
+			if err := r.ReflectINIStruct(s.f); err != nil {
+				return err
+			}
+			continue
 		}
 
 		fieldName := s.parseFieldName(tpField.Name, rawName)
