@@ -555,5 +555,11 @@ func (f *File) parse(reader io.Reader) (err error) {
 		p.comment.Reset()
 		lastRegularKey = key
 	}
+	// Comments after the last key/section are otherwise dropped on EOF
+	// (e.g. Ansible blockinfile # END markers). Keep them on the last section.
+	if p.comment.Len() > 0 {
+		section.TrailingComment = strings.TrimSpace(p.comment.String())
+		p.comment.Reset()
+	}
 	return nil
 }

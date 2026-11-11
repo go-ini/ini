@@ -19,6 +19,7 @@ import (
 	"os"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -473,6 +474,33 @@ bar1 = "  val ue1 "
 bar2 = "  val ue2 "
 bar3 = "  val ue3 "
 `, buf.String())
+	})
+
+	t.Run("keep trailing comments after last section on rewrite", func(t *testing.T) {
+		// Ansible blockinfile markers: # BEGIN before the section, # END after its keys.
+		src := `# BEGIN
+[profile test]
+sso_region = us-east-1
+output     = json
+# END
+`
+		f, err := Load([]byte(src))
+		require.NoError(t, err)
+		assert.Equal(t, "# BEGIN", f.Section("profile test").Comment)
+		assert.Equal(t, "# END", f.Section("profile test").TrailingComment)
+
+		_, err = f.NewSection("profile extra")
+		require.NoError(t, err)
+		f.Section("profile extra").Key("region").SetValue("us-west-2")
+
+		var buf bytes.Buffer
+		_, err = f.WriteTo(&buf)
+		require.NoError(t, err)
+		out := buf.String()
+		endIdx := strings.Index(out, "# END")
+		newIdx := strings.Index(out, "[profile extra]")
+		assert.True(t, endIdx >= 0 && newIdx > endIdx, "trailing # END should stay with the original section, got:\n%s", out)
+		assert.Contains(t, out, "[profile extra]")
 	})
 }
 
