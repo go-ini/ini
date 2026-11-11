@@ -63,8 +63,8 @@ func parseDelim(actual string) string {
 
 // Marshaler is implemented by types that format themselves as a key value.
 // ReflectFrom calls MarshalINI for fields, pointer fields and slice elements
-// of such a type, whatever its kind. A struct or slice type also needs
-// Unmarshaler, as described there.
+// of such a type, whatever its kind. A type that isn't a string, boolean or
+// number also needs Unmarshaler, as described there.
 type Marshaler interface {
 	MarshalINI() ([]byte, error)
 }
@@ -77,9 +77,10 @@ type Marshaler interface {
 // MapTo leaves a field unchanged and makes an element of a slice field the
 // zero value, and StrictMapTo and StrictList return it.
 //
-// A struct or slice type maps to one key, rather than to a section or a
-// list, only when it implements both Marshaler and Unmarshaler, so that it
-// maps the same way in both directions. A struct that embeds such a type
+// A type that isn't a string, boolean or number, such as a struct, slice or
+// map type, maps to one key only when it implements both Marshaler and
+// Unmarshaler, so that it maps the same way in both directions. Otherwise a
+// struct type still maps to a section and a slice type to a list. A struct that embeds such a type
 // gets its methods, and so maps to one key too.
 type Unmarshaler interface {
 	UnmarshalINI([]byte) error
@@ -102,14 +103,18 @@ func isUnmarshaler(t reflect.Type) bool {
 }
 
 // isCustomType reports whether t formats or parses itself, so that it maps
-// to a key value whatever its kind. A struct or slice type, which otherwise
-// maps to a section or a list, needs both methods.
+// to a key value whatever its kind. A string, boolean or number type needs
+// one method, as its kind handles the other direction. Any other type needs
+// both.
 func isCustomType(t reflect.Type) bool {
 	switch t.Kind() {
-	case reflect.Struct, reflect.Slice:
-		return isMarshaler(t) && isUnmarshaler(t)
+	case reflect.String, reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return isMarshaler(t) || isUnmarshaler(t)
 	}
-	return isMarshaler(t) || isUnmarshaler(t)
+	return isMarshaler(t) && isUnmarshaler(t)
 }
 
 // isStructType reports whether t is a struct type that maps to a section,

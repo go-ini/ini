@@ -1693,7 +1693,7 @@ func TestMarshalerUnmarshaler(t *testing.T) {
 		assert.Equal(t, testPerm(2), In(sec.Key("perm"), 0, []testPerm{1, 2}))
 	})
 
-	t.Run("one method on a slice or struct type", func(t *testing.T) {
+	t.Run("one method on a type that isn't a string, boolean or number", func(t *testing.T) {
 		// Without both methods, a slice type is still a list and a struct
 		// type a section, in both directions.
 		type oneWay struct {
@@ -1708,16 +1708,23 @@ func TestMarshalerUnmarshaler(t *testing.T) {
 		data, err := marshal(c)
 		require.NoError(t, err)
 		assert.Equal(t, "Hosts = a,b\nTags  = x,y\n\n[Peer]\nName = p\n", string(data))
+
+		// A map type with one method stays unsupported both ways.
+		type withMap struct{ M testMarshalOnlyMap }
+		assert.Error(t, StrictMapTo(&withMap{}, []byte("M = a\n")))
+		_, err = marshal(withMap{M: testMarshalOnlyMap{"a": 1}})
+		assert.Error(t, err)
 	})
 }
 
-// testMarshalOnlyList, testUnmarshalOnlyList and testMarshalOnlyStruct
-// implement one of Marshaler and Unmarshaler, with methods that must not be
-// called.
+// testMarshalOnlyList, testUnmarshalOnlyList, testMarshalOnlyStruct and
+// testMarshalOnlyMap implement one of Marshaler and Unmarshaler, with methods
+// that must not be called.
 type (
 	testMarshalOnlyList   []string
 	testUnmarshalOnlyList []string
 	testMarshalOnlyStruct struct{ Name string }
+	testMarshalOnlyMap    map[string]int
 )
 
 func (testMarshalOnlyList) MarshalINI() ([]byte, error) { panic("called") }
@@ -1725,3 +1732,5 @@ func (testMarshalOnlyList) MarshalINI() ([]byte, error) { panic("called") }
 func (*testUnmarshalOnlyList) UnmarshalINI([]byte) error { panic("called") }
 
 func (testMarshalOnlyStruct) MarshalINI() ([]byte, error) { panic("called") }
+
+func (testMarshalOnlyMap) MarshalINI() ([]byte, error) { panic("called") }
