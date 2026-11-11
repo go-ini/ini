@@ -28,7 +28,7 @@ In v1, `f.Section("server").Key("PORT")` added an empty `[server]` section and `
 - a key: `SetValue` or `SetComment`, or `AddShadow` and `AddNestedValue` when the file allows shadows or nested values
 - a section: a change to one of its keys, `NewKey`, `NewBooleanKey`, `SetComment` or `ReflectFrom`
 
-`f.Section(name).Key(key).SetValue(v)` works as before. `SectionWithIndex` follows the same rule, and a change adds the section after the last one of its name.
+`f.Section(name).Key(key).SetValue(v)` works as before, except that when only a parent section has the key, it changes the parent's value without adding an empty child section. `SectionWithIndex` follows the same rule, and a change adds the section after the last one of its name.
 
 ### `Reload` and `Append`
 

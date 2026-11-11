@@ -22,8 +22,10 @@ type Section struct {
 	// missing is set on a section File.Section or File.SectionWithIndex
 	// returned for a name, or an index of it, the file doesn't have. The
 	// section isn't in the file until a change adds it. index is the index
-	// of the name it stands for.
+	// of the name it stands for. added is set once a change adds it, so a
+	// missing section for another index doesn't take it for its own.
 	missing bool
+	added   bool
 	index   int
 }
 
@@ -37,12 +39,14 @@ func newSection(f *File, name string) *Section {
 }
 
 // current returns the section s reads and changes. That is s, unless s is
-// missing and its file has since gained a section of its name and index.
-// The caller holds the lock.
+// missing and its file has since gained a section of its name and index,
+// other than one added for another index. The caller holds the lock.
 func (s *Section) current() *Section {
 	if s.missing {
 		if secs := s.f.byName[s.name]; s.index >= 0 && s.index < len(secs) {
-			return secs[s.index]
+			if c := secs[s.index]; !c.added || c.index == s.index {
+				return c
+			}
 		}
 	}
 	return s
@@ -54,7 +58,7 @@ func (s *Section) current() *Section {
 func (s *Section) attach() *Section {
 	c := s.current()
 	if c == s && s.missing {
-		s.missing = false
+		s.missing, s.added = false, true
 		s.f.sections = append(s.f.sections, s)
 		s.f.byName[s.name] = append(s.f.byName[s.name], s)
 	}

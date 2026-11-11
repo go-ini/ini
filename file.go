@@ -193,7 +193,8 @@ func (f *File) sectionsByName(name string) ([]*Section, error) {
 // Section returns the section with the given name, or the default section
 // for "". When there is none, it returns a section that reads as empty
 // without adding it to the file. Section.SetComment, Section.NewKey,
-// Section.ReflectFrom or a change to one of its keys adds it.
+// Section.NewBooleanKey, Section.ReflectFrom or a change to one of its keys
+// adds it.
 func (f *File) Section(name string) *Section {
 	if sec, err := f.GetSection(name); err == nil {
 		return sec
