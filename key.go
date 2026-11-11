@@ -516,6 +516,16 @@ func (k *Key) RangeTime(defaultVal, min, max time.Time) time.Time {
 	return k.RangeTimeFormat(time.RFC3339, defaultVal, min, max)
 }
 
+// escapeDelimited prepares a slice element for joining with delim.
+// Backslashes are escaped first, then occurrences of delim, matching Strings().
+func escapeDelimited(val, delim string) string {
+	if delim == "" {
+		return val
+	}
+	val = strings.ReplaceAll(val, `\`, `\\`)
+	return strings.ReplaceAll(val, delim, `\`+delim)
+}
+
 // Strings returns list of string divided by given delimiter.
 func (k *Key) Strings(delim string) []string {
 	str := k.String()

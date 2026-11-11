@@ -929,6 +929,48 @@ func Test_Duration(t *testing.T) {
 	})
 }
 
+// https://github.com/go-ini/ini/issues/348
+func Test_ReflectFromStringSliceWithComma(t *testing.T) {
+	type C struct {
+		Scale   float32
+		History []string
+	}
+	in := C{
+		Scale: 1.5,
+		History: []string{
+			"Test One",
+			"Test Two",
+			"Test with comma, Three",
+			`C:\dir\`,
+			"Test Four",
+		},
+	}
+
+	t.Run("escaped with EscapeSliceDelimiters", func(t *testing.T) {
+		f := Empty(LoadOptions{EscapeSliceDelimiters: true})
+		require.NoError(t, f.ReflectFrom(&in))
+
+		var buf bytes.Buffer
+		_, err := f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Contains(t, buf.String(), `Test with comma\, Three`)
+
+		got := f.Section("").Key("History").Strings(",")
+		assert.Equal(t, in.History, got)
+
+		var out C
+		require.NoError(t, MapTo(&out, buf.Bytes()))
+		assert.Equal(t, in.History, out.History)
+		assert.Equal(t, float32(1.5), out.Scale)
+	})
+
+	t.Run("written as is by default", func(t *testing.T) {
+		f := Empty()
+		require.NoError(t, f.ReflectFrom(&in))
+		assert.Equal(t, `Test One,Test Two,Test with comma, Three,C:\dir\,Test Four`, f.Section("").Key("History").String())
+	})
+}
+
 type Employer struct {
 	Name  string
 	Title string
