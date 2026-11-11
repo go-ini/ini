@@ -408,11 +408,19 @@ func (s *Section) mapToSlice(secName string, val reflect.Value, isStrict bool) (
 func (s *Section) mapTo(v interface{}, isStrict bool) error {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
+	if typ == nil || !val.IsValid() {
+		return errors.New("nil pointer to a struct")
+	}
 	if typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 		val = val.Elem()
 	} else {
 		return errors.New("not a pointer to a struct")
+	}
+
+	// MapTo(&cfg) where cfg is a nil *T used to panic in mapToField (#369).
+	if !val.IsValid() || (val.Kind() == reflect.Pointer && val.IsNil()) {
+		return errors.New("nil pointer to a struct")
 	}
 
 	if typ.Kind() == reflect.Slice {

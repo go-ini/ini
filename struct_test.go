@@ -982,3 +982,17 @@ Title = Consultant Engineer
 		)
 	})
 }
+
+func TestMapToNilStructPointer(t *testing.T) {
+	t.Run("nil pointer to struct", func(t *testing.T) {
+		type Config struct {
+			User string `ini:"user"`
+			Pass string `ini:"pass"`
+		}
+		var cfg *Config
+		f, err := Load([]byte("user = alice\npass = secret\n"))
+		require.NoError(t, err)
+		err = f.MapTo(&cfg)
+		assert.EqualError(t, err, "nil pointer to a struct")
+	})
+}
