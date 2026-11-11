@@ -21,6 +21,10 @@ port := sec.Key("PORT").MustInt(3000)
 sec.Key("PORT").SetValue(strconv.Itoa(port))
 ```
 
+### `Section.Key` no longer adds missing keys
+
+In v1, `sec.Key("PORT")` added an empty `PORT` key when the section had none, so `HasKey`, `Keys` and `Write` saw it after a mere read. In v2 it returns a key that reads as empty, and only `SetValue`, `SetComment`, `AddShadow` or `AddNestedValue` adds it. `sec.Key(name).SetValue(v)` works as before. Reading a missing key no longer writes to the file, so concurrent reads are safe with `Locking(false)`.
+
 ### `Reload` and `Append`
 
 - `Reload` replaces the contents with what the sources hold now. v1 merged them in, so removed keys stayed and shadow values piled up. `*Section` and `*Key` values you hold see the new values. On error, nothing changes.

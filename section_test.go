@@ -1,6 +1,7 @@
 package ini
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -186,6 +187,77 @@ func TestSection_Key(t *testing.T) {
 			require.NotNil(t, k)
 			assert.Equal(t, "18", k.Value())
 		})
+	})
+
+	t.Run("reading a missing key doesn't add it", func(t *testing.T) {
+		const data = "[app]\nname = demo\n\n[raw]\nbody\n"
+		f, err := Load([]byte(data), RawSections("raw"))
+		require.NoError(t, err)
+		app := f.Section("app")
+
+		k := app.Key("port")
+		assert.Equal(t, "port", k.Name())
+		assert.Equal(t, 8080, k.MustInt(8080))
+		assert.Empty(t, k.String())
+		assert.Empty(t, k.Values())
+		assert.Empty(t, k.Comment())
+		assert.Empty(t, k.NestedValues())
+		assert.False(t, k.IsBoolean())
+		_ = f.Section("raw").Key("x").String()
+
+		assert.False(t, app.HasKey("port"))
+		assert.Equal(t, []string{"name"}, app.KeyNames())
+		var buf bytes.Buffer
+		_, err = f.WriteTo(&buf)
+		require.NoError(t, err, "a raw section read for a key stays writable")
+		assert.Equal(t, data, buf.String())
+	})
+
+	t.Run("changing a missing key adds it", func(t *testing.T) {
+		f, err := Load([]byte("[s]\n"), AllowShadows(true), AllowNestedValues(true))
+		require.NoError(t, err)
+		sec := f.Section("s")
+
+		sec.Key("a").SetValue("1")
+		sec.Key("b").SetComment("note")
+		require.NoError(t, sec.Key("c").AddShadow("x"))
+		require.NoError(t, sec.Key("d").AddNestedValue("n = 1"))
+		assert.Equal(t, []string{"a", "b", "c", "d"}, sec.KeyNames())
+		assert.Equal(t, "1", sec.Key("a").String())
+
+		k := sec.Key("e")
+		k.SetValue("2")
+		k.SetValue("3")
+		assert.Same(t, k, sec.Key("e"), "the key added is the one returned")
+		assert.Equal(t, []string{"a", "b", "c", "d", "e"}, sec.KeyNames())
+	})
+
+	t.Run("a missing key follows the key its section gains", func(t *testing.T) {
+		f, err := Load([]byte("[s]\n"), CaseInsensitiveKeys(true))
+		require.NoError(t, err)
+		sec := f.Section("s")
+
+		k1, k2 := sec.Key("Port"), sec.Key("port")
+		assert.Equal(t, "port", k1.Name())
+		k1.SetValue("1")
+		assert.Equal(t, "1", k2.String())
+		k2.SetValue("2")
+		assert.Equal(t, "2", k1.String())
+		assert.Equal(t, []string{"port"}, sec.KeyNames())
+
+		k3 := sec.Key("host")
+		_, err = sec.NewKey("host", "example.com")
+		require.NoError(t, err)
+		assert.Equal(t, "example.com", k3.String())
+		k3.SetValue("localhost")
+		assert.Equal(t, "localhost", sec.Key("host").String())
+		assert.Equal(t, []string{"port", "host"}, sec.KeyNames())
+	})
+
+	t.Run("an empty name is never added", func(t *testing.T) {
+		f := Empty()
+		f.Section("").Key("").SetValue("v")
+		assert.Empty(t, f.Section("").KeyNames())
 	})
 }
 

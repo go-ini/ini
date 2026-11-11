@@ -171,16 +171,23 @@ func (s *Section) HasValue(value string) bool {
 	return false
 }
 
-// Key assumes named Key exists in section and returns a zero-value when not.
+// Key returns the key with the given name, looking in parent sections too
+// as GetKey does. When there is none, it returns a key that reads as empty
+// without adding it to the section. SetValue, SetComment, AddShadow or
+// AddNestedValue adds it.
 func (s *Section) Key(name string) *Key {
-	key, err := s.GetKey(name)
-	if err != nil {
-		if key, err = s.NewKey(name, ""); err != nil {
-			// An empty name can't be added, so return a key that isn't.
-			return newKey(s, name, "")
-		}
+	if key, err := s.GetKey(name); err == nil {
 		return key
 	}
+	key := newKey(s, name, "")
+	if name == "" {
+		// An empty name can't be added.
+		return key
+	}
+	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
+		key.name = strings.ToLower(name)
+	}
+	key.missing = true
 	return key
 }
 
