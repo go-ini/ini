@@ -11,10 +11,10 @@
 //	}
 //	port := f.Section("server").Key("port").MustInt(8080)
 //
-// Without options, every input parses exactly as it did with
-// gopkg.in/ini.v1. [LoadOption] values such as [AllowShadows],
-// [CaseInsensitive] and [IgnoreInlineComment] change the syntax that is
-// accepted.
+// Without options, input parses as it did with gopkg.in/ini.v1, apart from
+// a few fixes, such as comment symbols inside quoted values. [LoadOption]
+// values such as [AllowShadows], [CaseInsensitive] and [IgnoreInlineComment]
+// change the syntax that is accepted.
 //
 // # Sections and keys
 //

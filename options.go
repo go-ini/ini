@@ -7,8 +7,8 @@ import (
 )
 
 // LoadOption configures how data sources are loaded and parsed. Without
-// options, parsing behaves exactly as gopkg.in/ini.v1's Load. When two options set the
-// same thing, the last one wins.
+// options, parsing behaves as gopkg.in/ini.v1's Load, apart from a few
+// fixes. When two options set the same thing, the last one wins.
 type LoadOption func(*loadOptions)
 
 // loadOptions holds the settings that LoadOption values apply. A File keeps them,
@@ -26,6 +26,7 @@ type loadOptions struct {
 	AllowShadows                bool
 	AllowNestedValues           bool
 	AllowPythonMultilineValues  bool
+	AllowBracketedValues        bool
 	SpaceBeforeInlineComment    bool
 	UnescapeValueDoubleQuotes   bool
 	UnescapeValueCommentSymbols bool
@@ -126,6 +127,15 @@ func AllowNestedValues(v bool) LoadOption { return func(o *loadOptions) { o.Allo
 // Docs: https://docs.python.org/3/library/configparser.html#supported-ini-file-structure
 func AllowPythonMultilineValues(v bool) LoadOption {
 	return func(o *loadOptions) { o.AllowPythonMultilineValues = v }
+}
+
+// AllowBracketedValues reads a value that starts with '{' or '[', such as
+// JSON, up to the bracket that closes it, over several lines if needed.
+// Comment symbols inside the brackets are part of the value, and brackets
+// in double-quoted strings don't count. A value with no closing bracket, or
+// with text other than a comment after it, is read as usual.
+func AllowBracketedValues(v bool) LoadOption {
+	return func(o *loadOptions) { o.AllowBracketedValues = v }
 }
 
 // SpaceBeforeInlineComment starts an inline comment only at a comment symbol

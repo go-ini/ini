@@ -18,6 +18,9 @@ type Section struct {
 
 	isRawSection bool
 	rawBody      string
+	// footer is the comment lines at the end of the input, kept on the
+	// section that is last when they are read, and written after it.
+	footer string
 
 	// missing is set on a section File.Section or File.SectionWithIndex
 	// returned for a name, or an index of it, the file doesn't have. The

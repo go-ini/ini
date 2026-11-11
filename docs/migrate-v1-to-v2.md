@@ -6,7 +6,18 @@ import "unknwon.dev/ini/v2" // was "gopkg.in/ini.v1"; the package is still ini
 
 v2 needs Go 1.26 or later. v1 and v2 can be used in the same program, so you can migrate one package at a time.
 
-**Parsing is unchanged.** Without options, v2 parses every input exactly as v1 does: same sections, keys, values, comments and errors. The one exception is a Python-style multiline value longer than 4 KiB. v1 cut it at its read buffer and failed, and v2 reads it in full.
+**Parsing is almost unchanged.** Without options, v2 parses input as v1 does: same sections, keys, values, comments and errors. These are the exceptions, each a fix:
+
+- A value in single or double quotes keeps the `#` and `;` inside them, so `k = "a#b"` is `a#b`. v1 read `"a`. Text other than a comment after the closing quote still cuts the value as before.
+- Comment lines after the last key of a file are kept and written back after it. v1 dropped them.
+- A second byte order mark at the start of a file is skipped. v1 failed on it.
+- A Python-style multiline value longer than 4 KiB is read in full. v1 cut it at its read buffer and failed.
+
+With options:
+
+- `AllowPythonMultilineValues`: empty lines followed by an indented line stay in the value, as in Python's configparser. v1 ended the value at the empty line.
+- `SpaceBeforeInlineComment`: the first ` #` or ` ;` starts the comment. v1 looked for ` #` first.
+- `RawSections`: a raw section with an empty body is raw, so `SetBody` works on it.
 
 Most API changes are renames that the compiler finds, and the tables under [API changes](#api-changes) list the replacements. The changes in the next section still compile, so read it first.
 
@@ -70,6 +81,7 @@ For ordinary files, `Write` output is byte-identical to v1's. Where v1 wrote a f
 - Keys in a section that `RawSections` reads as raw, or in a raw section, are an error. v1 dropped the keys of a raw section.
 - Multi-line comments containing `\n` are written correctly with `LineBreak("\r\n")`.
 - A key named `-`, which would read back as an auto-increment key, is an error.
+- A value with a backtick inside, but not at its start, is no longer wrapped in `"""` unless it also has a comment symbol.
 
 ### Other fixes
 
@@ -107,7 +119,7 @@ Each `LoadOptions` field becomes an option function of the same name, such as `i
 | `KeyValueDelimiterOnWrite` | `WriteDelimiter(d)`, a write option |
 | `ReaderBufferSize` | removed, since nothing is cut at a buffer size |
 
-New options: `CommentSymbols`, `PreserveEmptyShadowValues` and `DefaultSectionName`.
+New options: `CommentSymbols`, `PreserveEmptyShadowValues`, `DefaultSectionName` and `AllowBracketedValues`, which reads a value such as JSON over several lines up to its closing bracket.
 
 ### Writing
 

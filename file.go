@@ -348,7 +348,7 @@ func (f *File) Reload() error {
 				}
 			}
 			o.comment, o.keys, o.byName = sec.comment, sec.keys, sec.byName
-			o.isRawSection, o.rawBody = sec.isRawSection, sec.rawBody
+			o.isRawSection, o.rawBody, o.footer = sec.isRawSection, sec.rawBody, sec.footer
 			secs[i] = o
 		}
 	}
@@ -465,10 +465,14 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			if !f.options.AllowBooleanKeys {
 				return line, nil
 			}
-		case strings.ContainsAny(val, "\n`"):
+		case strings.Contains(val, "\n") || (val != "" && val[0] == '`') || f.bracketOpens(val):
 			line = form + eq + `"""` + val + `"""` + lineBreak
 		case !f.options.IgnoreInlineComment && strings.ContainsAny(val, symbols):
-			line = form + eq + "`" + val + "`" + lineBreak
+			if strings.Contains(val, "`") {
+				line = form + eq + `"""` + val + `"""` + lineBreak
+			} else {
+				line = form + eq + "`" + val + "`" + lineBreak
+			}
 		case len(strings.TrimSpace(val)) != len(val):
 			line = form + eq + `"` + val + `"` + lineBreak
 		default:
@@ -511,6 +515,23 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 
 	// Use buffer to make sure target is safe until finish encoding.
 	buf := bytes.NewBuffer(nil)
+
+	// writeComment writes the lines of a section's comment or footer. They
+	// are split at "\n" too, so a comment set with "\n" and written with
+	// another lineBreak has no line without a comment symbol.
+	writeComment := func(comment string) error {
+		if comment == "" {
+			return nil
+		}
+		for _, line := range splitLines(comment, lineBreak) {
+			line, err := formatComment(line, false)
+			if err != nil {
+				return err
+			}
+			buf.WriteString(line + lineBreak)
+		}
+		return nil
+	}
 	// Per-key buffers, reused for every key.
 	var vals, lines []string
 	var empty []bool
@@ -520,21 +541,8 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 		if strings.Contains(sname, "\n") {
 			return nil, fmt.Errorf("cannot write section %q: its name has a line break", sname)
 		}
-		if len(sec.comment) > 0 {
-			// Support multiline comments. They are split at "\n" too, so a
-			// comment set with "\n" and written with another lineBreak has
-			// no line without a comment symbol.
-			lines := splitLines(sec.comment, lineBreak)
-			for i := range lines {
-				var err error
-				if lines[i], err = formatComment(lines[i], false); err != nil {
-					return nil, err
-				}
-
-				if _, err := buf.WriteString(lines[i] + lineBreak); err != nil {
-					return nil, err
-				}
-			}
+		if err := writeComment(sec.comment); err != nil {
+			return nil, err
 		}
 
 		if sec.isRawSection && len(sec.keys) > 0 {
@@ -558,6 +566,9 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 				return nil, err
 			}
 		} else if len(sec.keys) == 0 {
+			if err := writeComment(sec.footer); err != nil {
+				return nil, err
+			}
 			continue
 		}
 		if writeHeader && !sec.isRawSection && len(sec.keys) > 0 && f.readsAsRaw(sname) {
@@ -573,9 +584,13 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			if _, err := buf.WriteString(sec.rawBody); err != nil {
 				return nil, err
 			}
-			if !isLastSection && sec.rawBody != "" && !strings.HasSuffix(sec.rawBody, "\n") {
-				// The next section header starts on its own line.
+			if (!isLastSection || sec.footer != "") && sec.rawBody != "" && !strings.HasSuffix(sec.rawBody, "\n") {
+				// The next section header, or the footer, starts on its
+				// own line.
 				buf.WriteString(lineBreak)
+			}
+			if err := writeComment(sec.footer); err != nil {
+				return nil, err
 			}
 
 			if o.blankLines && !isLastSection {
@@ -745,6 +760,9 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			}
 			swallows = f.options.AllowPythonMultilineValues || (f.options.AllowNestedValues && empty[last])
 		}
+		if err := writeComment(sec.footer); err != nil {
+			return nil, err
+		}
 
 		if o.blankLines && !isLastSection {
 			// Put a line between sections
@@ -779,7 +797,18 @@ func (f *File) readsBack(text string, boolean bool, name, val string, nested []s
 		}
 	}
 	tok, err = l.next()
-	return err == nil && tok.kind == tokEOF && len(l.comment) == 0
+	return err == nil && tok.kind == tokEOF && tok.comment == ""
+}
+
+// bracketOpens reports whether the lexer reads the lines after val, written
+// plain, as part of it: with AllowBracketedValues, when val starts with a
+// bracket that it doesn't close.
+func (f *File) bracketOpens(val string) bool {
+	if !f.options.AllowBracketedValues || val == "" || (val[0] != '{' && val[0] != '[') {
+		return false
+	}
+	var sc bracketScanner
+	return sc.scan(val) == -1
 }
 
 // readsAsRaw reports whether the lexer reads the section name, after its
@@ -807,7 +836,7 @@ func (f *File) rawBodyReadsBack(name, body string) bool {
 	if err == nil && tok.kind == tokRawBody {
 		tok, err = l.next()
 	}
-	return err == nil && tok.kind == tokEOF && len(l.comment) == 0
+	return err == nil && tok.kind == tokEOF && tok.comment == ""
 }
 
 // splitLines splits s at lineBreak, and then at "\n", so that no line has

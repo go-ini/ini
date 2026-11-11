@@ -97,3 +97,12 @@
 "\xff\xfe[\x00c\x00o\x00n\x00f\x00]\x00\n\x00k\x00=\x00v\x00\n\x00"  issue 66, issue 212
 "; c1\r\n; c2\r\n[sec] ; sc\r\nkey = value\r\nq = \"quoted\"\r\nbt = `a\r\nb`\r\ncont = a \\\r\n b\r\nflag\r\na = 1\rb = 2\r"  issue 216
 "k =\u00a0v\u00a0\n\u00a0[s]\n"
+
+# Inputs from the v2 fixes of issues 205, 291, 344, 352, 362, 390, 393 and 426.
+"\ufeff\ufeff# c\n[s]\nk = v\n"
+"a = '#e18477'\nb = \"XXX#123\" ; c\nc = \"a;b\" x\nd = foo ; note # ticket\n"
+"notes = first\n\n  second\n\n\n  third\n\nnext = 1\n"
+"[raw]\n[s]\nk = v\n[COMMENTS]\n"
+"[server]\ntimeout = {\n    \"timeout\": 1000,\n    \"u\": \"x/#a}\"\n} ; note\nnext = [1,\n 2]\nopen = {\n"
+"k = a`b\nl = `c\n"
+"# BEGIN\n[p]\nk = v\n# END\n; end2\n"

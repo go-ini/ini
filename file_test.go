@@ -831,7 +831,7 @@ func describeFile(f *File) string {
 	for _, s := range f.Sections() {
 		// A raw body gets a final line break when a section follows it,
 		// and Body trims it either way.
-		fmt.Fprintf(&b, "[%q] comment=%q raw=%v body=%q\n", s.name, normalizeComment(s.comment), s.isRawSection, strings.TrimRight(s.rawBody, "\n"))
+		fmt.Fprintf(&b, "[%q] comment=%q raw=%v body=%q footer=%q\n", s.name, normalizeComment(s.comment), s.isRawSection, strings.TrimRight(s.rawBody, "\n"), normalizeComment(s.footer))
 		for _, k := range s.Keys() {
 			vals := append([]string{k.value}, k.shadows...)
 			fmt.Fprintf(&b, "  %q=%q comment=%q auto=%v bool=%v nested=%q\n",
@@ -910,7 +910,12 @@ func TestWriteReadsBack(t *testing.T) {
 		{"k =\n  n\nk\n", []LoadOption{AllowNestedValues(true), AllowBooleanKeys(true)}},
 		{"k = \"\"\n  n\n", []LoadOption{AllowNestedValues(true), AllowPythonMultilineValues(true)}},
 		{"NAME = x\n[DEFAULT]\nk1 = v1\n", []LoadOption{CaseInsensitive(true), AllowNonUniqueSections(true)}},
-		{"[DEFAULT] ; c\n[s]\nk = v\n", nil}, // comment of an empty default section
+		{"[DEFAULT] ; c\n[s]\nk = v\n", nil},                                      // comment of an empty default section
+		{"# BEGIN\n[p]\nk = v\n# END\n", nil},                                     // comment after the last key
+		{"# only a comment\n", nil},                                               // comment of an empty file
+		{"[raw]\nbody\n# c\n", []LoadOption{RawSections("raw")}},                  // comment after a raw body
+		{"[custom]\n", []LoadOption{RawSections("custom")}},                       // empty raw section
+		{"k = a\n\n  b\nn = 1\n", []LoadOption{AllowPythonMultilineValues(true)}}, // empty line in a multiline value
 	} {
 		f, err := Load([]byte(tc.data), tc.opts...)
 		require.NoError(t, err)
@@ -918,6 +923,26 @@ func TestWriteReadsBack(t *testing.T) {
 		require.NoError(t, err, "%q", tc.data)
 		checkRoundTrip(t, []byte(tc.data), tc.opts)
 	}
+
+	t.Run("trailing comment stays after its section", func(t *testing.T) {
+		f, err := Load([]byte("# BEGIN\n[profile test]\nregion = us-east-1\n# END\n"))
+		require.NoError(t, err)
+		f.Section("new").Key("k").SetValue("v")
+		var b bytes.Buffer
+		_, err = f.Write(&b)
+		require.NoError(t, err)
+		assert.Equal(t, "# BEGIN\n[profile test]\nregion = us-east-1\n# END\n\n[new]\nk = v\n", b.String())
+	})
+
+	t.Run("backtick inside a value isn't quoted", func(t *testing.T) {
+		f, err := Load([]byte("[Files]\nCmd = skapon.cmd\t\t;a`b\n"), IgnoreInlineComment(true))
+		require.NoError(t, err)
+		f.Section("Files").Key("movelist").SetValue("x`y")
+		var b bytes.Buffer
+		_, err = f.Write(&b)
+		require.NoError(t, err)
+		assert.Equal(t, "[Files]\nCmd      = skapon.cmd\t\t;a`b\nmovelist = x`y\n", b.String())
+	})
 
 	t.Run("raw body without line break", func(t *testing.T) {
 		f := Empty(RawSections("raw"))
