@@ -23,6 +23,11 @@ type Key struct {
 	shadows         []string
 	isAutoIncrement bool
 	isBooleanType   bool
+	// missing is set on a key Section.Key returned for a name its section
+	// doesn't have. The key isn't in the section until a change adds it.
+	// If the section gains a key of its name first, it reads and changes
+	// that key instead, and is never added.
+	missing bool
 
 	nestedValues []string
 }
@@ -34,6 +39,31 @@ func newKey(s *Section, name, val string) *Key {
 		name:  name,
 		value: val,
 	}
+}
+
+// current returns the key k reads and changes. That is k, unless k is
+// missing and its section has since gained a key of its name. The caller
+// holds the lock.
+func (k *Key) current() *Key {
+	if k.missing {
+		if key := k.s.byName[k.name]; key != nil {
+			return key
+		}
+	}
+	return k
+}
+
+// attach adds k to its section if it's missing and the section still has no
+// key of its name, and returns the key to change: k, or the key of its name
+// the section gained. The caller holds the write lock.
+func (k *Key) attach() *Key {
+	c := k.current()
+	if c == k && k.missing {
+		k.missing = false
+		k.s.keys = append(k.s.keys, k)
+		k.s.byName[k.name] = k
+	}
+	return c
 }
 
 func (k *Key) addShadow(val string) error {
@@ -61,7 +91,7 @@ func (k *Key) AddShadow(val string) error {
 	}
 	k.s.f.maybeLock()
 	defer k.s.f.maybeUnlock()
-	return k.addShadow(val)
+	return k.attach().addShadow(val)
 }
 
 func (k *Key) addNestedValue(val string) error {
@@ -80,7 +110,7 @@ func (k *Key) AddNestedValue(val string) error {
 	}
 	k.s.f.maybeLock()
 	defer k.s.f.maybeUnlock()
-	return k.addNestedValue(val)
+	return k.attach().addNestedValue(val)
 }
 
 // ValueMapper represents a mapping function for values, e.g., os.ExpandEnv
@@ -96,7 +126,7 @@ func (k *Key) Name() string {
 func (k *Key) Comment() string {
 	k.s.f.maybeRLock()
 	defer k.s.f.maybeRUnlock()
-	return k.comment
+	return k.current().comment
 }
 
 // SetComment sets the comment lines written before the key. Lines without a
@@ -104,19 +134,27 @@ func (k *Key) Comment() string {
 func (k *Key) SetComment(comment string) {
 	k.s.f.maybeLock()
 	defer k.s.f.maybeUnlock()
-	k.comment = comment
+	k.attach().comment = comment
 }
 
 // Value returns raw value of key for performance purpose.
 func (k *Key) Value() string {
+	_, v := k.currentValue()
+	return v
+}
+
+// currentValue returns the current key of k and its raw value.
+func (k *Key) currentValue() (*Key, string) {
 	f := k.s.f
 	if !f.locking {
-		return k.value
+		c := k.current()
+		return c, c.value
 	}
 	f.mu.RLock()
-	v := k.value
+	c := k.current()
+	v := c.value
 	f.mu.RUnlock()
-	return v
+	return c, v
 }
 
 // Values returns raw values of key and its shadows if any. Empty
@@ -125,6 +163,7 @@ func (k *Key) Value() string {
 func (k *Key) Values() []string {
 	k.s.f.maybeRLock()
 	defer k.s.f.maybeRUnlock()
+	k = k.current()
 	keepEmpty := k.s.f.options.PreserveEmptyShadowValues
 	vals := make([]string, 0, len(k.shadows)+1)
 	if keepEmpty || k.value != "" {
@@ -143,7 +182,7 @@ func (k *Key) Values() []string {
 func (k *Key) IsBoolean() bool {
 	k.s.f.maybeRLock()
 	defer k.s.f.maybeRUnlock()
-	return k.isBooleanType
+	return k.current().isBooleanType
 }
 
 // NestedValues returns nested values stored in the key.
@@ -151,7 +190,7 @@ func (k *Key) IsBoolean() bool {
 func (k *Key) NestedValues() []string {
 	k.s.f.maybeRLock()
 	defer k.s.f.maybeRUnlock()
-	return k.nestedValues
+	return k.current().nestedValues
 }
 
 // expandValue takes a raw value and transforms to its final string.
@@ -215,7 +254,8 @@ func (k *Key) expand(val string, depth int, e *expansion) string {
 
 // String returns string representation of value.
 func (k *Key) String() string {
-	return k.expandValue(k.Value())
+	c, v := k.currentValue()
+	return c.expandValue(v)
 }
 
 // Validate accepts a validate function which can
@@ -484,7 +524,12 @@ func splitList(str, delim string) []string {
 // StringsWithShadows returns list of string divided by given delimiter.
 // Shadows will also be appended if any.
 func (k *Key) StringsWithShadows(delim string) []string {
-	vals := k.Values()
+	// Expand with the key the values come from, so that a reference to its
+	// own name is looked up in the default section.
+	k.s.f.maybeRLock()
+	c := k.current()
+	k.s.f.maybeRUnlock()
+	vals := c.Values()
 	results := make([]string, 0, len(vals)*2)
 	for i := range vals {
 		if len(vals) == 0 {
@@ -495,7 +540,7 @@ func (k *Key) StringsWithShadows(delim string) []string {
 	}
 
 	for i := range results {
-		results[i] = k.expandValue(strings.TrimSpace(results[i]))
+		results[i] = c.expandValue(strings.TrimSpace(results[i]))
 	}
 	return results
 }
@@ -504,7 +549,7 @@ func (k *Key) StringsWithShadows(delim string) []string {
 func (k *Key) SetValue(v string) {
 	k.s.f.maybeLock()
 	defer k.s.f.maybeUnlock()
-	k.value = v
+	k.attach().value = v
 }
 
 // Scalar is a type a value can be parsed as, as struct mapping parses
