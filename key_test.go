@@ -432,6 +432,47 @@ expires = %(expires)s`))
 		assert.Equal(t, "yes", f.Section("package").Key("expires").String())
 	})
 
+	// https://github.com/go-ini/ini/issues/286
+	t.Run("section.key references", func(t *testing.T) {
+		f, err := Load([]byte(`
+host = default-host
+a.b = default-dotted
+[db]
+host = db-host
+port = 5432
+[db.replica]
+port = 5433
+[app]
+dsn = %(db.host)s:%(db.port)s
+replica = %(db.replica.port)s
+dotted = %(a.b)s
+own = %(host)s
+missing = %(db.user)s
+self = %(app.self)s
+[app2]
+db.host = own-dotted-key
+dsn = %(db.host)s
+`))
+		require.NoError(t, err)
+
+		app := f.Section("app")
+		assert.Equal(t, "db-host:5432", app.Key("dsn").String())
+		// The section is the name before the last dot.
+		assert.Equal(t, "5433", app.Key("replica").String())
+		// Keys whose names have dots are found first, as before.
+		assert.Equal(t, "default-dotted", app.Key("dotted").String())
+		assert.Equal(t, "own-dotted-key", f.Section("app2").Key("dsn").String())
+		assert.Equal(t, "default-host", app.Key("own").String())
+		assert.Equal(t, "%(db.user)s", app.Key("missing").String())
+		assert.Equal(t, "%(app.self)s", app.Key("self").String())
+	})
+
+	t.Run("section.key reference cycle stops", func(t *testing.T) {
+		f, err := Load([]byte("[x]\na = %(y.b)s\n[y]\nb = %(x.a)s\n"))
+		require.NoError(t, err)
+		assert.LessOrEqual(t, len(f.Section("x").Key("a").String()), maxExpandedLen)
+	})
+
 	// https://github.com/go-ini/ini/issues/409
 	t.Run("reference cycles and doubling values stop", func(t *testing.T) {
 		for _, data := range []string{
