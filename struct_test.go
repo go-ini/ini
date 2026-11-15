@@ -804,6 +804,79 @@ None        =
 	})
 }
 
+// https://github.com/go-ini/ini/issues/240
+func TestAutoIncrement(t *testing.T) {
+	type agents struct {
+		Installed []string `ini:",autoincrement"`
+		Root      string   `ini:"root"`
+	}
+	type config struct {
+		Something string `ini:"something"`
+		Agents    agents
+	}
+	const data = `something = 0
+[Agents]
+- = installRoot/agent_1.0.0
+root = installRoot
+- = installRoot/agent_1.0.1
+- = %(root)s/agent_1.0.2
+`
+
+	t.Run("MapTo", func(t *testing.T) {
+		var c config
+		require.NoError(t, StrictMapTo(&c, []byte(data)))
+		assert.Equal(t, []string{"installRoot/agent_1.0.0", "installRoot/agent_1.0.1", "installRoot/agent_1.0.2"}, c.Agents.Installed)
+		assert.Equal(t, "installRoot", c.Agents.Root)
+
+		// No auto-increment keys leave the field as it is.
+		c.Agents.Installed = []string{"default"}
+		require.NoError(t, MapTo(&c, []byte("[Agents]\nroot = x\n")))
+		assert.Equal(t, []string{"default"}, c.Agents.Installed)
+	})
+
+	t.Run("typed elements", func(t *testing.T) {
+		var v struct {
+			Ports []int `ini:",autoincrement"`
+		}
+		require.NoError(t, StrictMapTo(&v, []byte("- = 80\n- = 443\n")))
+		assert.Equal(t, []int{80, 443}, v.Ports)
+
+		assert.Error(t, StrictMapTo(&v, []byte("- = 80\n- = http\n")))
+		require.NoError(t, MapTo(&v, []byte("- = 80\n- = http\n")))
+		assert.Equal(t, []int{80, 0}, v.Ports)
+	})
+
+	t.Run("ReflectFrom replaces the auto-increment keys", func(t *testing.T) {
+		f, err := Load([]byte(data))
+		require.NoError(t, err)
+		c := config{Something: "1", Agents: agents{Installed: []string{"a", "b, c"}, Root: "r"}}
+		require.NoError(t, f.ReflectFrom(&c))
+
+		var buf bytes.Buffer
+		_, err = f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Equal(t, `something = 1
+
+[Agents]
+root = r
+-    = a
+-    = b, c
+`, buf.String())
+
+		var back config
+		require.NoError(t, StrictMapTo(&back, buf.Bytes()))
+		assert.Equal(t, c, back)
+	})
+
+	t.Run("non-slice field", func(t *testing.T) {
+		var v struct {
+			Name string `ini:",autoincrement"`
+		}
+		assert.Error(t, MapTo(&v, []byte("- = a\n")))
+		assert.Error(t, Empty().ReflectFrom(&v))
+	})
+}
+
 type testMapper struct {
 	PackageName string
 }
@@ -940,7 +1013,7 @@ func tagOptions(t reflect.Type, seen map[reflect.Type]bool) (shadows, nonUnique 
 	}
 	seen[t] = true
 	for i := 0; i < t.NumField(); i++ {
-		_, _, allowShadow, allowNonUnique, _ := parseTagOptions(t.Field(i).Tag.Get("ini"))
+		_, _, allowShadow, allowNonUnique, _, _ := parseTagOptions(t.Field(i).Tag.Get("ini"))
 		s, n := tagOptions(t.Field(i).Type, seen)
 		shadows = shadows || allowShadow || s
 		nonUnique = nonUnique || allowNonUnique || n
