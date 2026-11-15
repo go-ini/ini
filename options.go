@@ -41,6 +41,7 @@ type loadOptions struct {
 	Locking                     bool
 	NameMapper                  NameMapper
 	ValueMapper                 ValueMapper
+	StructTag                   string
 }
 
 func newLoadOptions(opts []LoadOption) loadOptions {
@@ -50,6 +51,7 @@ func newLoadOptions(opts []LoadOption) loadOptions {
 		ChildSectionDelimiter: ".",
 		DefaultSection:        DefaultSection,
 		CommentSymbols:        "#;",
+		StructTag:             "ini",
 	}
 	for _, opt := range opts {
 		opt(&o)
@@ -66,6 +68,15 @@ func Locking(v bool) LoadOption { return func(o *loadOptions) { o.Locking = v } 
 // and key names, for MapTo, StrictMapTo and ReflectFrom.
 func NameMapping(mapper NameMapper) LoadOption {
 	return func(o *loadOptions) { o.NameMapper = mapper }
+}
+
+// StructTag sets the struct tag that names fields for MapTo, StrictMapTo and
+// ReflectFrom, such as "json". The default is "ini". The tag keeps the ini
+// tag's syntax: "-" skips the field, and of the options after the name,
+// omitempty, allowshadow, nonunique and extends apply and others are
+// ignored. The delim and comment tags are read as before.
+func StructTag(name string) LoadOption {
+	return func(o *loadOptions) { o.StructTag = name }
 }
 
 // ValueMapping sets the ValueMapper applied to raw values, such as

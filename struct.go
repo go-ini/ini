@@ -406,7 +406,7 @@ func (s *Section) decodeStruct(val reflect.Value, isStrict bool, sectionIndex in
 		field := val.Field(i)
 		tpField := typ.Field(i)
 
-		tag := tpField.Tag.Get("ini")
+		tag := tpField.Tag.Get(s.f.options.StructTag)
 		if tag == "-" {
 			continue
 		}
@@ -735,7 +735,7 @@ func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 		field := val.Field(i)
 		tpField := typ.Field(i)
 
-		tag := tpField.Tag.Get("ini")
+		tag := tpField.Tag.Get(s.f.options.StructTag)
 		if tag == "-" {
 			continue
 		}
