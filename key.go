@@ -115,8 +115,16 @@ func (k *Key) AddNestedValue(val string) error {
 	return k.attach().addNestedValue(val)
 }
 
-// ValueMapper represents a mapping function for values, e.g., os.ExpandEnv
-type ValueMapper func(string) string
+// ValueMapper maps the raw value of k before %(name)s references in it are
+// expanded. It can read other keys through k.Section and k.Section().File,
+// for example to expand references of its own. Wrap a func(string) string
+// such as os.ExpandEnv as func(_ *Key, v string) string { return os.ExpandEnv(v) }.
+type ValueMapper func(k *Key, value string) string
+
+// Section returns the section of the key.
+func (k *Key) Section() *Section {
+	return k.s
+}
 
 // Name returns name of key.
 func (k *Key) Name() string {
@@ -214,7 +222,7 @@ type expansion struct {
 // overflowing the stack or using up time and memory.
 func (k *Key) expand(val string, depth int, e *expansion) string {
 	if k.s.f.options.ValueMapper != nil {
-		val = k.s.f.options.ValueMapper(val)
+		val = k.s.f.options.ValueMapper(k, val)
 	}
 
 	// Fail-fast if no indicate char found for recursive value

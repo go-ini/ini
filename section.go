@@ -41,6 +41,11 @@ func newSection(f *File, name string) *Section {
 	}
 }
 
+// File returns the file of the section.
+func (s *Section) File() *File {
+	return s.f
+}
+
 // current returns the section s reads and changes. That is s, unless s is
 // missing and its file has since gained a section of its name and index,
 // other than one added for another index. The caller holds the lock.
