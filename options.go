@@ -64,12 +64,6 @@ func newLoadOptions(opts []LoadOption) loadOptions {
 // File only one goroutine uses, to save the cost of locking.
 func Locking(v bool) LoadOption { return func(o *loadOptions) { o.Locking = v } }
 
-// NameMapping sets the NameMapper that maps struct field names to section
-// and key names, for MapTo, StrictMapTo and ReflectFrom.
-func NameMapping(mapper NameMapper) LoadOption {
-	return func(o *loadOptions) { o.NameMapper = mapper }
-}
-
 // StructTag sets the struct tag that names fields for MapTo, StrictMapTo and
 // ReflectFrom, such as "json". The default is "ini". The tag keeps the ini
 // tag's syntax: "-" skips the field, and of the options after the name,
@@ -77,6 +71,12 @@ func NameMapping(mapper NameMapper) LoadOption {
 // ignored. The delim and comment tags are read as before.
 func StructTag(name string) LoadOption {
 	return func(o *loadOptions) { o.StructTag = name }
+}
+
+// NameMapping sets the NameMapper that maps struct field names to section
+// and key names, for MapTo, StrictMapTo and ReflectFrom.
+func NameMapping(mapper NameMapper) LoadOption {
+	return func(o *loadOptions) { o.NameMapper = mapper }
 }
 
 // ValueMapping sets the ValueMapper applied to raw values, such as
