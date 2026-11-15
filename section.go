@@ -70,6 +70,8 @@ func (s *Section) attach() *Section {
 
 // Name returns name of Section.
 func (s *Section) Name() string {
+	s.f.maybeRLock()
+	defer s.f.maybeRUnlock()
 	return s.name
 }
 

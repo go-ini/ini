@@ -549,6 +549,120 @@ func TestFile_SectionStrings(t *testing.T) {
 	assert.Equal(t, []string{DefaultSection, "author", "package", "package.sub", "features", "types", "array", "note", "comments", "string escapes", "advance"}, f.SectionNames())
 }
 
+// https://github.com/go-ini/ini/issues/280
+func TestFile_CopyRenameSection(t *testing.T) {
+	const data = `; mysql
+[mysqld]
+port = 3306 ; default
+include = a
+include = b
+[mysqld.extra]
+x = 1
+[client]
+user = root
+`
+	load := func(t *testing.T, opts ...LoadOption) *File {
+		f, err := Load([]byte(data), append([]LoadOption{AllowShadows(true)}, opts...)...)
+		require.NoError(t, err)
+		return f
+	}
+	write := func(t *testing.T, f *File) string {
+		var buf bytes.Buffer
+		_, err := f.WriteTo(&buf)
+		require.NoError(t, err)
+		return buf.String()
+	}
+
+	t.Run("copy", func(t *testing.T) {
+		f := load(t)
+		sec, err := f.CopySection("mysqld", "mysqld2")
+		require.NoError(t, err)
+		sec.Key("port").SetValue("3307")
+		require.NoError(t, sec.Key("include").AddShadow("c"))
+
+		// The copy is independent of the original and comes last.
+		assert.Equal(t, []string{"a", "b"}, f.Section("mysqld").Key("include").Values())
+		assert.Equal(t, `; mysql
+[mysqld]
+; default
+port    = 3306
+include = a
+include = b
+
+[mysqld.extra]
+x = 1
+
+[client]
+user = root
+
+; mysql
+[mysqld2]
+; default
+port    = 3307
+include = a
+include = b
+include = c
+`, write(t, f))
+	})
+
+	t.Run("rename", func(t *testing.T) {
+		f := load(t)
+		heldSec := f.Section("mysqld")
+		held := heldSec.Key("port")
+		require.NoError(t, f.RenameSection("mysqld", "server"))
+
+		assert.Equal(t, []string{DefaultSection, "server", "mysqld.extra", "client"}, f.SectionNames())
+		assert.False(t, f.HasSection("mysqld"))
+		assert.Equal(t, "server", heldSec.Name())
+		assert.Equal(t, "3306", f.Section("server").Key("port").String())
+		// Reads through a held key see the renamed section.
+		f.Section("server").Key("port").SetValue("1")
+		assert.Equal(t, "1", held.String())
+		require.NoError(t, f.RenameSection("server", "server"))
+	})
+
+	t.Run("errors", func(t *testing.T) {
+		f := load(t)
+		_, err := f.CopySection("missing", "x")
+		assert.Error(t, err)
+		_, err = f.CopySection("mysqld", "client")
+		assert.Error(t, err)
+		_, err = f.CopySection("mysqld", "")
+		assert.Error(t, err)
+		_, err = f.CopySection("mysqld", DefaultSection)
+		assert.Error(t, err)
+		assert.Error(t, f.RenameSection("mysqld", "client"))
+		assert.Error(t, f.RenameSection("", "x"))
+		assert.Error(t, f.RenameSection("missing", "x"))
+		assert.Equal(t, []string{DefaultSection, "mysqld", "mysqld.extra", "client"}, f.SectionNames())
+	})
+
+	t.Run("case insensitive", func(t *testing.T) {
+		f := load(t, CaseInsensitive(true))
+		require.NoError(t, f.RenameSection("MySQLd", "Server"))
+		assert.Equal(t, "3306", f.Section("SERVER").Key("port").String())
+		_, err := f.CopySection("client", "MYSQLD.EXTRA")
+		assert.Error(t, err)
+	})
+
+	t.Run("non-unique sections", func(t *testing.T) {
+		f, err := Load([]byte("[peer]\nip = 1\n[peer]\nip = 2\n[other]\nip = 3\n"), AllowNonUniqueSections(true))
+		require.NoError(t, err)
+		// Renaming the first peer after other keeps the file order.
+		require.NoError(t, f.RenameSection("other", "peer"))
+		require.NoError(t, f.RenameSection("peer", "other"))
+		peers, err := f.SectionsByName("peer")
+		require.NoError(t, err)
+		require.Len(t, peers, 2)
+		assert.Equal(t, "2", peers[0].Key("ip").String())
+		assert.Equal(t, "3", peers[1].Key("ip").String())
+
+		_, err = f.CopySection("peer", "peer")
+		require.NoError(t, err)
+		assert.Equal(t, []string{DefaultSection, "other", "peer", "peer", "peer"}, f.SectionNames())
+	})
+}
+
 func TestFile_DeleteSection(t *testing.T) {
 	t.Run("delete a section", func(t *testing.T) {
 		f := Empty()

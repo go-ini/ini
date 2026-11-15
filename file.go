@@ -103,9 +103,7 @@ func (f *File) addSection(name string) (*Section, error) {
 		return nil, errors.New("empty section name")
 	}
 
-	if (f.options.Insensitive || f.options.InsensitiveSections) && name != f.options.DefaultSection {
-		name = strings.ToLower(name)
-	}
+	name = f.storedSectionName(name)
 
 	if secs := f.byName[name]; len(secs) > 0 && !f.options.AllowNonUniqueSections {
 		return secs[0], nil
@@ -336,6 +334,104 @@ func (f *File) SectionNames() []string {
 		names[i] = sec.name
 	}
 	return names
+}
+
+// storedSectionName returns name as the file stores a new section's name:
+// lower-cased when loaded with CaseInsensitive or CaseInsensitiveSections,
+// unless it is the default section's.
+func (f *File) storedSectionName(name string) string {
+	if (f.options.Insensitive || f.options.InsensitiveSections) && name != f.options.DefaultSection {
+		return strings.ToLower(name)
+	}
+	return name
+}
+
+// checkNewSectionName returns an error if a section can't be copied or
+// renamed to name: it is empty, the default section's, or another
+// section's, unless the file allows non-unique sections. The caller holds
+// the lock.
+func (f *File) checkNewSectionName(name string) error {
+	switch {
+	case name == "":
+		return errors.New("empty section name")
+	case f.isDefaultSection(name):
+		return errors.New("the default section already exists")
+	case len(f.byName[name]) > 0 && !f.options.AllowNonUniqueSections:
+		return fmt.Errorf("section %q already exists", name)
+	}
+	return nil
+}
+
+// CopySection adds a copy of the section name, with its comment, keys,
+// values and key comments, or its raw body, as a section newName after the
+// last section, and returns the copy. With AllowNonUniqueSections, it
+// copies the first section of the name, and newName may be taken. Child
+// sections of name aren't copied.
+func (f *File) CopySection(name, newName string) (*Section, error) {
+	f.maybeLock()
+	defer f.maybeUnlock()
+	secs, err := f.sectionsByName(name)
+	if err != nil {
+		return nil, err
+	}
+	newName = f.storedSectionName(newName)
+	if err := f.checkNewSectionName(newName); err != nil {
+		return nil, err
+	}
+
+	src, dst := secs[0], newSection(f, newName)
+	dst.comment, dst.isRawSection, dst.rawBody = src.comment, src.isRawSection, src.rawBody
+	for _, k := range src.keys {
+		c := *k
+		c.s = dst
+		c.shadows = slices.Clone(k.shadows)
+		c.nestedValues = slices.Clone(k.nestedValues)
+		dst.keys = append(dst.keys, &c)
+		dst.byName[c.name] = &c
+	}
+	f.sections = append(f.sections, dst)
+	f.byName[newName] = append(f.byName[newName], dst)
+	return dst, nil
+}
+
+// RenameSection renames the section name to newName, in its place among
+// the sections. *Section and *Key values held for it see the new name.
+// With AllowNonUniqueSections, it renames the first section of the name,
+// and newName may be taken. Child sections of name keep their names. The
+// default section can't be renamed.
+func (f *File) RenameSection(name, newName string) error {
+	f.maybeLock()
+	defer f.maybeUnlock()
+	secs, err := f.sectionsByName(name)
+	if err != nil {
+		return err
+	}
+	sec := secs[0]
+	if f.isDefaultSection(sec.name) {
+		return errors.New("cannot rename the default section")
+	}
+	newName = f.storedSectionName(newName)
+	if newName == sec.name {
+		return nil
+	}
+	if err := f.checkNewSectionName(newName); err != nil {
+		return err
+	}
+
+	if len(secs) == 1 {
+		delete(f.byName, sec.name)
+	} else {
+		f.byName[sec.name] = secs[1:]
+	}
+	sec.name = newName
+	// Sections of a name are indexed in the order of f.sections.
+	f.byName[newName] = nil
+	for _, s := range f.sections {
+		if s.name == newName {
+			f.byName[newName] = append(f.byName[newName], s)
+		}
+	}
+	return nil
 }
 
 // DeleteSection deletes a section or all sections with given name.
