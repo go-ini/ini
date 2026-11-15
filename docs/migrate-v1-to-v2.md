@@ -123,6 +123,8 @@ Each `LoadOptions` field becomes an option function of the same name, such as `i
 
 New options: `CommentSymbols`, `PreserveEmptyShadowValues` and `DefaultSectionName`.
 
+`Marshal` and `Unmarshal` convert between a struct and INI text in one call.
+
 ### Writing
 
 The package variables that changed every file's output are now options of `File.Write` and `File.SaveTo`. Their defaults write what v1 wrote.
