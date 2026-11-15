@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -373,6 +374,32 @@ func (l *lexer) readPythonMultilines(line string) string {
 	}
 }
 
+// decodeUTF16 converts src to UTF-8 when it starts with a UTF-16 LE or BE
+// byte order mark, as files saved as "Unicode" by Windows tools do, and
+// returns other input unchanged. A trailing odd byte becomes U+FFFD.
+func decodeUTF16(src string) string {
+	var little bool
+	switch {
+	case strings.HasPrefix(src, "\xFF\xFE"):
+		little = true
+	case strings.HasPrefix(src, "\xFE\xFF"):
+	default:
+		return src
+	}
+	units := make([]uint16, 0, len(src)/2)
+	for i := 2; i+1 < len(src); i += 2 {
+		if little {
+			units = append(units, uint16(src[i])|uint16(src[i+1])<<8)
+		} else {
+			units = append(units, uint16(src[i])<<8|uint16(src[i+1]))
+		}
+	}
+	if len(src)%2 == 1 {
+		units = append(units, utf8.RuneError)
+	}
+	return string(utf16.Decode(units))
+}
+
 // skipBOM strips the UTF-8, UTF-16 LE and UTF-16 BE byte order marks at
 // the start of src. Some tools add a second one to a file that has one.
 // http://en.wikipedia.org/wiki/Byte_order_mark#Representations_of_byte_order_marks_by_encoding
@@ -396,7 +423,7 @@ func (f *File) parse(reader io.Reader) error {
 	if _, err := io.Copy(&b, reader); err != nil {
 		return err
 	}
-	l := &lexer{src: skipBOM(b.String()), opts: &f.options}
+	l := &lexer{src: skipBOM(decodeUTF16(b.String())), opts: &f.options}
 
 	// Ignore error because default section name is never empty string.
 	name := f.options.DefaultSection

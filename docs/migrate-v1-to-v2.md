@@ -10,6 +10,7 @@ v2 needs Go 1.26 or later. v1 and v2 can be used in the same program, so you can
 
 - A value in single or double quotes keeps the `#` and `;` inside them, so `k = "a#b"` is `a#b`. v1 read `"a`. Text other than a comment after the closing quote still cuts the value as before.
 - Comment lines after the last key of a file are kept and written back after the last section. Sections added later, or loaded from a later source, are written after them. v1 dropped them.
+- A file that starts with a UTF-16 LE or BE byte order mark, as Windows tools write, is decoded as UTF-16. v1 dropped the mark and read the rest as UTF-8, so names and values held NUL bytes. `Write` writes UTF-8.
 - A byte order mark repeated at the start of a file is skipped. v1 read the second one as part of the first key name, or failed on a section header.
 - A Python-style multiline value longer than 4 KiB is read in full. v1 cut it at its read buffer and failed.
 

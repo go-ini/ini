@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode/utf16"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,13 +20,29 @@ func TestBOM(t *testing.T) {
 			assert.Equal(t, "example@email.com", f.Section("author").Key("E-MAIL").String())
 		})
 
-		t.Run("UTF-16-LE-BOM", func(t *testing.T) {
-			f, err := Load("testdata/UTF-16-LE-BOM.ini")
-			require.NoError(t, err)
-			require.NotNil(t, f)
-		})
+		for _, name := range []string{"UTF-16-LE-BOM", "UTF-16-BE-BOM"} {
+			t.Run(name, func(t *testing.T) {
+				f, err := Load("testdata/" + name + ".ini")
+				require.NoError(t, err)
+				assert.Equal(t, []string{DefaultSection, "author"}, f.SectionNames())
+				assert.Equal(t, "example@email.com", f.Section("author").Key("E-MAIL").String())
+			})
+		}
 
-		t.Run("UTF-16-BE-BOM", func(t *testing.T) {
+		t.Run("UTF-16 non-ASCII", func(t *testing.T) {
+			// A surrogate pair, CRLF line ends, and an odd trailing byte.
+			units := utf16.Encode([]rune("\ufeff[節]\r\n名前 = 😀\r\nk = v"))
+			le, be := []byte{}, []byte{}
+			for _, u := range units {
+				le = append(le, byte(u), byte(u>>8))
+				be = append(be, byte(u>>8), byte(u))
+			}
+			for _, data := range [][]byte{le, be} {
+				f, err := Load(append(data, 'x'))
+				require.NoError(t, err)
+				assert.Equal(t, "😀", f.Section("節").Key("名前").String())
+				assert.Equal(t, "v\ufffd", f.Section("節").Key("k").String())
+			}
 		})
 
 		t.Run("two BOMs", func(t *testing.T) {
