@@ -50,7 +50,7 @@ func Empty(opts ...LoadOption) *File {
 // section's name. Loading with CaseInsensitive or CaseInsensitiveSections
 // stores it lower-cased.
 func (f *File) isDefaultSection(name string) bool {
-	return name == f.options.DefaultSection || name == f.defaultSectionName()
+	return name == f.defaultSectionName()
 }
 
 // defaultSectionName returns the name the default section is stored under.
@@ -103,7 +103,7 @@ func (f *File) addSection(name string) (*Section, error) {
 		return nil, errors.New("empty section name")
 	}
 
-	if (f.options.Insensitive || f.options.InsensitiveSections) && name != f.options.DefaultSection {
+	if f.options.Insensitive || f.options.InsensitiveSections {
 		name = strings.ToLower(name)
 	}
 
@@ -222,7 +222,7 @@ func (f *File) SectionWithIndex(name string, index int) *Section {
 func (f *File) missingSection(name string, index int) *Section {
 	if name == "" {
 		name = f.defaultSectionName()
-	} else if (f.options.Insensitive || f.options.InsensitiveSections) && name != f.options.DefaultSection {
+	} else if f.options.Insensitive || f.options.InsensitiveSections {
 		name = strings.ToLower(name)
 	}
 	sec := newSection(f, name)
