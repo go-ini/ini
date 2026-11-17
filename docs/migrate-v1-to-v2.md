@@ -104,7 +104,8 @@ For ordinary files, `Write` output is byte-identical to v1's, apart from the par
 | `LooseLoad`, `InsensitiveLoad`, `ShadowLoad` | `Load` with `ini.IgnoreMissingFiles(true)`, `ini.CaseInsensitive(true)`, `ini.AllowShadows(true)` |
 | `MapTo(v, a, b)` | `MapTo(v, a, opts...)`, with one source |
 | `MapToWithMapper(v, m, a)`, `StrictMapToWithMapper` | `MapTo(v, a, ini.NameMapping(m))`, `StrictMapTo(v, a, ini.NameMapping(m))` |
-| `f.NameMapper = m`, `f.ValueMapper = fn` | load with `ini.NameMapping(m)`, `ini.ValueMapping(fn)` |
+| `f.NameMapper = m` | load with `ini.NameMapping(m)` |
+| `f.ValueMapper = fn` | load with `ini.ValueMapping(func(_ *ini.Key, v string) string { return fn(v) })`. The mapper gets the key whose value it maps, and reaches other keys through `k.Section()` and `k.Section().File()`. |
 | `f.BlockMode = false` | load with `ini.Locking(false)` |
 | `ini.DefaultSection = "default"` | load with `ini.DefaultSectionName("default")`. `DefaultSection` is now a constant. |
 
