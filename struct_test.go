@@ -822,6 +822,45 @@ func Test_NameGetter(t *testing.T) {
 	})
 }
 
+func TestStructTag(t *testing.T) {
+	type server struct {
+		Host  string `json:"host" ini:"ini_host"`
+		Port  int    `json:"port,omitempty"`
+		Debug bool   `json:"-"`
+	}
+	type config struct {
+		Name   string `json:"app_name"`
+		Server server `json:"server"`
+	}
+
+	t.Run("MapTo", func(t *testing.T) {
+		var c config
+		err := MapTo(&c, []byte(`
+app_name = demo
+[server]
+host = example.com
+ini_host = wrong
+port = 8080
+Debug = true
+`), StructTag("json"))
+		require.NoError(t, err)
+		assert.Equal(t, config{Name: "demo", Server: server{Host: "example.com", Port: 8080}}, c)
+	})
+
+	t.Run("ReflectFrom", func(t *testing.T) {
+		f := Empty(StructTag("json"))
+		require.NoError(t, f.ReflectFrom(&config{Name: "demo", Server: server{Host: "example.com", Debug: true}}))
+		var buf bytes.Buffer
+		_, err := f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Equal(t, `app_name = demo
+
+[server]
+host = example.com
+`, buf.String())
+	})
+}
+
 type testDurationStruct struct {
 	Duration time.Duration `ini:"Duration"`
 }

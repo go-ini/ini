@@ -36,7 +36,8 @@
 // [MapTo] and [StrictMapTo] fill a struct from a data source or a [File],
 // and [File.ReflectFrom] fills a File from a struct. Field names map to key
 // and section names unchanged unless [NameMapping] sets a mapper, and the
-// ini, delim and comment struct tags adjust each field. A type that
+// ini, delim and comment struct tags adjust each field. [StructTag] reads
+// another tag, such as json, in place of ini. A type that
 // implements [Marshaler] or [Unmarshaler] formats or parses its own values.
 //
 // # Writing
