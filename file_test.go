@@ -56,6 +56,90 @@ func TestFile_NewSection(t *testing.T) {
 	})
 }
 
+func TestFile_CaseInsensitiveDefaultSection(t *testing.T) {
+	for _, name := range []string{DefaultSection, "Profile"} {
+		for _, tc := range []struct {
+			name string
+			opt  LoadOption
+		}{
+			{"all", CaseInsensitive(true)},
+			{"sections", CaseInsensitiveSections(true)},
+		} {
+			t.Run(name+"/"+tc.name, func(t *testing.T) {
+				opts := []LoadOption{DefaultSectionName(name), tc.opt}
+				wantName := strings.ToLower(name)
+
+				t.Run("parse", func(t *testing.T) {
+					f, err := Load([]byte("before=1\n["+name+"]\nafter=2\n"), opts...)
+					require.NoError(t, err)
+					assert.Equal(t, []string{wantName}, f.SectionNames())
+					assert.Equal(t, map[string]string{"before": "1", "after": "2"}, f.Section("").KeyValues())
+					var buf bytes.Buffer
+					_, err = f.WriteTo(&buf)
+					require.NoError(t, err)
+					again, err := Load(buf.Bytes(), opts...)
+					require.NoError(t, err)
+					assert.Equal(t, f.SectionNames(), again.SectionNames())
+					assert.Equal(t, f.Section("").KeyValues(), again.Section("").KeyValues())
+				})
+
+				t.Run("new", func(t *testing.T) {
+					f := Empty(opts...)
+					original := f.Section("")
+					sec, err := f.NewSection(name)
+					require.NoError(t, err)
+					assert.Same(t, original, sec)
+					sec.Key("port").SetValue("8080")
+					assert.Equal(t, "8080", f.Section("").Key("port").Value())
+					assert.Equal(t, []string{wantName}, f.SectionNames())
+				})
+
+				t.Run("missing", func(t *testing.T) {
+					f := Empty(opts...)
+					f.DeleteSection("")
+					byName, byEmpty := f.Section(name), f.Section("")
+					assert.Empty(t, f.Sections(), "reading a missing section must not add it")
+					byName.Key("host").SetValue("localhost")
+					assert.Equal(t, "localhost", byEmpty.Key("host").Value())
+					assert.Same(t, byName, f.Section(""))
+					assert.Equal(t, []string{wantName}, f.SectionNames())
+					f.DeleteSection(name)
+					assert.Empty(t, f.Sections())
+				})
+
+				t.Run("nonunique", func(t *testing.T) {
+					f := Empty(append(opts, AllowNonUniqueSections(true))...)
+					sec, err := f.NewSection(name)
+					require.NoError(t, err)
+					sec.Key("value").SetValue("second")
+					f.SectionWithIndex(name, 2).Key("value").SetValue("third")
+					sections, err := f.SectionsByName("")
+					require.NoError(t, err)
+					require.Len(t, sections, 3)
+					assert.Equal(t, "second", sections[1].Key("value").Value())
+					assert.Equal(t, "third", sections[2].Key("value").Value())
+				})
+			})
+		}
+	}
+}
+
+func TestFile_DefaultSectionKeepsCaseWithoutInsensitiveSections(t *testing.T) {
+	for _, opt := range []LoadOption{CaseInsensitive(false), CaseInsensitiveKeys(true)} {
+		f, err := Load([]byte("before=1\n[Profile]\nafter=2\n[profile]\nother=3\n"), DefaultSectionName("Profile"), opt)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"Profile", "profile"}, f.SectionNames())
+		assert.Equal(t, map[string]string{"before": "1", "after": "2"}, f.Section("").KeyValues())
+		sec, err := f.NewSection("Profile")
+		require.NoError(t, err)
+		assert.Same(t, f.Section(""), sec)
+		f.DeleteSection("")
+		f.Section("Profile").Key("value").SetValue("new")
+		assert.Equal(t, "new", f.Section("").Key("value").Value())
+		assert.Equal(t, "3", f.Section("profile").Key("other").Value())
+	}
+}
+
 func TestFile_NonUniqueSection(t *testing.T) {
 	t.Run("read and write non-unique sections", func(t *testing.T) {
 		f, err := Load([]byte(`[Interface]
