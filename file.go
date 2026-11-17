@@ -50,7 +50,7 @@ func Empty(opts ...LoadOption) *File {
 // section's name. Loading with CaseInsensitive or CaseInsensitiveSections
 // stores it lower-cased.
 func (f *File) isDefaultSection(name string) bool {
-	return name == f.options.DefaultSection || name == f.defaultSectionName()
+	return name == f.defaultSectionName()
 }
 
 // defaultSectionName returns the name the default section is stored under.

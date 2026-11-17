@@ -399,11 +399,7 @@ func (f *File) parse(reader io.Reader) error {
 	l := &lexer{src: skipBOM(b.String()), opts: &f.options}
 
 	// Ignore error because default section name is never empty string.
-	name := f.options.DefaultSection
-	if f.options.Insensitive || f.options.InsensitiveSections {
-		name = strings.ToLower(name)
-	}
-	section, _ := f.addSection(name)
+	section, _ := f.addSection(f.options.DefaultSection)
 
 	var lastRegularKey *Key
 	count := 1 // Counter for auto-increment key names ("-"), per section.
