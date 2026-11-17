@@ -594,6 +594,28 @@ func StrictMapTo(v, source any, opts ...LoadOption) error {
 	return cfg.StrictMapTo(v)
 }
 
+// Unmarshal parses the INI data and maps it to v, a pointer to a struct, as
+// StrictMapTo does. Like json.Unmarshal, it returns an error for a value
+// that doesn't fit its field.
+func Unmarshal(data []byte, v any, opts ...LoadOption) error {
+	return StrictMapTo(v, data, opts...)
+}
+
+// Marshal returns the INI encoding of v, a pointer to a struct, as
+// File.ReflectFrom fills an empty file loaded with opts and File.WriteTo
+// writes it. To set the formatting, call ReflectFrom and Write yourself.
+func Marshal(v any, opts ...LoadOption) ([]byte, error) {
+	f := Empty(opts...)
+	if err := f.ReflectFrom(v); err != nil {
+		return nil, err
+	}
+	buf, err := f.writeToBuffer(nil)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 // encodeSlice does the opposite thing as decodeSlice.
 func encodeSlice(key *Key, field reflect.Value, delim string, allowShadow bool) error {
 	if field.Len() == 0 {

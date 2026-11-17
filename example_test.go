@@ -134,6 +134,39 @@ func ExampleSection_MapTo() {
 	// 9090 30s
 }
 
+func ExampleMarshal() {
+	var cfg Config
+	cfg.AppName = "demo"
+	cfg.Server.Port = 8080
+	cfg.Server.Hosts = []string{"a.example.com", "b.example.com"}
+
+	data, err := ini.Marshal(&cfg)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(data))
+	// Output:
+	// app_name = demo
+	//
+	// [server]
+	// ; Port to listen on
+	// Port  = 8080
+	// Hosts = a.example.com,b.example.com
+}
+
+// Unmarshal returns an error for a value that doesn't fit its field.
+func ExampleUnmarshal() {
+	var cfg Config
+	err := ini.Unmarshal([]byte("app_name = demo\n[server]\nPort = 8080\nTimeout = 1m\n"), &cfg)
+	fmt.Println(cfg.AppName, cfg.Server.Port, cfg.Server.Timeout, err)
+
+	err = ini.Unmarshal([]byte("[server]\nPort = eighty\n"), &cfg)
+	fmt.Println(err)
+	// Output:
+	// demo 8080 1m0s <nil>
+	// map to field "server": set field "Port": strconv.ParseInt: parsing "eighty": invalid syntax
+}
+
 func ExampleFile_Write() {
 	f := ini.Empty()
 	f.Section("").Key("name").SetValue("demo")

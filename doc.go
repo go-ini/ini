@@ -39,6 +39,9 @@
 // ini, delim and comment struct tags adjust each field. A type that
 // implements [Marshaler] or [Unmarshaler] formats or parses its own values.
 //
+// [Marshal] and [Unmarshal] convert between a struct and INI text in one
+// call, as encoding/json does.
+//
 // # Writing
 //
 // [File.Write] and [File.SaveTo] write a File back with its comments and in
