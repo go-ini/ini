@@ -211,7 +211,7 @@ func parseValue(t reflect.Type, str string) (reflect.Value, error) {
 		}
 		v.SetUint(u)
 	case reflect.Float32, reflect.Float64:
-		f, err := strconv.ParseFloat(str, 64)
+		f, err := strconv.ParseFloat(str, t.Bits())
 		if err != nil {
 			return v, err
 		}
