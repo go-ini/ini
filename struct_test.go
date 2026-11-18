@@ -1399,6 +1399,15 @@ func TestStructRoundTrip_Float32(t *testing.T) {
 	assert.Equal(t, fp, *out.FP)
 	assert.Equal(t, in.M, out.M)
 	assert.Equal(t, in.D, out.D)
+
+	// Parsing this one as a float64 and then narrowing it to a float32 rounds
+	// twice and lands one ULP off.
+	in = cfg{F: 7.038531e-26, FP: &fp}
+	data, err = marshal(in)
+	require.NoError(t, err)
+	out = cfg{}
+	require.NoError(t, unmarshal(data, &out))
+	assert.Equal(t, in.F, out.F)
 }
 
 // https://github.com/go-ini/ini/issues/274
