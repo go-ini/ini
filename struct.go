@@ -256,7 +256,11 @@ func formatValue(v reflect.Value) (string, error) {
 		return fmt.Sprint(v.Int()), nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return fmt.Sprint(v.Uint()), nil
-	case reflect.Float32, reflect.Float64:
+	case reflect.Float32:
+		// Formatted as a float32, so 0.1 is written as 0.1 and not as the
+		// float64 0.10000000149011612.
+		return fmt.Sprint(float32(v.Float())), nil
+	case reflect.Float64:
 		return fmt.Sprint(v.Float()), nil
 	}
 	return "", fmt.Errorf("unsupported type %q", t)
