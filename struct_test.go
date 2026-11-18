@@ -1377,6 +1377,30 @@ func TestStructRoundTrip_Uint8(t *testing.T) {
 	assert.Equal(t, "B  = 200\nBP = 7\n", string(data))
 }
 
+func TestStructRoundTrip_Float32(t *testing.T) {
+	type myFloat float32
+	type cfg struct {
+		F  float32
+		FP *float32
+		M  myFloat
+		D  float64
+	}
+	fp := float32(1.1)
+	in := cfg{F: 0.1, FP: &fp, M: 2.2, D: 0.1}
+
+	data, err := marshal(in)
+	require.NoError(t, err)
+	assert.Equal(t, "F  = 0.1\nFP = 1.1\nM  = 2.2\nD  = 0.1\n", string(data))
+
+	var out cfg
+	require.NoError(t, unmarshal(data, &out))
+	assert.Equal(t, in.F, out.F)
+	require.NotNil(t, out.FP)
+	assert.Equal(t, fp, *out.FP)
+	assert.Equal(t, in.M, out.M)
+	assert.Equal(t, in.D, out.D)
+}
+
 // https://github.com/go-ini/ini/issues/274
 func TestMapTo_EmbeddedPointerKeepsValues(t *testing.T) {
 	type Base struct{ A, B string }
