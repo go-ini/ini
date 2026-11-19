@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"unsafe"
 )
 
 var (
@@ -19,12 +18,6 @@ type dataSource interface {
 	read() (string, error)
 }
 
-// ownedString returns b as a string without copying. Nothing may change b
-// afterwards.
-func ownedString(b []byte) string {
-	return unsafe.String(unsafe.SliceData(b), len(b))
-}
-
 // sourceFile represents an object that contains content on the local file system.
 type sourceFile struct {
 	name string
@@ -35,7 +28,7 @@ func (s sourceFile) read() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return ownedString(data), nil
+	return string(data), nil
 }
 
 // sourceData represents an object that contains content in memory.
@@ -59,7 +52,7 @@ type sourceReadCloser struct {
 func (s *sourceReadCloser) read() (string, error) {
 	if s.reader != nil {
 		data, err := io.ReadAll(s.reader)
-		s.data, s.err = ownedString(data), err
+		s.data, s.err = string(data), err
 		if err := s.reader.Close(); s.err == nil {
 			s.err = err
 		}
