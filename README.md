@@ -8,7 +8,7 @@ Package ini reads and writes INI files in Go.
 
 ## Features
 
-- **Fast loading**: a single-pass lexer, linear in the size of the input and up to 42× faster than v1.
+- **Fast loading**: a single-pass lexer, linear in the size of the input and up to 37× faster than v1.
 - **Several sources**: files, `[]byte` and `io.Reader`, with later sources overriding earlier ones.
 - **Rich INI syntax**: parent-child sections, auto-increment keys, repeated (shadow) keys, nested and multiline values, and `%(name)s` references.
 - **Typed values**: numbers, booleans, durations and times, with generic lists and candidates of any of them, and ranges of all but booleans.
@@ -60,23 +60,23 @@ Options change the syntax that is accepted, such as `ini.Load("app.ini", ini.All
 
 ## Performance
 
-v2 loads files 3 to 42 times faster than v1, with a seventh to a two-hundredth of the allocations:
+v2 loads files 3 to 37 times faster than v1, with a seventh to a two-hundredth of the allocations:
 
 | Operation | v1.67.3 | v2 | Allocations, v1 → v2 |
 |---|---|---|---|
-| Load 10,000 keys in one section | 84 ms | 2.0 ms (42× faster) | 40.2k → 0.2k |
-| Load 10,000 keys in 1,000 sections | 6.8 ms | 2.1 ms (3.2× faster) | 55.1k → 8.1k |
-| Load 10,000 keys, mixed syntax | 6.7 ms | 2.3 ms (3.0× faster) | 54.8k → 8.4k |
-| Write 10,000 keys | 1.7–2.7 ms | 3.2–4.0 ms (1.5–1.8× slower) | 17–8.9k → 10.0k–22.8k |
-| `MapTo` a 13-field struct | 2.8 µs | 4.9 µs | 50 → 48 |
-| `ReflectFrom` the same struct | 2.9 µs | 4.8 µs | 51 → 48 |
-| Read one key | 45 ns | 56 ns, or 31 ns with `Locking(false)` | 0 → 0 |
+| Load 10,000 keys in one section | 77 ms | 2.1 ms (37× faster) | 40.2k → 0.2k |
+| Load 10,000 keys in 1,000 sections | 6.6 ms | 2.2 ms (3.0× faster) | 55.1k → 8.1k |
+| Load 10,000 keys, mixed syntax | 6.7 ms | 2.3 ms (2.9× faster) | 54.8k → 8.4k |
+| Write 10,000 keys | 1.7–2.7 ms | 3.1–4.1 ms (1.5–1.8× slower) | 17–8.9k → 10.0k–22.8k |
+| `MapTo` a 13-field struct | 2.7 µs | 4.7 µs | 50 → 48 |
+| `ReflectFrom` the same struct | 2.8 µs | 4.8 µs | 51 → 48 |
+| Read one key | 44 ns | 58 ns, or 32 ns with `Locking(false)` | 0 → 0 |
 
 - **Load** is linear in the number of keys. v1 compared each new key with every key before it in its section, so a large section took quadratic time.
 - **Write** is slower because it checks that every line it writes reads back as the same value. v1 could write files that loaded differently.
 - **Reads** take the file's read lock so that they are safe while other goroutines change the file. v1 read values without it, as in `Key.String`.
 
-The mixed input is 100 sections of 100 keys with comments, inline comments, quoted values, colons, auto-increment keys and continuation lines. Measured with Go 1.27.4 on an Intel Xeon at 2.60 GHz with `GOMAXPROCS=4`, as the median of 8 runs.
+Loads read the file from disk. The mixed input is 100 sections of 100 keys with comments, inline comments, quoted values, colons, auto-increment keys and continuation lines. Measured with Go 1.27.4 on an Intel Xeon at 2.60 GHz with `GOMAXPROCS=4`, as the median of 8 runs.
 
 ## Migrating from v1
 
