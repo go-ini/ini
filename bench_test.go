@@ -1,6 +1,9 @@
 package ini
 
 import (
+	"fmt"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -115,4 +118,58 @@ func Benchmark_Key_Strings_LargeArray(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = key.Strings(",")
 	}
+}
+
+// benchConfig is a typical large config: sections with comments, plain,
+// quoted and commented values.
+var benchConfig = func() []byte {
+	var b strings.Builder
+	b.WriteString("; global settings\nAPP_NAME = bench\nRUN_MODE = prod\n\n")
+	for i := range 500 {
+		fmt.Fprintf(&b, "# Section %d\n[section_%d]\n", i, i)
+		for j := range 20 {
+			switch j % 4 {
+			case 0:
+				fmt.Fprintf(&b, "key_%d = value_%d_%d\n", j, i, j)
+			case 1:
+				fmt.Fprintf(&b, "; comment for key %d\nkey_%d = %d ; inline comment\n", j, j, i*j)
+			case 2:
+				fmt.Fprintf(&b, "key_%d = \"quoted value %d\"\n", j, j)
+			case 3:
+				fmt.Fprintf(&b, "  key_%d   =   https://example.com/path/%d?x=%d  \n", j, i, j)
+			}
+		}
+		b.WriteString("\n")
+	}
+	return []byte(b.String())
+}()
+
+func benchmarkLoad(b *testing.B, data []byte, opts ...LoadOption) {
+	b.SetBytes(int64(len(data)))
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := Load(data, opts...); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func Benchmark_Load(b *testing.B) {
+	benchmarkLoad(b, benchConfig)
+}
+
+func Benchmark_Load_Insensitive(b *testing.B) {
+	benchmarkLoad(b, benchConfig, CaseInsensitive(true))
+}
+
+func Benchmark_Load_Full(b *testing.B) {
+	data, err := os.ReadFile("testdata/full.ini")
+	require.NoError(b, err)
+	benchmarkLoad(b, data, AllowBooleanKeys(true))
+}
+
+func Benchmark_Load_Multiline(b *testing.B) {
+	data, err := os.ReadFile("testdata/multiline.ini")
+	require.NoError(b, err)
+	benchmarkLoad(b, data, AllowPythonMultilineValues(true))
 }

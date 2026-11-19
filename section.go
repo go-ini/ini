@@ -12,7 +12,9 @@ type Section struct {
 	f       *File
 	name    string
 	comment string
-	// keys are in the order they were added, and byName indexes them by name.
+	// keys are in the order they were added. byName indexes them by name
+	// once there are more than maxUnindexedKeys of them; until then, finding
+	// a key searches keys.
 	keys   []*Key
 	byName map[string]*Key
 
@@ -34,10 +36,41 @@ type Section struct {
 
 func newSection(f *File, name string) *Section {
 	return &Section{
-		f:      f,
-		name:   name,
-		keys:   make([]*Key, 0, 10),
-		byName: make(map[string]*Key),
+		f:    f,
+		name: name,
+		keys: make([]*Key, 0, maxUnindexedKeys),
+	}
+}
+
+// maxUnindexedKeys is the most keys a section has before it indexes them
+// in byName. Searching a few keys is faster than hashing, and most sections
+// don't need a map.
+const maxUnindexedKeys = 8
+
+// keyByName returns the key of s named name, or nil.
+func (s *Section) keyByName(name string) *Key {
+	if s.byName != nil {
+		return s.byName[name]
+	}
+	for _, k := range s.keys {
+		if k.name == name {
+			return k
+		}
+	}
+	return nil
+}
+
+// appendKey adds k, whose name s has no key of, to s.
+func (s *Section) appendKey(k *Key) {
+	s.keys = append(s.keys, k)
+	switch {
+	case s.byName != nil:
+		s.byName[k.name] = k
+	case len(s.keys) > maxUnindexedKeys:
+		s.byName = make(map[string]*Key, len(s.keys))
+		for _, k := range s.keys {
+			s.byName[k.name] = k
+		}
 	}
 }
 
@@ -126,7 +159,7 @@ func (s *Section) addKey(name, val string) (*Key, error) {
 		name = strings.ToLower(name)
 	}
 
-	if key := s.byName[name]; key != nil {
+	if key := s.keyByName(name); key != nil {
 		if s.f.options.AllowShadows {
 			if err := key.addShadow(val); err != nil {
 				return nil, err
@@ -137,9 +170,8 @@ func (s *Section) addKey(name, val string) (*Key, error) {
 		return key, nil
 	}
 
-	key := newKey(s, name, val)
-	s.keys = append(s.keys, key)
-	s.byName[name] = key
+	key := s.f.newKey(s, name, val)
+	s.appendKey(key)
 	return key, nil
 }
 
@@ -173,7 +205,7 @@ func (s *Section) GetKey(name string) (*Key, error) {
 	if s.f.options.Insensitive || s.f.options.InsensitiveKeys {
 		name = strings.ToLower(name)
 	}
-	key := s.current().byName[name]
+	key := s.current().keyByName(name)
 	if s.f.locking {
 		s.f.mu.RUnlock()
 	}
@@ -304,7 +336,7 @@ func (s *Section) DeleteKey(name string) {
 	}
 
 	s = s.current()
-	if key := s.byName[name]; key != nil {
+	if key := s.keyByName(name); key != nil {
 		delete(s.byName, name)
 		s.keys = slices.DeleteFunc(s.keys, func(k *Key) bool { return k == key })
 	}
