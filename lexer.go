@@ -3,7 +3,6 @@ package ini
 import (
 	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"unicode"
@@ -59,10 +58,10 @@ func (l *lexer) next() (token, error) {
 		column := func(s string) int { return utf8.RuneCountInString(raw[:len(raw)-len(s)]) + 1 }
 		if l.opts.AllowNestedValues && l.lastValueEmpty && raw != "" && (raw[0] == ' ' || raw[0] == '\t') {
 			value := strings.TrimSpace(raw)
-			return token{kind: tokNestedValue, value: value, line: lineNum, column: column(strings.TrimLeftFunc(raw, unicode.IsSpace))}, nil
+			return token{kind: tokNestedValue, value: value, line: lineNum, column: column(trimLeftSpace(raw))}, nil
 		}
 
-		line := strings.TrimLeftFunc(raw, unicode.IsSpace)
+		line := trimLeftSpace(raw)
 		var tok token
 		var err error
 		switch {
@@ -83,7 +82,7 @@ func (l *lexer) next() (token, error) {
 			continue
 		default:
 			var ok bool
-			if tok, ok, err = l.key(line); !ok && err == nil {
+			if ok, err = l.key(line, &tok); !ok && err == nil {
 				continue
 			}
 		}
@@ -121,13 +120,77 @@ func (l *lexer) unread(line string) {
 }
 
 func (l *lexer) startsWithCommentSymbol(line string) bool {
-	return startsWithAny(line, l.opts.CommentSymbols)
+	return l.opts.commentSet.hasPrefix(line)
 }
 
 // startsWithAny reports whether the first character of s is one of chars.
 func startsWithAny(s, chars string) bool {
 	r, _ := utf8.DecodeRuneInString(s)
 	return r != utf8.RuneError && strings.ContainsRune(chars, r)
+}
+
+// charSet is a set of characters, such as the comment symbols, that finds
+// them in a string faster than strings.IndexAny. The parser looks for them
+// on every line.
+type charSet struct {
+	chars string
+	ascii bool      // chars are all ASCII
+	bits  [4]uint64 // the ASCII characters of chars
+}
+
+func newCharSet(chars string) charSet {
+	c := charSet{chars: chars, ascii: true}
+	for i := 0; i < len(chars); i++ {
+		if b := chars[i]; b < utf8.RuneSelf {
+			c.bits[b>>6] |= 1 << (b & 63)
+		} else {
+			c.ascii = false
+		}
+	}
+	return c
+}
+
+// has reports whether b is an ASCII character in c.
+func (c *charSet) has(b byte) bool {
+	return c.bits[b>>6]&(1<<(b&63)) != 0
+}
+
+// index is strings.IndexAny(s, c.chars).
+func (c *charSet) index(s string) int {
+	if !c.ascii {
+		return strings.IndexAny(s, c.chars)
+	}
+	for i := 0; i < len(s); i++ {
+		if c.has(s[i]) {
+			return i
+		}
+	}
+	return -1
+}
+
+// hasPrefix is startsWithAny(s, c.chars).
+func (c *charSet) hasPrefix(s string) bool {
+	if s != "" && s[0] < utf8.RuneSelf {
+		return c.has(s[0])
+	}
+	return !c.ascii && startsWithAny(s, c.chars)
+}
+
+// asciiSpace marks the ASCII characters unicode.IsSpace reports.
+var asciiSpace = [utf8.RuneSelf]bool{'\t': true, '\n': true, '\v': true, '\f': true, '\r': true, ' ': true}
+
+// trimLeftSpace is strings.TrimLeftFunc(s, unicode.IsSpace), faster for
+// ASCII.
+func trimLeftSpace(s string) string {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return strings.TrimLeftFunc(s[i:], unicode.IsSpace)
+		}
+		if !asciiSpace[s[i]] {
+			return s[i:]
+		}
+	}
+	return ""
 }
 
 func (l *lexer) takeComment() string {
@@ -149,7 +212,7 @@ func (l *lexer) section(line string) (token, error) {
 		return token{}, fmt.Errorf("unclosed section: %s", line)
 	}
 	name := line[1:closeIdx]
-	if i := strings.IndexAny(line[closeIdx+1:], l.opts.CommentSymbols); i > -1 {
+	if i := l.opts.commentSet.index(line[closeIdx+1:]); i > -1 {
 		l.comment = append(l.comment, line[closeIdx+1+i:])
 	}
 
@@ -165,30 +228,33 @@ func (l *lexer) section(line string) (token, error) {
 }
 
 // key reads a "name = value" line, or a boolean key when the line has no
-// delimiter. ok is false for a line that SkipUnrecognizableLines skips.
-func (l *lexer) key(line string) (_ token, ok bool, _ error) {
-	name, offset, err := readKeyName(l.opts.KeyValueDelimiters, line)
+// delimiter, into tok. ok is false for a line that SkipUnrecognizableLines
+// skips.
+func (l *lexer) key(line string, tok *token) (ok bool, _ error) {
+	name, offset, err := readKeyName(&l.opts.delimiterSet, line)
 	switch {
 	case err == nil:
 		value, err := l.readValue(line[offset:])
 		if err != nil {
-			return token{}, false, err
+			return false, err
 		}
 		l.lastValueEmpty = value == ""
-		return token{kind: tokKey, name: name, value: value, comment: l.takeComment()}, true, nil
+		tok.kind, tok.name, tok.value, tok.comment = tokKey, name, value, l.takeComment()
+		return true, nil
 
 	case errors.Is(err, ErrDelimiterNotFound) && l.opts.AllowBooleanKeys:
 		// The whole line is the key name, read like a value.
 		name, err := l.readValue(line)
 		if err != nil {
-			return token{}, false, err
+			return false, err
 		}
-		return token{kind: tokBooleanKey, name: name, comment: l.takeComment()}, true, nil
+		tok.kind, tok.name, tok.comment = tokBooleanKey, name, l.takeComment()
+		return true, nil
 
 	case (errors.Is(err, ErrDelimiterNotFound) || errors.Is(err, ErrEmptyKeyName)) && l.opts.SkipUnrecognizableLines:
-		return token{}, false, nil
+		return false, nil
 	}
-	return token{}, false, err
+	return false, err
 }
 
 // readValue reads a value that starts in "in", the rest of the current line,
@@ -198,7 +264,7 @@ func (l *lexer) key(line string) (_ token, ok bool, _ error) {
 // before surrounding quotes are stripped, so `"a;b" ;c` is `a;b` with comment
 // `;c`, but `"a;b" x` is `"a` with comment `;b" x`.
 func (l *lexer) readValue(in string) (string, error) {
-	line := strings.TrimLeftFunc(in, unicode.IsSpace)
+	line := trimLeftSpace(in)
 	if line == "" {
 		if l.opts.AllowPythonMultilineValues && strings.HasSuffix(in, "\n") {
 			return l.readPythonMultilines(""), nil
@@ -278,7 +344,7 @@ func (l *lexer) readQuoted(line, q string) (string, error) {
 			b.WriteString(next)
 		default:
 			b.WriteString(next[:i])
-			if j := strings.IndexAny(next[i:], l.opts.CommentSymbols); j > -1 {
+			if j := l.opts.commentSet.index(next[i:]); j > -1 {
 				l.comment = append(l.comment, strings.TrimSpace(next[i+j:]))
 			}
 			return b.String(), nil
@@ -314,10 +380,10 @@ func (l *lexer) cutInlineComment(line string) string {
 // with SpaceBeforeInlineComment of the first one after a space, or -1.
 func (l *lexer) inlineCommentIndex(s string) int {
 	if !l.opts.SpaceBeforeInlineComment {
-		return strings.IndexAny(s, l.opts.CommentSymbols)
+		return l.opts.commentSet.index(s)
 	}
 	for i := 0; i < len(s); i++ {
-		if s[i] == ' ' && startsWithAny(s[i+1:], l.opts.CommentSymbols) {
+		if s[i] == ' ' && l.opts.commentSet.hasPrefix(s[i+1:]) {
 			return i
 		}
 	}
@@ -389,14 +455,10 @@ func skipBOM(src string) string {
 	}
 }
 
-// parse reads all of reader and adds its sections and keys to f. The caller
-// holds the lock, or f isn't shared yet.
-func (f *File) parse(reader io.Reader) error {
-	var b strings.Builder
-	if _, err := io.Copy(&b, reader); err != nil {
-		return err
-	}
-	l := &lexer{src: skipBOM(b.String()), opts: &f.options}
+// parse adds the sections and keys of src to f. The caller holds the lock,
+// or f isn't shared yet.
+func (f *File) parse(src string) error {
+	l := &lexer{src: skipBOM(src), opts: &f.options}
 
 	// Ignore error because default section name is never empty string.
 	section, _ := f.addSection(f.options.DefaultSection)
@@ -466,7 +528,7 @@ func (f *File) parse(reader io.Reader) error {
 
 // readKeyName returns the key name at the start of line and the offset of
 // the value after its delimiter.
-func readKeyName(delimiters string, line string) (string, int, error) {
+func readKeyName(delimiters *charSet, line string) (string, int, error) {
 	// Check if key name surrounded by quotes.
 	var keyQuote string
 	switch line[0] {
@@ -493,7 +555,7 @@ func readKeyName(delimiters string, line string) (string, int, error) {
 		pos += startIdx
 
 		// Find key-value delimiter
-		i := strings.IndexAny(line[pos+startIdx:], delimiters)
+		i := delimiters.index(line[pos+startIdx:])
 		if i < 0 {
 			return "", -1, fmt.Errorf("%w: %s", ErrDelimiterNotFound, line)
 		}
@@ -501,7 +563,7 @@ func readKeyName(delimiters string, line string) (string, int, error) {
 		return strings.TrimSpace(line[startIdx:pos]), endIdx + startIdx + 1, nil
 	}
 
-	endIdx = strings.IndexAny(line, delimiters)
+	endIdx = delimiters.index(line)
 	if endIdx < 0 {
 		return "", -1, fmt.Errorf("%w: %s", ErrDelimiterNotFound, line)
 	}

@@ -41,6 +41,10 @@ type loadOptions struct {
 	Locking                     bool
 	NameMapper                  NameMapper
 	ValueMapper                 ValueMapper
+
+	// commentSet and delimiterSet hold CommentSymbols and
+	// KeyValueDelimiters for the parser.
+	commentSet, delimiterSet charSet
 }
 
 func newLoadOptions(opts []LoadOption) loadOptions {
@@ -54,6 +58,7 @@ func newLoadOptions(opts []LoadOption) loadOptions {
 	for _, opt := range opts {
 		opt(&o)
 	}
+	o.commentSet, o.delimiterSet = newCharSet(o.CommentSymbols), newCharSet(o.KeyValueDelimiters)
 	return o
 }
 

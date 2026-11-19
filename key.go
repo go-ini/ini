@@ -46,9 +46,15 @@ func newKey(s *Section, name, val string) *Key {
 // holds the lock.
 func (k *Key) current() *Key {
 	if k.missing {
-		if key := k.s.current().byName[k.name]; key != nil {
-			return key
-		}
+		return k.currentMissing()
+	}
+	return k
+}
+
+// currentMissing is current for a missing k. It's apart so current inlines.
+func (k *Key) currentMissing() *Key {
+	if key := k.s.current().keyByName(k.name); key != nil {
+		return key
 	}
 	return k
 }
@@ -62,8 +68,7 @@ func (k *Key) attach() *Key {
 	if c == k && k.missing {
 		k.missing = false
 		sec := k.s.attach()
-		sec.keys = append(sec.keys, k)
-		sec.byName[k.name] = k
+		sec.appendKey(k)
 	}
 	return c
 }

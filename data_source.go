@@ -1,10 +1,10 @@
 package ini
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
+	"unsafe"
 )
 
 var (
@@ -13,9 +13,16 @@ var (
 	_ dataSource = (*sourceReadCloser)(nil)
 )
 
-// dataSource is an interface that returns object which can be read and closed.
+// dataSource is a source of INI input.
 type dataSource interface {
-	ReadCloser() (io.ReadCloser, error)
+	// read returns the whole input.
+	read() (string, error)
+}
+
+// ownedString returns b as a string without copying. Nothing may change b
+// afterwards.
+func ownedString(b []byte) string {
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 // sourceFile represents an object that contains content on the local file system.
@@ -23,8 +30,12 @@ type sourceFile struct {
 	name string
 }
 
-func (s sourceFile) ReadCloser() (_ io.ReadCloser, err error) {
-	return os.Open(s.name)
+func (s sourceFile) read() (string, error) {
+	data, err := os.ReadFile(s.name)
+	if err != nil {
+		return "", err
+	}
+	return ownedString(data), nil
 }
 
 // sourceData represents an object that contains content in memory.
@@ -32,30 +43,29 @@ type sourceData struct {
 	data []byte
 }
 
-func (s *sourceData) ReadCloser() (io.ReadCloser, error) {
-	return io.NopCloser(bytes.NewReader(s.data)), nil
+func (s *sourceData) read() (string, error) {
+	// Copy, as the caller may change the slice later.
+	return string(s.data), nil
 }
 
 // sourceReadCloser represents an input stream with Close method. A stream
 // can be read only once, so its data is kept for reloading.
 type sourceReadCloser struct {
 	reader io.ReadCloser
-	data   []byte
+	data   string
 	err    error
 }
 
-func (s *sourceReadCloser) ReadCloser() (io.ReadCloser, error) {
+func (s *sourceReadCloser) read() (string, error) {
 	if s.reader != nil {
-		s.data, s.err = io.ReadAll(s.reader)
+		data, err := io.ReadAll(s.reader)
+		s.data, s.err = ownedString(data), err
 		if err := s.reader.Close(); s.err == nil {
 			s.err = err
 		}
 		s.reader = nil
 	}
-	if s.err != nil {
-		return nil, s.err
-	}
-	return io.NopCloser(bytes.NewReader(s.data)), nil
+	return s.data, s.err
 }
 
 func newDataSource(source any) (dataSource, error) {

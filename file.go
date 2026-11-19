@@ -26,6 +26,24 @@ type File struct {
 	// them, in the same order, by name.
 	sections []*Section
 	byName   map[string][]*Section
+
+	// keySlab holds the unused keys of the last chunk newKey allocated, so
+	// a file with many keys doesn't allocate each one. keyChunk is the size
+	// of that chunk.
+	keySlab  []Key
+	keyChunk int
+}
+
+// newKey returns a new key of section s, which belongs to f.
+func (f *File) newKey(s *Section, name, val string) *Key {
+	if len(f.keySlab) == 0 {
+		f.keyChunk = min(max(2*f.keyChunk, 8), 128)
+		f.keySlab = make([]Key, f.keyChunk)
+	}
+	k := &f.keySlab[0]
+	f.keySlab = f.keySlab[1:]
+	k.s, k.name, k.value = s, name, val
+	return k
 }
 
 // newFile initializes File object with given data sources.
@@ -387,13 +405,11 @@ func (f *File) DeleteSectionWithIndex(name string, index int) error {
 
 // loadSource parses one data source into f.
 func (f *File) loadSource(s dataSource) error {
-	r, err := s.ReadCloser()
+	src, err := s.read()
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	return f.parse(r)
+	return f.parse(src)
 }
 
 // Reload reads all data sources again and replaces the contents of the file
@@ -424,11 +440,14 @@ func (f *File) Reload() error {
 			// the lock.
 			o := old[i]
 			for j, k := range sec.keys {
-				if ok := o.byName[k.name]; ok != nil {
+				if ok := o.keyByName(k.name); ok != nil {
 					ok.comment, ok.value, ok.shadows = k.comment, k.value, k.shadows
 					ok.isAutoIncrement, ok.isBooleanType = k.isAutoIncrement, k.isBooleanType
 					ok.nestedValues = k.nestedValues
-					sec.keys[j], sec.byName[k.name] = ok, ok
+					sec.keys[j] = ok
+					if sec.byName != nil {
+						sec.byName[k.name] = ok
+					}
 				} else {
 					k.s = o
 				}
@@ -455,7 +474,7 @@ func (f *File) load(sources []dataSource) error {
 		if err := f.loadSource(s); err != nil {
 			// In loose mode, we create an empty default section for nonexistent files.
 			if os.IsNotExist(err) && f.options.Loose {
-				_ = f.parse(bytes.NewBuffer(nil))
+				_ = f.parse("")
 				continue
 			}
 			return err
