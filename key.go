@@ -212,7 +212,8 @@ type expansion struct {
 }
 
 // expand applies the ValueMapper and replaces %(name)s references in val
-// with the expanded values of those keys. References nest at most
+// with the expanded values of those keys. A name is a key of k's section
+// or of the default section, or else section.key, split at the last dot. References nest at most
 // depthValues deep, and one expansion makes at most maxSubstitutions
 // substitutions producing at most maxExpandedLen bytes in total, so
 // reference cycles and values that double at every level stop instead of
@@ -235,14 +236,23 @@ func (k *Key) expand(val string, depth int, e *expansion) string {
 		// Take off leading '%(' and trailing ')s'.
 		noption := vr[2 : len(vr)-2]
 
-		// Search in the same section.
-		// If not found or found the key itself, then search again in default section.
+		// Search in the same section, then in the default section, then,
+		// for a name with a dot, for the key after the last dot in the
+		// section before it, so key names with dots keep working.
 		nk, err := k.s.GetKey(noption)
 		if err != nil || k == nk {
 			nk, _ = k.s.f.Section("").GetKey(noption)
+		}
+		if nk == nil || nk == k {
+			nk = nil
+			if i := strings.LastIndex(noption, "."); i > 0 {
+				if sec, err := k.s.f.GetSection(noption[:i]); err == nil {
+					nk, _ = sec.GetKey(noption[i+1:])
+				}
+			}
 			if nk == nil || nk == k {
-				// Stop, and return the value as it is, when the default
-				// section has no such key or only this key.
+				// Stop, and return the value as it is, when no key or
+				// only this key has the name.
 				break
 			}
 		}

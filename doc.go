@@ -29,7 +29,7 @@
 // [Key.Duration]. The generic [List], [In] and [Range] parse lists and
 // candidates of any [Scalar] type, and ranges of any [Ordered] one. A value
 // can refer to another key of its section or of the default section as
-// %(name)s.
+// %(name)s, or to a key of another section as %(section.key)s.
 //
 // # Structs
 //
