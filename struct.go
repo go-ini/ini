@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -291,9 +292,8 @@ func tooDeep(path []reflect.Type, t reflect.Type) bool {
 
 // decodeSlice sets proper values to slice based on its type.
 func decodeSlice(key *Key, field reflect.Value, delim string, allowShadow, isStrict bool) error {
-	elemType := field.Type().Elem()
-	if !isSliceElemType(elemType) {
-		return fmt.Errorf("unsupported type '[]%s'", elemType)
+	if !isSliceElemType(field.Type().Elem()) {
+		return fmt.Errorf("unsupported type '[]%s'", field.Type().Elem())
 	}
 
 	var strs []string
@@ -314,7 +314,16 @@ func decodeSlice(key *Key, field reflect.Value, delim string, allowShadow, isStr
 	} else {
 		strs = key.Strings(delim)
 	}
+	return decodeElems(field, strs, isStrict)
+}
 
+// decodeElems sets the slice field to the elements parsed from strs, or
+// leaves it as it is when strs is empty.
+func decodeElems(field reflect.Value, strs []string, isStrict bool) error {
+	elemType := field.Type().Elem()
+	if !isSliceElemType(elemType) {
+		return fmt.Errorf("unsupported type '[]%s'", elemType)
+	}
 	numVals := len(strs)
 	if numVals == 0 {
 		return nil
@@ -384,16 +393,58 @@ func decodeValue(t reflect.Type, key *Key, field reflect.Value, delim string, al
 	return nil
 }
 
-func parseTagOptions(tag string) (rawName string, omitEmpty bool, allowShadow bool, allowNonUnique bool, extends bool) {
-	opts := strings.SplitN(tag, ",", 5)
+func parseTagOptions(tag string) (rawName string, omitEmpty, allowShadow, allowNonUnique, extends, autoIncrement bool) {
+	opts := strings.Split(tag, ",")
 	rawName = opts[0]
 	for _, opt := range opts[1:] {
 		omitEmpty = omitEmpty || (opt == "omitempty")
 		allowShadow = allowShadow || (opt == "allowshadow")
 		allowNonUnique = allowNonUnique || (opt == "nonunique")
 		extends = extends || (opt == "extends")
+		autoIncrement = autoIncrement || (opt == "autoincrement")
 	}
-	return rawName, omitEmpty, allowShadow, allowNonUnique, extends
+	return rawName, omitEmpty, allowShadow, allowNonUnique, extends, autoIncrement
+}
+
+// autoIncrementKeys returns the auto-increment keys of s, read from
+// "- = value" lines, in order.
+func (s *Section) autoIncrementKeys() []*Key {
+	s.f.maybeRLock()
+	defer s.f.maybeRUnlock()
+	var keys []*Key
+	for _, k := range s.current().keys {
+		if k.isAutoIncrement {
+			keys = append(keys, k)
+		}
+	}
+	return keys
+}
+
+// setAutoIncrementValues replaces the auto-increment keys of s with one
+// for each of vals, added after its other keys.
+func (s *Section) setAutoIncrementValues(vals []string) {
+	s.f.maybeLock()
+	defer s.f.maybeUnlock()
+	s = s.attach()
+	s.keys = slices.DeleteFunc(s.keys, func(k *Key) bool {
+		if k.isAutoIncrement {
+			delete(s.byName, k.name)
+		}
+		return k.isAutoIncrement
+	})
+	n := 1
+	for _, v := range vals {
+		name := "#" + strconv.Itoa(n)
+		for s.byName[name] != nil {
+			n++
+			name = "#" + strconv.Itoa(n)
+		}
+		n++
+		k := newKey(s, name, v)
+		k.isAutoIncrement = true
+		s.keys = append(s.keys, k)
+		s.byName[name] = k
+	}
 }
 
 // decodeStruct maps the given value to the matching field of the given section.
@@ -415,7 +466,7 @@ func (s *Section) decodeStruct(val reflect.Value, isStrict bool, sectionIndex in
 			continue
 		}
 
-		rawName, _, allowShadow, allowNonUnique, extends := parseTagOptions(tag)
+		rawName, _, allowShadow, allowNonUnique, extends, autoIncrement := parseTagOptions(tag)
 		fieldName := s.parseFieldName(tpField.Name, rawName)
 		if len(fieldName) == 0 || !field.CanSet() {
 			continue
@@ -475,6 +526,21 @@ func (s *Section) decodeStruct(val reflect.Value, isStrict bool, sectionIndex in
 			}
 
 			field.Set(newField)
+			continue
+		}
+
+		if autoIncrement {
+			if tpField.Type.Kind() != reflect.Slice || isCustomType(tpField.Type) {
+				return fmt.Errorf("autoincrement field %q is not a slice", fieldName)
+			}
+			keys := s.autoIncrementKeys()
+			strs := make([]string, len(keys))
+			for i, k := range keys {
+				strs[i] = k.String()
+			}
+			if err := decodeElems(field, strs, isStrict); err != nil {
+				return fmt.Errorf("set field %q: %v", fieldName, err)
+			}
 			continue
 		}
 
@@ -557,6 +623,9 @@ func (s *Section) mapTo(v any, isStrict bool) error {
 }
 
 // MapTo maps section to given struct.
+//
+// A slice field tagged ini:",autoincrement" gets the values of the
+// section's auto-increment keys, the "- = value" lines, in order.
 func (s *Section) MapTo(v any) error {
 	return s.mapTo(v, false)
 }
@@ -744,7 +813,7 @@ func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 			continue
 		}
 
-		rawName, omitEmpty, allowShadow, allowNonUnique, extends := parseTagOptions(tag)
+		rawName, omitEmpty, allowShadow, allowNonUnique, extends, autoIncrement := parseTagOptions(tag)
 		if omitEmpty && isEmptyValue(field) {
 			continue
 		}
@@ -839,6 +908,24 @@ func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 			continue
 		}
 
+		if autoIncrement {
+			if tpField.Type.Kind() != reflect.Slice || isCustomType(tpField.Type) {
+				return fmt.Errorf("autoincrement field %q is not a slice", fieldName)
+			}
+			if !isSliceElemType(tpField.Type.Elem()) {
+				return fmt.Errorf("reflect field %q: unsupported type '[]%s'", fieldName, tpField.Type.Elem())
+			}
+			vals := make([]string, field.Len())
+			for i := range vals {
+				var err error
+				if vals[i], err = formatValue(field.Index(i)); err != nil {
+					return fmt.Errorf("reflect field %q: %v", fieldName, err)
+				}
+			}
+			s.setAutoIncrementValues(vals)
+			continue
+		}
+
 		// Note: Same reason as section.
 		key, err := s.GetKey(fieldName)
 		if err != nil {
@@ -858,6 +945,9 @@ func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 }
 
 // ReflectFrom reflects section from given struct. It overwrites existing ones.
+//
+// A slice field tagged ini:",autoincrement" replaces the section's
+// auto-increment keys with one "- = value" line for each element.
 func (s *Section) ReflectFrom(v any) error {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
