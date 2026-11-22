@@ -3,6 +3,7 @@ package ini
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -96,7 +97,7 @@ func TestKey_Helpers(t *testing.T) {
 			assert.Equal(t, "gopkg.in/ini.v1", sec.Key("IMPORT_PATH").String())
 
 			t.Run("with ValueMapper", func(t *testing.T) {
-				f, err := Load(fullConf, ValueMapping(func(in string) string {
+				f, err := Load(fullConf, ValueMapping(func(_ *Key, in string) string {
 					if in == "gopkg.in/%(NAME)s.%(VERSION)s" {
 						return "github.com/go-ini/ini"
 					}
@@ -466,7 +467,7 @@ bar = %(missing)s
 		f, err := Load([]byte(`
 ACCOUNT_ID = ${LFSD_R2_ACCOUNT_ID}
 ENDPOINT = https://%(ACCOUNT_ID)s.r2.cloudflarestorage.com
-`), ValueMapping(func(in string) string {
+`), ValueMapping(func(_ *Key, in string) string {
 			if in == "${LFSD_R2_ACCOUNT_ID}" {
 				return "abc123"
 			}
@@ -476,5 +477,27 @@ ENDPOINT = https://%(ACCOUNT_ID)s.r2.cloudflarestorage.com
 		require.NotNil(t, f)
 
 		assert.Equal(t, "https://abc123.r2.cloudflarestorage.com", f.Section("").Key("ENDPOINT").String())
+	})
+
+	t.Run("ValueMapper gets the key whose value it maps", func(t *testing.T) {
+		ref := regexp.MustCompile(`\$\{(\w+)\.(\w+)\}`)
+		f, err := Load([]byte(`
+[db]
+HOST = localhost
+[app]
+DSN = postgres://${db.HOST}/${self}
+REF = %(DSN)s
+`), ValueMapping(func(k *Key, in string) string {
+			in = strings.ReplaceAll(in, "${self}", k.Section().Name()+"."+k.Name())
+			return ref.ReplaceAllStringFunc(in, func(m string) string {
+				sub := ref.FindStringSubmatch(m)
+				return k.Section().File().Section(sub[1]).Key(sub[2]).String()
+			})
+		}))
+		require.NoError(t, err)
+
+		assert.Equal(t, "postgres://localhost/app.DSN", f.Section("app").Key("DSN").String())
+		// The referenced value is mapped with its own key, not the referencing one.
+		assert.Equal(t, "postgres://localhost/app.DSN", f.Section("app").Key("REF").String())
 	})
 }

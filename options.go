@@ -73,8 +73,8 @@ func NameMapping(mapper NameMapper) LoadOption {
 	return func(o *loadOptions) { o.NameMapper = mapper }
 }
 
-// ValueMapping sets the ValueMapper applied to raw values, such as
-// os.ExpandEnv, by Key.String and the accessors built on it.
+// ValueMapping sets the ValueMapper applied to raw values by Key.String and
+// the accessors built on it.
 func ValueMapping(mapper ValueMapper) LoadOption {
 	return func(o *loadOptions) { o.ValueMapper = mapper }
 }
