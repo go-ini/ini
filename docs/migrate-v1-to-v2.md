@@ -140,6 +140,8 @@ The package variables that changed every file's output are now options of `File.
 
 `WriteTo` stays, so `*File` is still an `io.WriterTo`.
 
+New: `Marshal(&v)` and `Unmarshal(data, &v)` convert between a struct and INI text in one call, as `encoding/json` does.
+
 ### Sections and keys
 
 | v1 | v2 |

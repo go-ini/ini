@@ -1833,3 +1833,25 @@ func (*testUnmarshalOnlyList) UnmarshalINI([]byte) error { panic("called") }
 func (testMarshalOnlyStruct) MarshalINI() ([]byte, error) { panic("called") }
 
 func (testMarshalOnlyMap) MarshalINI() ([]byte, error) { panic("called") }
+
+func TestMarshalUnmarshal(t *testing.T) {
+	type config struct {
+		AppName string
+		Server  struct{ ListenPort int }
+	}
+	var in config
+	in.AppName = "demo"
+	in.Server.ListenPort = 8080
+
+	// Options reach both directions.
+	data, err := Marshal(&in, NameMapping(SnakeCase))
+	require.NoError(t, err)
+	assert.Equal(t, "APP_NAME = demo\n\n[SERVER]\nLISTEN_PORT = 8080\n", string(data))
+
+	var out config
+	require.NoError(t, Unmarshal(data, &out, NameMapping(SnakeCase)))
+	assert.Equal(t, in, out)
+
+	_, err = Marshal(in)
+	assert.Error(t, err)
+}
