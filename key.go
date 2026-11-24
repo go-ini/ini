@@ -645,7 +645,9 @@ func In[T Scalar](k *Key, defaultVal T, candidates []T) T {
 // inclusive, and defaultVal otherwise. Untyped constants make T int, so give
 // another type explicitly: Range(k, 0.5, 0, 1) or Range(k, uint8(0), 0, 9).
 func Range[T Ordered](k *Key, defaultVal, lo, hi T) T {
-	if v, err := parse[T](k.String()); err == nil && !less(v, lo) && !less(hi, v) {
+	// Require each inclusive bound: a NaN value or bound is unordered.
+	if v, err := parse[T](k.String()); err == nil &&
+		(less(lo, v) || equal(lo, v)) && (less(v, hi) || equal(v, hi)) {
 		return v
 	}
 	return defaultVal
