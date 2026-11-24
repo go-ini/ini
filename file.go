@@ -516,6 +516,9 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 	defer f.maybeRUnlock()
 	o := newWriteOptions(opts)
 	indent, lineBreak := o.indent, o.lineBreak
+	if !strings.Contains(lineBreak, "\n") {
+		return nil, fmt.Errorf("cannot write with line break %q: it must contain LF", lineBreak)
+	}
 	equalSign := o.formatLeft + o.keyValueDelimiter + o.formatRight
 	if o.alignDelimiters {
 		equalSign = fmt.Sprintf(" %s ", o.keyValueDelimiter)
