@@ -261,6 +261,7 @@ func Indent(indent string) WriteOption { return func(o *writeOptions) { o.indent
 
 // LineBreak sets the line break to write. The default is "\r\n" on Windows
 // and "\n" elsewhere.
+// Write and SaveTo return an error if lineBreak does not contain "\n".
 func LineBreak(lineBreak string) WriteOption {
 	return func(o *writeOptions) { o.lineBreak = lineBreak }
 }
