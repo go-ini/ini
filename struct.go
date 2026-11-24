@@ -601,6 +601,13 @@ func StrictMapTo(v, source any, opts ...LoadOption) error {
 // encodeSlice does the opposite thing as decodeSlice.
 func encodeSlice(key *Key, field reflect.Value, delim string, allowShadow bool) error {
 	if field.Len() == 0 {
+		key.s.f.maybeLock()
+		defer key.s.f.maybeUnlock()
+		key = key.attach()
+		key.value = ""
+		if allowShadow {
+			key.shadows = nil
+		}
 		return nil
 	}
 	elemType := field.Type().Elem()
