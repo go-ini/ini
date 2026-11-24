@@ -298,7 +298,7 @@ func (k *Key) Float64() (float64, error) {
 
 // Int returns int type value.
 func (k *Key) Int() (int, error) {
-	v, err := strconv.ParseInt(k.String(), 0, 64)
+	v, err := strconv.ParseInt(k.String(), 0, strconv.IntSize)
 	return int(v), err
 }
 
@@ -309,7 +309,7 @@ func (k *Key) Int64() (int64, error) {
 
 // Uint returns uint type valued.
 func (k *Key) Uint() (uint, error) {
-	u, e := strconv.ParseUint(k.String(), 0, 64)
+	u, e := strconv.ParseUint(k.String(), 0, strconv.IntSize)
 	return uint(u), e
 }
 
