@@ -749,6 +749,11 @@ func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 			continue
 		}
 
+		// A nil pointer has nothing to write, including a StructReflector.
+		if field.Kind() == reflect.Pointer && field.IsNil() {
+			continue
+		}
+
 		if r, ok := field.Interface().(StructReflector); ok {
 			if err := r.ReflectINIStruct(s.f); err != nil {
 				return err
@@ -758,11 +763,6 @@ func (s *Section) encodeStruct(val reflect.Value, path []reflect.Type) error {
 
 		fieldName := s.parseFieldName(tpField.Name, rawName)
 		if len(fieldName) == 0 || !field.CanSet() {
-			continue
-		}
-
-		// A nil pointer has nothing to write.
-		if field.Kind() == reflect.Pointer && field.IsNil() {
 			continue
 		}
 
