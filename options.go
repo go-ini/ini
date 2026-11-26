@@ -135,7 +135,8 @@ func AllowPythonMultilineValues(v bool) LoadOption {
 }
 
 // AllowHeredocMultilineValues continues a value on the following lines that
-// start with a heredoc string.
+// start with a heredoc string (like <<EOT ... EOT).
+// Accepted characters for the delimiter: A-Za-z0-9!#$%&()*+,-./:;=?@[]^_{|}~\
 func AllowHeredocMultilineValues(v bool) LoadOption {
 	return func(o *loadOptions) { o.AllowHeredocMultilineValues = v }
 }

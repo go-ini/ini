@@ -1575,6 +1575,7 @@ type testHeredocData struct {
 	Value3 string `ini:"value3"`
 	Value4 string `ini:"value4"`
 	Value5 string `ini:"value5"`
+	Value6 string `ini:"value6"`
 }
 
 func TestHeredocMultiline(t *testing.T) {
@@ -1598,6 +1599,7 @@ func TestHeredocMultiline(t *testing.T) {
 	assert.Equal(t, "line 1\n\tline 2\nline 3\n", testData.Value2)
 	assert.Equal(t, "regular value", testData.Value3)
 	assert.Equal(t, "line 1\n\n", testData.Value4)
+	assert.Equal(t, "line\n'\n", testData.Value6)
 	// multiline heredoc should store text as is, no transformation
 	assert.Equal(t, "\t%(value3)\n\\\n\t'\"\\\"\\'\\\\\\\n EOF\n", testData.Value5)
 	t.Run("write out", func(t *testing.T) {
@@ -1622,6 +1624,10 @@ value5 = <<EOF
 	'"\"\'\\\
  EOF
 EOF
+value6 = <<\|$
+line
+'
+\|$
 `,
 			buf.String(),
 		)
