@@ -709,7 +709,7 @@ func TestFile_WriteTo(t *testing.T) {
 
 		golden := "testdata/TestFile_WriteTo.golden"
 		if *update {
-			require.NoError(t, os.WriteFile(golden, buf.Bytes(), 0644))
+			require.NoError(t, os.WriteFile(golden, buf.Bytes(), 0o644))
 		}
 
 		expected, err := os.ReadFile(golden)
@@ -742,7 +742,6 @@ domain = mydomain.com
 ; Comment
 test   = 
 `, buf.String())
-
 	})
 
 	t.Run("keep leading and trailing spaces in value", func(t *testing.T) {
@@ -788,7 +787,7 @@ Note = Hello world!`))
 	require.NotNil(t, f)
 
 	var actual bytes.Buffer
-	var expected = []byte(`[Others]
+	expected := []byte(`[Others]
 Cities      -> HangZhou|Boston
 Visits      -> 1993-10-07T20:17:05Z, 1993-10-07T20:17:05Z
 Years       -> 1993,1994
@@ -1114,13 +1113,14 @@ func TestWriteReadsBack(t *testing.T) {
 		{"k =\n  n\nk\n", []LoadOption{AllowNestedValues(true), AllowBooleanKeys(true)}},
 		{"k = \"\"\n  n\n", []LoadOption{AllowNestedValues(true), AllowPythonMultilineValues(true)}},
 		{"NAME = x\n[DEFAULT]\nk1 = v1\n", []LoadOption{CaseInsensitive(true), AllowNonUniqueSections(true)}},
-		{"[DEFAULT] ; c\n[s]\nk = v\n", nil},                                      // comment of an empty default section
-		{"# BEGIN\n[p]\nk = v\n# END\n", nil},                                     // comment after the last key
-		{"# only a comment\n", nil},                                               // comment of an empty file
-		{"[raw]\nbody\n# c\n", []LoadOption{RawSections("raw")}},                  // comment after a raw body
-		{"[custom]\n", []LoadOption{RawSections("custom")}},                       // empty raw section
-		{"k = v\n[DEFAULT]\n", []LoadOption{RawSections("DEFAULT")}},              // empty raw header of a section with keys
-		{"k = a\n\n  b\nn = 1\n", []LoadOption{AllowPythonMultilineValues(true)}}, // empty line in a multiline value
+		{"[DEFAULT] ; c\n[s]\nk = v\n", nil},                                             // comment of an empty default section
+		{"# BEGIN\n[p]\nk = v\n# END\n", nil},                                            // comment after the last key
+		{"# only a comment\n", nil},                                                      // comment of an empty file
+		{"[raw]\nbody\n# c\n", []LoadOption{RawSections("raw")}},                         // comment after a raw body
+		{"[custom]\n", []LoadOption{RawSections("custom")}},                              // empty raw section
+		{"k = v\n[DEFAULT]\n", []LoadOption{RawSections("DEFAULT")}},                     // empty raw header of a section with keys
+		{"k = a\n\n  b\nn = 1\n", []LoadOption{AllowPythonMultilineValues(true)}},        // empty line in a multiline value
+		{"NAME = <<EOT\nblabla\nEOT\n", []LoadOption{AllowHeredocMultilineValues(true)}}, // multiline heredoc
 	} {
 		f, err := Load([]byte(tc.data), tc.opts...)
 		require.NoError(t, err)

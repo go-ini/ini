@@ -26,6 +26,7 @@ type loadOptions struct {
 	AllowShadows                bool
 	AllowNestedValues           bool
 	AllowPythonMultilineValues  bool
+	AllowHeredocMultilineValues bool
 	SpaceBeforeInlineComment    bool
 	UnescapeValueDoubleQuotes   bool
 	UnescapeValueCommentSymbols bool
@@ -131,6 +132,12 @@ func AllowNestedValues(v bool) LoadOption { return func(o *loadOptions) { o.Allo
 // Docs: https://docs.python.org/3/library/configparser.html#supported-ini-file-structure
 func AllowPythonMultilineValues(v bool) LoadOption {
 	return func(o *loadOptions) { o.AllowPythonMultilineValues = v }
+}
+
+// AllowHeredocMultilineValues continues a value on the following lines that
+// start with a heredoc string.
+func AllowHeredocMultilineValues(v bool) LoadOption {
+	return func(o *loadOptions) { o.AllowHeredocMultilineValues = v }
 }
 
 // SpaceBeforeInlineComment starts an inline comment only at a comment symbol
