@@ -1569,6 +1569,71 @@ func TestPythonMultiline_EOF(t *testing.T) {
 	assert.Equal(t, "some text here\n\tsome more text here 2", testData.Value1)
 }
 
+type testHeredocData struct {
+	Value1 string `ini:"value1"`
+	Value2 string `ini:"value2"`
+	Value3 string `ini:"value3"`
+	Value4 string `ini:"value4"`
+	Value5 string `ini:"value5"`
+	Value6 string `ini:"value6"`
+}
+
+func TestHeredocMultiline(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping testing on Windows")
+	}
+
+	path := filepath.Join("testdata", "multiline_heredoc.ini")
+	f, err := Load(path, AllowHeredocMultilineValues(true))
+	require.NoError(t, err)
+	require.NotNil(t, f)
+	assert.Len(t, f.Sections(), 1)
+
+	defaultSection := f.Section("")
+	assert.NotNil(t, f.Section(""))
+
+	var testData testHeredocData
+	err = defaultSection.MapTo(&testData)
+	require.NoError(t, err)
+	assert.Equal(t, "", testData.Value1)
+	assert.Equal(t, "line 1\n\tline 2\nline 3\n", testData.Value2)
+	assert.Equal(t, "regular value", testData.Value3)
+	assert.Equal(t, "line 1\n\n", testData.Value4)
+	assert.Equal(t, "line\n'\n", testData.Value6)
+	// multiline heredoc should store text as is, no transformation
+	assert.Equal(t, "\t%(value3)\n\\\n\t'\"\\\"\\'\\\\\\\n EOF\n", testData.Value5)
+	t.Run("write out", func(t *testing.T) {
+		var buf bytes.Buffer
+		_, err := f.WriteTo(&buf)
+		require.NoError(t, err)
+		assert.Equal(t, `value1 = <<EOT
+EOT
+value2 = <<ABC
+line 1
+	line 2
+line 3
+ABC
+value3 = regular value
+value4 = <<LONG_STRING_HEREDOC
+line 1
+
+LONG_STRING_HEREDOC
+value5 = <<EOF
+	%(value3)
+\
+	'"\"\'\\\
+ EOF
+EOF
+value6 = <<\|$
+line
+'
+\|$
+`,
+			buf.String(),
+		)
+	})
+}
+
 func Test_NestedValuesSpanningSections(t *testing.T) {
 	t.Run("basic nested value", func(t *testing.T) {
 		f, err := Load([]byte(`

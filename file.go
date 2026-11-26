@@ -570,6 +570,10 @@ func (f *File) writeToBuffer(opts []WriteOption) (*bytes.Buffer, error) {
 			if !f.options.AllowBooleanKeys {
 				return line, nil
 			}
+		case f.options.AllowHeredocMultilineValues && key.heredoc != "":
+			// keeps the original heredoc delimiter
+			delim := key.heredoc
+			line = form + eq + "<<" + delim + lineBreak + val + delim + lineBreak
 		case strings.Contains(val, "\n") || (val != "" && val[0] == '`'):
 			line = form + eq + `"""` + val + `"""` + lineBreak
 		case !f.options.IgnoreInlineComment && strings.ContainsAny(val, symbols):

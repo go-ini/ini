@@ -23,6 +23,9 @@ type Key struct {
 	shadows         []string
 	isAutoIncrement bool
 	isBooleanType   bool
+	// heredoc is the multiline <<DELIMITER the value was read with, kept to
+	// write it back with the same one.
+	heredoc string
 	// missing is set on a key Section.Key returned for a name its section
 	// doesn't have. The key isn't in the section until a change adds it.
 	// If the section gains a key of its name first, it reads and changes

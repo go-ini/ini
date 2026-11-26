@@ -3,6 +3,7 @@ package ini
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -24,6 +25,7 @@ type token struct {
 	kind         tokenKind
 	name         string
 	value        string
+	heredoc      string // for tokKey, the delimiter of a heredoc value
 	comment      string // for tokEOF, the comment lines after the last key
 	raw          bool   // for tokSection, the section is unparseable
 	line, column int    // where the token starts, both from 1
@@ -45,6 +47,7 @@ type lexer struct {
 	line int // number of the last line read, from 1
 
 	comment        []string // comment pieces for the next section or key
+	heredoc        string   // delimiter of the heredoc value just read, if any
 	lastValueEmpty bool     // the last key had an empty value, so indented lines are nested values
 	inRaw          bool     // inside an unparseable section
 	raw            strings.Builder
@@ -234,12 +237,14 @@ func (l *lexer) key(line string, tok *token) (ok bool, _ error) {
 	name, offset, err := readKeyName(&l.opts.delimiterSet, line)
 	switch {
 	case err == nil:
+		l.heredoc = ""
 		value, err := l.readValue(line[offset:])
 		if err != nil {
 			return false, err
 		}
 		l.lastValueEmpty = value == ""
 		tok.kind, tok.name, tok.value, tok.comment = tokKey, name, value, l.takeComment()
+		tok.heredoc = l.heredoc
 		return true, nil
 
 	case errors.Is(err, ErrDelimiterNotFound) && l.opts.AllowBooleanKeys:
@@ -302,6 +307,9 @@ func (l *lexer) readValue(in string) (string, error) {
 	return line, nil
 }
 
+// at least: '<<X', must end with '\n'
+var reg = regexp.MustCompile(`^(<<[A-Za-z0-9!#$%&(\)*+,\-./:;=?@[\\\]^_{|}~]+)[\t ]*\n$`)
+
 // valueQuote returns the quote that opens line as a quoted value: `"""`, "`",
 // or `"` with UnescapeValueDoubleQuotes. Single quotes and plain double
 // quotes are handled later, as surrounding quotes.
@@ -313,6 +321,13 @@ func (l *lexer) valueQuote(line string) string {
 		return "`"
 	case l.opts.UnescapeValueDoubleQuotes && line[0] == '"':
 		return `"`
+	case l.opts.AllowHeredocMultilineValues && len(line) > 3 && line[:2] == `<<`:
+		data := reg.FindStringSubmatch(line)
+		if len(data) == 0 || len(data[1]) < 3 {
+			// bad heredoc
+			return ""
+		}
+		return data[1] // '<<XXX' trimmed without ending \n
 	}
 	return ""
 }
@@ -321,13 +336,20 @@ func (l *lexer) valueQuote(line string) string {
 // the same line or, failing that, the first later line containing q.
 func (l *lexer) readQuoted(line, q string) (string, error) {
 	rest := line[len(q):]
-	if i := strings.LastIndex(rest, q); i > -1 {
-		if q == `"` {
-			return strings.ReplaceAll(rest[:i], `\"`, `"`), nil
+	inHeredoc := false
+	if l.opts.AllowHeredocMultilineValues && strings.HasPrefix(q, "<<") {
+		q = q[2:] // strip << to get the heredoc token
+		rest = "" // skip, whole line is and heredoc delimiter
+		inHeredoc = true
+		l.heredoc = q
+	} else {
+		if i := strings.LastIndex(rest, q); i > -1 {
+			if q == `"` {
+				return strings.ReplaceAll(rest[:i], `\"`, `"`), nil
+			}
+			return rest[:i], nil
 		}
-		return rest[:i], nil
 	}
-
 	var b strings.Builder
 	b.WriteString(rest)
 	for {
@@ -341,6 +363,9 @@ func (l *lexer) readQuoted(line, q string) (string, error) {
 			}
 		case !l.opts.IgnoreContinuation && strings.HasSuffix(strings.TrimSpace(next[i+len(q):]), `\`):
 			// A backslash after the closing quote continues the value.
+			b.WriteString(next)
+		case inHeredoc && i != 0:
+			// heredoc must start the line, no space allowed before
 			b.WriteString(next)
 		default:
 			b.WriteString(next[:i])
@@ -520,6 +545,7 @@ func (f *File) parse(src string) error {
 				return tok.errorf(err)
 			}
 			key.isAutoIncrement = isAutoIncr
+			key.heredoc = tok.heredoc
 			key.comment = tok.comment
 			lastRegularKey = key
 		}
