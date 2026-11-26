@@ -18,6 +18,7 @@ With options:
 - `AllowPythonMultilineValues`: empty lines followed by an indented line stay in the value, as in Python's configparser. v1 ended the value at the empty line and read the indented line as a key, which usually failed.
 - `SpaceBeforeInlineComment`: the first ` #` or ` ;` starts the comment. v1 looked for ` #` first.
 - `RawSections`: a raw section with an empty body is raw, so `SetBody` works on it.
+- `KeyValueDelimiters`: a non-ASCII delimiter, such as `：`, is skipped whole. v1 left the rest of its bytes at the start of the value.
 
 Most API changes are renames that the compiler finds, and the tables under [API changes](#api-changes) list the replacements. The changes in the next section still compile, so read it first.
 
