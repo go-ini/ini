@@ -1599,31 +1599,28 @@ func TestHeredocMultiline(t *testing.T) {
 	assert.Equal(t, "regular value", testData.Value3)
 	assert.Equal(t, "line 1\n\n", testData.Value4)
 	// multiline heredoc should store text as is, no transformation
-	assert.Equal(t, "\t%(value3)\n\\\n\t'\"\\\"\\'\\\\\\\n", testData.Value5)
+	assert.Equal(t, "\t%(value3)\n\\\n\t'\"\\\"\\'\\\\\\\n EOF\n", testData.Value5)
 	t.Run("write out", func(t *testing.T) {
 		var buf bytes.Buffer
 		_, err := f.WriteTo(&buf)
 		require.NoError(t, err)
 		assert.Equal(t, `value1 = <<EOT
 EOT
-
 value2 = <<ABC
 line 1
 	line 2
 line 3
 ABC
-
 value3 = regular value
-
-value4 =<<LONG_STRING_HEREDOC
+value4 = <<LONG_STRING_HEREDOC
 line 1
 
 LONG_STRING_HEREDOC
-
-value5 =<<EOF
+value5 = <<EOF
 	%(value3)
 \
 	'"\"\'\\\
+ EOF
 EOF
 `,
 			buf.String(),

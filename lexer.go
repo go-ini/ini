@@ -25,6 +25,7 @@ type token struct {
 	kind         tokenKind
 	name         string
 	value        string
+	heredoc      string // for tokKey, the delimiter of a heredoc value
 	comment      string // for tokEOF, the comment lines after the last key
 	raw          bool   // for tokSection, the section is unparseable
 	line, column int    // where the token starts, both from 1
@@ -46,6 +47,7 @@ type lexer struct {
 	line int // number of the last line read, from 1
 
 	comment        []string // comment pieces for the next section or key
+	heredoc        string   // delimiter of the heredoc value just read, if any
 	lastValueEmpty bool     // the last key had an empty value, so indented lines are nested values
 	inRaw          bool     // inside an unparseable section
 	raw            strings.Builder
@@ -235,12 +237,14 @@ func (l *lexer) key(line string, tok *token) (ok bool, _ error) {
 	name, offset, err := readKeyName(&l.opts.delimiterSet, line)
 	switch {
 	case err == nil:
+		l.heredoc = ""
 		value, err := l.readValue(line[offset:])
 		if err != nil {
 			return false, err
 		}
 		l.lastValueEmpty = value == ""
 		tok.kind, tok.name, tok.value, tok.comment = tokKey, name, value, l.takeComment()
+		tok.heredoc = l.heredoc
 		return true, nil
 
 	case errors.Is(err, ErrDelimiterNotFound) && l.opts.AllowBooleanKeys:
@@ -337,6 +341,7 @@ func (l *lexer) readQuoted(line, q string) (string, error) {
 		q = q[2:] // strip << to get the heredoc token
 		rest = "" // skip, whole line is and heredoc delimiter
 		inHeredoc = true
+		l.heredoc = q
 	} else {
 		if i := strings.LastIndex(rest, q); i > -1 {
 			if q == `"` {
@@ -540,6 +545,7 @@ func (f *File) parse(src string) error {
 				return tok.errorf(err)
 			}
 			key.isAutoIncrement = isAutoIncr
+			key.heredoc = tok.heredoc
 			key.comment = tok.comment
 			lastRegularKey = key
 		}
