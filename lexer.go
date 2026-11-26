@@ -559,8 +559,8 @@ func readKeyName(delimiters *charSet, line string) (string, int, error) {
 		if i < 0 {
 			return "", -1, fmt.Errorf("%w: %s", ErrDelimiterNotFound, line)
 		}
-		endIdx = pos + i
-		return strings.TrimSpace(line[startIdx:pos]), endIdx + startIdx + 1, nil
+		endIdx = pos + startIdx + i
+		return strings.TrimSpace(line[startIdx:pos]), endIdx + delimiterLen(line[endIdx:]), nil
 	}
 
 	endIdx = delimiters.index(line)
@@ -571,7 +571,14 @@ func readKeyName(delimiters *charSet, line string) (string, int, error) {
 		return "", -1, fmt.Errorf("%w: %s", ErrEmptyKeyName, line)
 	}
 
-	return strings.TrimSpace(line[0:endIdx]), endIdx + 1, nil
+	return strings.TrimSpace(line[0:endIdx]), endIdx + delimiterLen(line[endIdx:]), nil
+}
+
+// delimiterLen returns the length in bytes of the delimiter that starts s,
+// which may be a non-ASCII character.
+func delimiterLen(s string) int {
+	_, n := utf8.DecodeRuneInString(s)
+	return n
 }
 
 // hasSurroundedQuote reports whether in starts and ends with quote and has no

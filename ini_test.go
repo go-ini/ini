@@ -1467,6 +1467,14 @@ key2!value2
 		assert.Equal(t, "value1", f.Section("section").Key("key1").String())
 		assert.Equal(t, "value2", f.Section("section").Key("key2").String())
 	})
+
+	t.Run("non-ASCII key-value delimiters", func(t *testing.T) {
+		f, err := Load([]byte("key1：value1\n\"key 2\"→value2\n"), KeyValueDelimiters("：→"))
+		require.NoError(t, err)
+
+		assert.Equal(t, "value1", f.Section("").Key("key1").String())
+		assert.Equal(t, "value2", f.Section("").Key("key 2").String())
+	})
 }
 
 func Test_PreserveSurroundingQuotes(t *testing.T) {
